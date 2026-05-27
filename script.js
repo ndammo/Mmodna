@@ -20,7 +20,6 @@ let pendingRequests = new Map();
 async function apiRequest(method, path, body = null) {
   const key = `${method}:${path}:${JSON.stringify(body)}`;
   
-  // Если такой запрос уже выполняется, ждём его результат
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key);
   }
@@ -53,53 +52,53 @@ async function apiRequest(method, path, body = null) {
 }
 
 // ============================================================
-// GAME DATA
+// GAME DATA - ЗАГРУЖАЕТСЯ С СЕРВЕРА!
 // ============================================================
-const CREATURES = [
-  { id:'duck_c', name:'Duck', rarity:'common', icon:'🦆', incomeBase:2, desc:'Young waterfowl. Just starting to learn.' },
-  { id:'duck_u', name:'Duck', rarity:'uncommon', icon:'🦆', incomeBase:8, desc:'Mature waterfowl. Skilled swimmer.' },
-  { id:'duck_r', name:'Duck', rarity:'rare', icon:'🦆', incomeBase:25, desc:'Ancient waterfowl. Master of waters.' },
-  { id:'duck_e', name:'Duck', rarity:'epic', icon:'🦆', incomeBase:80, desc:'Eternal waterfowl. Supreme mastery.' },
-  { id:'duck_l', name:'Duck', rarity:'legendary', icon:'🦆', incomeBase:250, desc:'Divine waterfowl. Reality bender.' },
-  { id:'owl_c', name:'Owl', rarity:'common', icon:'🦉', incomeBase:2, desc:'Small night hunter. Learning to fly.' },
-  { id:'owl_u', name:'Owl', rarity:'uncommon', icon:'🦉', incomeBase:8, desc:'Experienced night hunter. Sharp talons.' },
-  { id:'owl_r', name:'Owl', rarity:'rare', icon:'🦉', incomeBase:25, desc:'Wise night guardian. All-seeing.' },
-  { id:'owl_e', name:'Owl', rarity:'epic', icon:'🦉', incomeBase:80, desc:'Eternal guardian. Infinite wisdom.' },
-  { id:'owl_l', name:'Owl', rarity:'legendary', icon:'🦉', incomeBase:250, desc:'Divine guardian. All-knowing entity.' },
-  { id:'shark_c', name:'Shark', rarity:'common', icon:'🦈', incomeBase:2, desc:'Young predator. Testing the waters.' },
-  { id:'shark_u', name:'Shark', rarity:'uncommon', icon:'🦈', incomeBase:8, desc:'Experienced apex predator. Deadly bite.' },
-  { id:'shark_r', name:'Shark', rarity:'rare', icon:'🦈', incomeBase:25, desc:'Legendary predator. Ocean terror.' },
-  { id:'shark_e', name:'Shark', rarity:'epic', icon:'🦈', incomeBase:80, desc:'Eternal terror. Endless hunger.' },
-  { id:'shark_l', name:'Shark', rarity:'legendary', icon:'🦈', incomeBase:250, desc:'Divine terror. Apex of apex.' },
-  { id:'wolf_c', name:'Wolf', rarity:'common', icon:'🐺', incomeBase:2, desc:'Young pack member. Growing stronger.' },
-  { id:'wolf_u', name:'Wolf', rarity:'uncommon', icon:'🐺', incomeBase:8, desc:'Pack leader in training. Strong hunter.' },
-  { id:'wolf_r', name:'Wolf', rarity:'rare', icon:'🐺', incomeBase:25, desc:'Alpha wolf. Pack dominance.' },
-  { id:'wolf_e', name:'Wolf', rarity:'epic', icon:'🐺', incomeBase:80, desc:'Eternal alpha. Infinite power.' },
-  { id:'wolf_l', name:'Wolf', rarity:'legendary', icon:'🐺', incomeBase:250, desc:'Divine alpha. Dimension walker.' },
-  { id:'dragon_c', name:'Dragon', rarity:'common', icon:'🐉', incomeBase:2, desc:'Young fire breather. Learning to roar.' },
-  { id:'dragon_u', name:'Dragon', rarity:'uncommon', icon:'🐉', incomeBase:8, desc:'Grown fire breather. Breathing flames.' },
-  { id:'dragon_r', name:'Dragon', rarity:'rare', icon:'🐉', incomeBase:25, desc:'Ancient fire drake. Blazing power.' },
-  { id:'dragon_e', name:'Dragon', rarity:'epic', icon:'🐉', incomeBase:80, desc:'Eternal flame. Infinite fire.' },
-  { id:'dragon_l', name:'Dragon', rarity:'legendary', icon:'🐉', incomeBase:250, desc:'Divine flame. Eternal inferno.' },
-  { id:'unicorn_c', name:'Unicorn', rarity:'common', icon:'🦄', incomeBase:2, desc:'Young magical beast. Horn growing.' },
-  { id:'unicorn_u', name:'Unicorn', rarity:'uncommon', icon:'🦄', incomeBase:8, desc:'Magical evolution. Horn shines bright.' },
-  { id:'unicorn_r', name:'Unicorn', rarity:'rare', icon:'🦄', incomeBase:25, desc:'Rare magical entity. Pure magic.' },
-  { id:'unicorn_e', name:'Unicorn', rarity:'epic', icon:'🦄', incomeBase:80, desc:'Eternal magic. Pure radiance.' },
-  { id:'unicorn_l', name:'Unicorn', rarity:'legendary', icon:'🦄', incomeBase:250, desc:'Divine magic. Existence itself.' },
-  { id:'lion_mythic', name:'Lion', rarity:'mythic', icon:'🦁', incomeBase:1000, desc:'THE MYTHIC KING. Absolute power.' },
-  { id:'panther_mythic', name:'Black Panther', rarity:'mythic', icon:'🐆', incomeBase:2000, desc:'TOP 1 SEASON. Beyond comprehension.' },
-];
+let CREATURES = [];  // Пустой массив, заполнится с сервера
+let CAPSULE_COSTS = { basic: 50, premium: 200 };
+let RARITY_WEIGHTS = {
+  basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
+  premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
+};
+let AD_REWARD = 50;
+let AD_COOLDOWN = 60;
+let UPGRADE_BASE_COST = 100;
+let UPGRADE_MULTIPLIER = 1.5;
+let MAX_INVENTORY_SLOTS = 50;
 
 const RARITY_COLORS = {
-  common:'#94a3b8', uncommon:'#22c55e', rare:'#3b82f6',
-  epic:'#a855f7', legendary:'#f59e0b', mythic:'#ef4444'
+  common: '#94a3b8', uncommon: '#22c55e', rare: '#3b82f6',
+  epic: '#a855f7', legendary: '#f59e0b', mythic: '#ef4444'
 };
-const RARITY_ORDER = ['common','uncommon','rare','epic','legendary','mythic'];
-const CAPSULE_COSTS = { basic: 50, premium: 200 };
-const RARITY_WEIGHTS = {
-  basic:   { common:80, uncommon:20, rare:0,  epic:0, legendary:0 },
-  premium: { common:60, uncommon:30, rare:10, epic:2, legendary:1 }
-};
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+
+// Загрузка конфигурации с сервера
+async function loadGameConfig() {
+  const res = await apiRequest('GET', '/api/game/config');
+  if (res && res.success) {
+    const cfg = res.config;
+    CAPSULE_COSTS = cfg.capsuleCosts || { basic: 50, premium: 200 };
+    RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
+    AD_REWARD = cfg.adReward || 50;
+    AD_COOLDOWN = cfg.adCooldown || 60;
+    UPGRADE_BASE_COST = cfg.upgradeBaseCost || 100;
+    UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
+    MAX_INVENTORY_SLOTS = cfg.limits?.maxInventorySlots || 50;
+    return true;
+  }
+  return false;
+}
+
+// Загрузка существ с сервера
+async function loadCreaturesFromServer() {
+  const res = await apiRequest('GET', '/api/game/creatures');
+  if (res && res.success && res.creatures) {
+    CREATURES = res.creatures;
+    console.log(`✅ Загружено ${CREATURES.length} существ с сервера`);
+    return true;
+  }
+  return false;
+}
 
 // ============================================================
 // STATE
@@ -114,7 +113,7 @@ let state = {
 };
 
 // ============================================================
-// DEBOUNCE (ЗАЩИТА ОТ ЧАСТЫХ ДЕЙСТВИЙ)
+// DEBOUNCE
 // ============================================================
 const debounceTimers = new Map();
 
@@ -173,6 +172,10 @@ async function initTelegramApp() {
   state.user = loginRes.user;
   state.inventory = loginRes.inventory || [];
 
+  // Загружаем конфиг и существ с сервера
+  await loadGameConfig();
+  await loadCreaturesFromServer();
+
   updatePlayerInfo();
 
   const profileRes = await apiRequest('GET', '/api/user/profile');
@@ -189,7 +192,6 @@ async function initTelegramApp() {
   showLoadingScreen(false);
   renderAll();
 
-  // ОПТИМИЗАЦИЯ: увеличен интервал с 5 до 15 секунд
   setInterval(idleTick, 15000);
   setInterval(updateAdsTimer, 1000);
 
@@ -247,7 +249,7 @@ function getUsedSlots() {
   return state.inventory.reduce((s, i) => s + i.count, 0);
 }
 function getUpgradeCost() {
-  return Math.floor(100 * Math.pow(1.5, state.user?.inventoryUpgrades || 0));
+  return Math.floor(UPGRADE_BASE_COST * Math.pow(UPGRADE_MULTIPLIER, state.user?.inventoryUpgrades || 0));
 }
 function canMerge(creatureId) {
   const item = state.inventory.find(i => i.creatureId === creatureId);
@@ -412,7 +414,7 @@ function showCapsuleModal(type) {
   const cost = CAPSULE_COSTS[type];
   const title = type === 'premium' ? 'Premium DNA Capsule' : 'DNA Capsule';
   const canAfford = (state.user?.balance || 0) >= cost;
-  const rarities = ['common','uncommon','rare','epic','legendary'];
+  const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
   const oddsHtml = rarities.map(r => {
     const pct = odds[r] || 0;
@@ -450,7 +452,6 @@ function showCapsuleModal(type) {
 async function openCapsule(type) {
   if (state.isLoading) return;
   
-  // ЗАЩИТА: не чаще 1 раза в 2 секунды
   if (Date.now() - lastCapsuleOpen < 2000) {
     showToast('Слишком быстро! Подождите 2 секунды.', '⏳');
     return;
@@ -618,7 +619,6 @@ async function executeMerge(creatureId) {
   if (state.isLoading) return;
   if (!canMerge(creatureId)) return;
   
-  // ЗАЩИТА: не чаще 1 раза в 1 секунду
   if (Date.now() - lastMergeTime < 1000) {
     showToast('Слишком быстро! Подождите.', '⏳');
     return;
@@ -730,16 +730,16 @@ async function watchAd() {
   if (!res.success) {
     if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
     if (timer) timer.textContent = 'Ready';
-    if (reward) reward.textContent = '+50';
+    if (reward) reward.textContent = `+${AD_REWARD}`;
     showToast(res.message || 'Error', '❌');
     return;
   }
 
   state.user = res.user;
-  state.adsCooldown = 60;  // ОПТИМИЗАЦИЯ: увеличен кулдаун до 60 сек
+  state.adsCooldown = AD_COOLDOWN;
   updateHeader();
-  showToast('+50 MMO from ad!', '🎉');
-  spawnFloatingMMO(50);
+  showToast(`+${AD_REWARD} MMO from ad!`, '🎉');
+  spawnFloatingMMO(AD_REWARD);
 }
 
 function updateAdsTimer() {
@@ -760,12 +760,12 @@ function updateAdsTimer() {
   } else {
     if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
     if (timer) timer.textContent = 'Ready';
-    if (reward) reward.textContent = '+50';
+    if (reward) reward.textContent = `+${AD_REWARD}`;
   }
 }
 
 // ============================================================
-// IDLE TICK (ОПТИМИЗАЦИЯ: интервал увеличен до 15 секунд)
+// IDLE TICK
 // ============================================================
 async function idleTick() {
   if (!state.token || state.isLoading) return;
@@ -1103,7 +1103,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 }
 
 // ============================================================
-// LEADERBOARD (ОПТИМИЗАЦИЯ: кэш на клиенте)
+// LEADERBOARD
 // ============================================================
 async function renderLeaderboard() {
   const list = document.getElementById('leaderboardList');
@@ -1114,7 +1114,6 @@ async function renderLeaderboard() {
     return;
   }
   
-  // ОПТИМИЗАЦИЯ: кэш лидерборда на 30 секунд
   if (Date.now() < leaderboardCache.expiresAt && leaderboardCache.data) {
     renderLeaderboardData(leaderboardCache.data);
     return;
@@ -1160,26 +1159,26 @@ function renderLeaderboardData(data) {
 // QUESTS
 // ============================================================
 const QUEST_DEFS = [
-  { id:'open5',    name:'Capsule Collector', desc:'Open 5 DNA capsules',      icon:'🧬', iconBg:'rgba(124,58,237,0.2)',  reward:200, color:'var(--accent3)' },
-  { id:'merge3',   name:'Merge Master',      desc:'Merge 3 times',            icon:'🔀', iconBg:'rgba(34,197,94,0.2)',   reward:150, color:'var(--uncommon)' },
-  { id:'earn500',  name:'MMO Earner',         desc:'Earn 500 MMO total',       icon:'💰', iconBg:'rgba(245,158,11,0.2)', reward:100, color:'var(--legendary)' },
-  { id:'collect10',name:'Discoverer',         desc:'Discover 10 creatures',    icon:'📖', iconBg:'rgba(6,182,212,0.2)',  reward:300, color:'var(--accent2)' },
+  { id: 'openCapsules', name: 'Capsule Collector', desc: 'Open DNA capsules', icon: '🧬', reward: 200, color: 'var(--accent3)' },
+  { id: 'merges', name: 'Merge Master', desc: 'Merge creatures', icon: '🔀', reward: 150, color: 'var(--uncommon)' },
+  { id: 'earnMMO', name: 'MMO Earner', desc: 'Earn MMO total', icon: '💰', reward: 100, color: 'var(--legendary)' },
+  { id: 'discoverCreatures', name: 'Discoverer', desc: 'Discover creatures', icon: '📖', reward: 300, color: 'var(--accent2)' },
 ];
 
 const ACHIEVEMENT_DEFS = [
-  { id:'first_open',  name:'First Contact', desc:'Open your first capsule',       icon:'🎯', reward:50 },
-  { id:'first_merge', name:'Alchemist',     desc:'Perform your first merge',      icon:'⚗️', reward:100 },
-  { id:'get_legendary',name:'Legend Born',  desc:'Obtain a Legendary creature',   icon:'🌟', reward:500 },
-  { id:'level5',      name:'Rising Star',   desc:'Reach Level 5',                 icon:'⭐', reward:200 },
+  { id: 'first_open', name: 'First Contact', desc: 'Open your first capsule', icon: '🎯', reward: 50 },
+  { id: 'first_merge', name: 'Alchemist', desc: 'Perform your first merge', icon: '⚗️', reward: 100 },
+  { id: 'get_legendary', name: 'Legend Born', desc: 'Obtain a Legendary creature', icon: '🌟', reward: 500 },
+  { id: 'level5', name: 'Rising Star', desc: 'Reach Level 5', icon: '⭐', reward: 200 },
 ];
 
 function checkAchievement(id) {
   if (!state.user) return false;
   const discovered = new Set(state.user.discovered || []);
-  if (id === 'first_open')   return (state.user.capsulesOpened || 0) >= 1;
-  if (id === 'first_merge')  return (state.user.mergeCount || 0) >= 1;
+  if (id === 'first_open') return (state.user.capsulesOpened || 0) >= 1;
+  if (id === 'first_merge') return (state.user.mergeCount || 0) >= 1;
   if (id === 'get_legendary') return CREATURES.filter(c => c.rarity === 'legendary').some(c => discovered.has(c.id));
-  if (id === 'level5')       return (state.user.level || 1) >= 5;
+  if (id === 'level5') return (state.user.level || 1) >= 5;
   return false;
 }
 
@@ -1191,11 +1190,11 @@ function renderQuests() {
   const quests = state.user?.quests || {};
 
   list.innerHTML = QUEST_DEFS.map(def => {
-    const q = quests[def.id] || { done: false, progress: 0, target: def.id === 'open5' ? 5 : def.id === 'merge3' ? 3 : def.id === 'earn500' ? 500 : 10 };
+    const q = quests[def.id] || { done: false, progress: 0, target: def.id === 'openCapsules' ? 5 : def.id === 'merges' ? 3 : def.id === 'earnMMO' ? 500 : 10 };
     const pct = Math.min(100, (q.progress / q.target) * 100);
     const complete = q.progress >= q.target;
     return `<div class="quest-item ${q.done ? 'completed' : ''}">
-      <div class="quest-icon" style="background:${def.iconBg}">${def.icon}</div>
+      <div class="quest-icon" style="background:rgba(124,58,237,0.2)">${def.icon}</div>
       <div class="quest-info">
         <div class="quest-name">${def.name}</div>
         <div class="quest-desc">${def.desc} (${Math.floor(q.progress)}/${q.target})</div>
@@ -1285,9 +1284,9 @@ function switchTab(tab) {
   document.getElementById('mainContent').scrollTop = 0;
 
   if (tab === 'leaderboard') renderLeaderboard();
-  if (tab === 'quests')      renderQuests();
-  if (tab === 'wallet')      updateHeader();
-  if (tab === 'shop')        renderMarketplaceBuy();
+  if (tab === 'quests') renderQuests();
+  if (tab === 'wallet') updateHeader();
+  if (tab === 'shop') renderMarketplaceBuy();
 }
 
 // ============================================================
@@ -1313,14 +1312,14 @@ function showToast(msg, icon = '') {
 // ============================================================
 function spawnStars(rarity) {
   const count = rarity === 'legendary' || rarity === 'mythic' ? 8 : rarity === 'epic' ? 5 : 3;
-  const icons = ['✨','⭐','🌟','💫','✦'];
+  const icons = ['✨', '⭐', '🌟', '💫', '✦'];
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
       const el = document.createElement('div');
       el.className = 'star-burst';
       el.textContent = icons[Math.floor(Math.random() * icons.length)];
       el.style.left = (30 + Math.random() * 40) + '%';
-      el.style.top  = (20 + Math.random() * 40) + '%';
+      el.style.top = (20 + Math.random() * 40) + '%';
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 900);
     }, i * 80);
@@ -1332,7 +1331,7 @@ function spawnFloatingMMO(amount) {
   el.className = 'float-mmo';
   el.textContent = `${amount > 0 ? '+' : ''}${amount} MMO`;
   el.style.left = '50%';
-  el.style.top  = '40%';
+  el.style.top = '40%';
   el.style.transform = 'translateX(-50%)';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1600);
