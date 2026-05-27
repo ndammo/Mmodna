@@ -1700,3 +1700,118 @@
     display: block;
     opacity: 0.5;
 }
+
+/* Анимация для pending дохода */
+.balance-amount.pending {
+    animation: incomePulse 0.5s ease;
+    color: #22c55e;
+}
+
+@keyframes incomePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); text-shadow: 0 0 8px #22c55e; }
+    100% { transform: scale(1); }
+}
+
+/* Хинт накопления дохода */
+#pendingIncomeHint {
+    animation: fadeInOut 2s ease;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    85% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* Стили для спец-квестов */
+.special-quest-card {
+    background: linear-gradient(135deg, #141c2e 0%, #0d1120 100%);
+    border: 1px solid #1e2d4a;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.special-quest-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.special-quest-icon {
+    font-size: 36px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.special-quest-info {
+    flex: 1;
+}
+
+.special-quest-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e2e8f0;
+    font-family: 'Orbitron', monospace;
+}
+
+.special-quest-desc {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.special-quest-reward {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.special-quest-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid #1e2d4a;
+}
+
+.special-quest-btn {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: none;
+    border-radius: 12px;
+    padding: 8px 20px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.special-quest-btn.completed {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    cursor: default;
+    opacity: 0.7;
+}
+
+.special-quest-btn.claim {
+    background: linear-gradient(135deg, #eab308, #ca8a04);
+    animation: pulse 1.5s infinite;
+}
+
+.special-quest-btn.locked {
+    background: #1e2d4a;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); }
+}
