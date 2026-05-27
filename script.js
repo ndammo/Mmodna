@@ -4,16 +4,7 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
-// ОПТИМИЗАЦИЯ: ИНТЕРВАЛЫ ОБНОВЛЕНИЯ
-// ============================================================
-const UPDATE_INTERVALS = {
-    LEADERBOARD: 5 * 60 * 1000,  // 5 минут
-    MARKETPLACE: 10 * 1000,       // 10 секунд (только если активна вкладка)
-    SPECIAL_QUESTS: 5 * 60 * 1000 // 5 минут
-};
-
-// ============================================================
-// ЛОКАЛЬНЫЙ СЧЁТЧИК ДОХОДА (0 ЗАПРОСОВ К СЕРВЕРУ!)
+// ЛОКАЛЬНЫЙ ТИКЕР ДОХОДА (0 ЗАПРОСОВ К СЕРВЕРУ!)
 // ============================================================
 let localPendingIncome = 0;
 let localLastIncomeTime = Date.now();
@@ -141,23 +132,18 @@ function restorePendingIncome() {
 }
 
 // ============================================================
-// FIXED: ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ИНТЕРВАЛОВ
-// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================================
 let intervals = {
-    idleTick: null,
     adsTimer: null,
-    specialQuests: null,
-    leaderboard: null,
-    marketplace: null
+    specialQuests: null
 };
 
 let activeQuestTimers = new Map();
 let currentLeaderboardController = null;
 let isMarketplaceTabActive = false;
 
-// ============================================================
 // КЭШИ
-// ============================================================
 let leaderboardCache = {
     data: null,
     expiresAt: 0
@@ -376,10 +362,10 @@ async function initTelegramApp() {
     showLoadingScreen(false);
     renderAll();
 
-    // НОВЫЙ ЛОКАЛЬНЫЙ ТИКЕР (0 запросов!)
+    // НОВЫЙ ЛОКАЛЬНЫЙ ТИКЕР (0 запросов к серверу!)
     startLocalIncomeTicker();
     
-    // ЗАПУСК ОПТИМИЗИРОВАННЫХ ИНТЕРВАЛОВ
+    // ОПТИМИЗИРОВАННЫЕ ИНТЕРВАЛЫ
     startOptimizedIntervals();
     
     // ОБРАБОТКА ВИДИМОСТИ ВКЛАДКИ
@@ -391,20 +377,20 @@ async function initTelegramApp() {
 }
 
 function clearAllIntervals() {
-    if (intervals.idleTick) clearInterval(intervals.idleTick);
     if (intervals.adsTimer) clearInterval(intervals.adsTimer);
     if (intervals.specialQuests) clearInterval(intervals.specialQuests);
     if (intervals.leaderboard) clearInterval(intervals.leaderboard);
     if (intervals.marketplace) clearInterval(intervals.marketplace);
+    if (localTickerInterval) clearInterval(localTickerInterval);
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
     activeQuestTimers.clear();
 }
 
 function startOptimizedIntervals() {
-    // Лидерборд раз в 5 минут (вместо 30 секунд)
+    // Лидерборд раз в 5 минут
     intervals.leaderboard = setInterval(() => {
         if (!document.hidden) renderLeaderboard();
-    }, UPDATE_INTERVALS.LEADERBOARD);
+    }, 5 * 60 * 1000);
     
     // Спец-квесты раз в 5 минут
     intervals.specialQuests = setInterval(() => {
@@ -412,16 +398,16 @@ function startOptimizedIntervals() {
             loadGameConfig();
             renderSpecialQuests();
         }
-    }, UPDATE_INTERVALS.SPECIAL_QUESTS);
+    }, 5 * 60 * 1000);
     
     // Маркетплейс (будет запускаться только при активной вкладке)
     intervals.marketplace = setInterval(() => {
         if (!document.hidden && isMarketplaceTabActive) {
             renderMarketplaceBuy();
         }
-    }, UPDATE_INTERVALS.MARKETPLACE);
+    }, 10 * 1000);
     
-    // Таймер рекламы (оставляем как было)
+    // Таймер рекламы
     intervals.adsTimer = setInterval(updateAdsTimer, 1000);
 }
 
@@ -438,7 +424,7 @@ function handleVisibilityChange() {
                 if (!document.hidden && isMarketplaceTabActive) {
                     renderMarketplaceBuy();
                 }
-            }, UPDATE_INTERVALS.MARKETPLACE);
+            }, 10 * 1000);
         }
         renderLeaderboard();
         renderSpecialQuests();
@@ -641,7 +627,7 @@ function showCapsuleModal(type) {
         const color = RARITY_COLORS[r];
         return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
             <div style="flex:1;font-size:12px;font-weight:600;color:${color};text-transform:uppercase">${r}</div>
-            <div style="width:100px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="width:100px;height:6px;background:#1e2d4a;border-radius:3px;overflow:hidden">
                 <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
             </div>
             <div style="width:35px;text-align:right;font-family:'Orbitron',monospace;font-size:12px;font-weight:700;color:${color}">${pct}%</div>
@@ -1110,7 +1096,7 @@ async function renderMarketplaceBuy() {
     const newHash = getDataHash(listings);
     
     if (marketplaceCache.hash === newHash && marketplaceCache.data) {
-        marketplaceCache.expiresAt = Date.now() + UPDATE_INTERVALS.MARKETPLACE;
+        marketplaceCache.expiresAt = Date.now() + 10000;
         renderMarketplaceListings(marketplaceCache.data);
         return;
     }
@@ -1118,7 +1104,7 @@ async function renderMarketplaceBuy() {
     marketplaceCache = {
         data: listings,
         hash: newHash,
-        expiresAt: Date.now() + UPDATE_INTERVALS.MARKETPLACE
+        expiresAt: Date.now() + 10000
     };
     
     renderMarketplaceListings(listings);
@@ -1348,7 +1334,7 @@ async function renderLeaderboard() {
     
     leaderboardCache = {
         data: res,
-        expiresAt: Date.now() + UPDATE_INTERVALS.LEADERBOARD
+        expiresAt: Date.now() + 5 * 60 * 1000
     };
     
     renderLeaderboardData(res);
@@ -1732,7 +1718,7 @@ animationStyle.textContent = `
 document.head.appendChild(animationStyle);
 
 // ============================================================
-// INIT
+// INIT - ЗАПУСК
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramApp();
