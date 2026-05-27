@@ -1,8 +1,7 @@
 // ============================================================
 // CONFIG
 // ============================================================
-const API_URL = 'https://serv-production-dbf3.up.railway.app'; // ← замените на ваш URL
-// В dev режиме можно использовать: const API_URL = 'http://localhost:3000';
+const API_URL = ''; // Замените на ваш URL или используйте автоопределение
 
 // ============================================================
 // GAME DATA (только для отображения, логика на сервере)
@@ -59,7 +58,7 @@ const RARITY_WEIGHTS = {
 let state = {
   token: null,
   user: null,
-  inventory: [],       // [{ _id, creatureId, count }]
+  inventory: [],
   incomePerHour: 0,
   adsCooldown: 0,
   isLoading: false,
@@ -95,7 +94,6 @@ async function apiRequest(method, path, body = null) {
 async function initTelegramApp() {
   showLoadingScreen(true);
 
-  // Инициализируем Telegram WebApp
   const tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
@@ -104,11 +102,9 @@ async function initTelegramApp() {
     tg.setBackgroundColor('#080b14');
   }
 
-  // Получаем initData
   let initData = tg?.initData || '';
   let tgUser = tg?.initDataUnsafe?.user;
 
-  // Dev режим: если нет Telegram, создаём тестового пользователя
   if (!initData && window.location.hostname === 'localhost') {
     console.warn('⚠️ Dev mode: using mock Telegram user');
     const mockUser = { id: 123456789, first_name: 'Test', username: 'testuser' };
@@ -122,7 +118,6 @@ async function initTelegramApp() {
     return;
   }
 
-  // Авторизуемся
   const referralCode = new URLSearchParams(window.location.search).get('ref') ||
                        tg?.initDataUnsafe?.start_param || null;
 
@@ -134,15 +129,12 @@ async function initTelegramApp() {
     return;
   }
 
-  // Сохраняем токен и данные
   state.token = loginRes.token;
   state.user = loginRes.user;
   state.inventory = loginRes.inventory || [];
 
-  // Обновляем UI с данными пользователя
   updatePlayerInfo();
 
-  // Загружаем полный профиль (с пассивным доходом)
   const profileRes = await apiRequest('GET', '/api/user/profile');
   if (profileRes.success) {
     state.user = profileRes.user;
@@ -157,9 +149,8 @@ async function initTelegramApp() {
   showLoadingScreen(false);
   renderAll();
 
-  // Запускаем тики
-  setInterval(idleTick, 5000);     // каждые 5 сек синхронизируем доход
-  setInterval(updateAdsTimer, 1000); // таймер рекламы
+  setInterval(idleTick, 5000);
+  setInterval(updateAdsTimer, 1000);
 
   if (loginRes.isNewUser) {
     setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
@@ -293,7 +284,6 @@ function updateHeader() {
   if (!state.user) return;
   const u = state.user;
 
-  // Пересчитываем доход на клиенте
   let income = 0;
   state.inventory.forEach(item => {
     const c = getCreature(item.creatureId);
@@ -309,7 +299,6 @@ function updateHeader() {
   document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
   document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
 
-  // Wallet
   document.getElementById('walletBalance').textContent = formatNum(u.balance);
   document.getElementById('walletSub').textContent = `≈ ${(u.balance * 0.001).toFixed(3)} USD`;
   document.getElementById('walletIncome').textContent = formatNum(income);
@@ -357,7 +346,6 @@ function renderCards() {
   grid.innerHTML = sorted.map(item => {
     const c = getCreature(item.creatureId);
     if (!c) return '';
-    const color = RARITY_COLORS[c.rarity];
     const merge = canMerge(item.creatureId);
     return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
       ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
@@ -429,7 +417,6 @@ async function openCapsule(type) {
 
   state.isLoading = true;
 
-  // Анимация капсулы
   const cardEl = document.getElementById(type === 'premium' ? 'premiumCapsuleCard' : 'basicCapsuleCard');
   const iconEl = cardEl?.querySelector('.capsule-icon');
   iconEl?.classList.add('capsule-opening');
@@ -662,7 +649,6 @@ async function upgradeInventory() {
 async function watchAd() {
   if (state.isLoading) return;
 
-  // Проверяем кулдаун на клиенте
   if (state.adsCooldown > 0) {
     showToast(`Ad available in ${state.adsCooldown}s`, '⏳'); return;
   }
@@ -676,7 +662,6 @@ async function watchAd() {
 
   showToast('Watching ad...', '📺');
 
-  // Симулируем просмотр рекламы
   await new Promise(r => setTimeout(r, 2000));
 
   state.isLoading = true;
@@ -703,7 +688,6 @@ function updateAdsTimer() {
   const timer = document.getElementById('adsTimer');
   const reward = document.getElementById('adsReward');
 
-  // Синхронизируем с сервером
   if (state.user?.adsCooldownUntil) {
     const secondsLeft = Math.ceil((new Date(state.user.adsCooldownUntil) - Date.now()) / 1000);
     state.adsCooldown = Math.max(0, secondsLeft);
@@ -1067,7 +1051,6 @@ async function renderLeaderboard() {
   if (!list) return;
 
   if (!state.token) {
-    // Показываем заглушку если не авторизованы
     list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Loading...</div>`;
     return;
   }
