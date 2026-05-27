@@ -195,7 +195,7 @@ async function initTelegramApp() {
 
   setInterval(idleTick, 15000);
   setInterval(updateAdsTimer, 1000);
-  setInterval(updateSpecialQuests, 30000); // Обновляем спец-квесты каждые 30 сек
+  setInterval(updateSpecialQuests, 30000);
 
   if (loginRes.isNewUser) {
     setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
@@ -880,142 +880,6 @@ function showCreatureInfo(creatureId) {
 }
 
 // ============================================================
-// SPECIAL QUESTS (новая система)
-// ============================================================
-async function renderSpecialQuests() {
-  const container = document.getElementById('specialQuestsList');
-  if (!container) return;
-
-  if (!SPECIAL_QUESTS.length) {
-    container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">No special quests available</div>`;
-    return;
-  }
-
-  const completedQuests = new Set(state.user?.completedSpecialQuests || []);
-
-  container.innerHTML = SPECIAL_QUESTS.map(quest => {
-    const isCompleted = completedQuests.has(quest.id);
-    const typeIcons = {
-      'telegram_channel': '📢',
-      'twitter_follow': '🐦',
-      'youtube_sub': '📺',
-      'custom_link': '🔗',
-      'referral_count': '👥'
-    };
-    const typeIcon = typeIcons[quest.type] || '🎯';
-    
-    let actionHtml = '';
-    if (isCompleted) {
-      actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> COMPLETED</button>`;
-    } else {
-      if (quest.type === 'referral_count') {
-        const currentFriends = state.user?.referralCount || 0;
-        if (currentFriends >= quest.required_count) {
-          actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> CLAIM (${currentFriends}/${quest.required_count})</button>`;
-        } else {
-          actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> NEED ${quest.required_count} FRIENDS (${currentFriends})</button>`;
-        }
-      } else if (quest.type === 'custom_link') {
-        actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> VISIT & CLAIM</button>`;
-      } else {
-        actionHtml = `<button class="special-quest-btn" onclick="openLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid ${quest.type === 'telegram_channel' ? 'fa-telegram' : 'fa-external-link-alt'}"></i> CHECK & CLAIM</button>`;
-      }
-    }
-
-    return `<div class="special-quest-card">
-      <div class="special-quest-header">
-        <div class="special-quest-icon">${quest.icon || typeIcon}</div>
-        <div class="special-quest-info">
-          <div class="special-quest-title">${escapeHtml(quest.title)}</div>
-          <div class="special-quest-desc">${escapeHtml(quest.description || getQuestDefaultDesc(quest.type))}</div>
-        </div>
-        <div class="special-quest-reward">+${quest.reward} MMO</div>
-      </div>
-      <div class="special-quest-footer">
-        ${actionHtml}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function getQuestDefaultDesc(type) {
-  const descs = {
-    'telegram_channel': 'Подпишись на Telegram канал',
-    'twitter_follow': 'Подпишись на Twitter/X',
-    'youtube_sub': 'Подпишись на YouTube',
-    'custom_link': 'Перейди по ссылке',
-    'referral_count': 'Пригласи друзей'
-  };
-  return descs[type] || 'Выполни задание';
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
-}
-
-function openLinkAndComplete(questId, link) {
-  if (!link) {
-    showToast('Ссылка не указана', '❌');
-    return;
-  }
-  
-  // Открываем ссылку
-  if (window.Telegram?.WebApp && link.includes('t.me')) {
-    window.Telegram.WebApp.openTelegramLink(link);
-  } else {
-    window.open(link, '_blank');
-  }
-  
-  // Даём время на переход и предлагаем подтвердить
-  setTimeout(() => {
-    if (confirm('Вы выполнили действие? Нажмите OK, чтобы получить награду.')) {
-      claimSpecialQuest(questId);
-    }
-  }, 3000);
-}
-
-function openCustomLinkAndComplete(questId, link) {
-  if (link) {
-    window.open(link, '_blank');
-  }
-  setTimeout(() => {
-    if (confirm('Вы посетили ссылку? Нажмите OK, чтобы получить награду.')) {
-      claimSpecialQuest(questId);
-    }
-  }, 2000);
-}
-
-async function claimSpecialQuest(questId) {
-  if (state.isLoading) return;
-  
-  state.isLoading = true;
-  const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
-  state.isLoading = false;
-  
-  if (!res.success) {
-    showToast(res.message || 'Ошибка', '❌');
-    return;
-  }
-  
-  state.user = res.user;
-  updateHeader();
-  await renderSpecialQuests();
-  showToast(res.message || `+${res.reward} MMO получено!`, '✅');
-  spawnFloatingMMO(res.reward);
-}
-
-async function updateSpecialQuests() {
-  await loadGameConfig();
-  renderSpecialQuests();
-}
-
-// ============================================================
 // MARKETPLACE
 // ============================================================
 function switchMarketplaceTab(tab) {
@@ -1322,6 +1186,205 @@ function claimFriendReward(requiredFriends, creatureId) {
 }
 
 // ============================================================
+// SPECIAL QUESTS С СКРЫТОЙ ПРОВЕРКОЙ
+// ============================================================
+
+// Хранилище активных таймеров для квестов
+let activeQuestTimers = new Map();
+
+// Функция для открытия канала и запуска скрытого таймера
+function openChannelAndStartTimer(questId, channelLink) {
+    // Открываем канал
+    if (channelLink) {
+        if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
+            window.Telegram.WebApp.openTelegramLink(channelLink);
+        } else {
+            window.open(channelLink, '_blank');
+        }
+    }
+    
+    // Если уже есть таймер для этого квеста - очищаем
+    if (activeQuestTimers.has(questId)) {
+        clearTimeout(activeQuestTimers.get(questId));
+        activeQuestTimers.delete(questId);
+    }
+    
+    // Запускаем скрытый таймер на 60 секунд
+    const timer = setTimeout(async () => {
+        // Проверяем, не выполнен ли уже квест
+        if (state.user?.completedSpecialQuests?.includes(questId)) {
+            activeQuestTimers.delete(questId);
+            return;
+        }
+        
+        // Зачисляем награду
+        await claimSpecialQuestSilent(questId);
+        activeQuestTimers.delete(questId);
+    }, 60000);
+    
+    activeQuestTimers.set(questId, timer);
+}
+
+// Функция для тихого получения награды
+async function claimSpecialQuestSilent(questId) {
+    if (state.isLoading) return;
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        console.log('Ошибка получения награды:', res.message);
+        return;
+    }
+    
+    state.user = res.user;
+    updateHeader();
+    await renderSpecialQuests();
+    showToast(`+${res.reward} MMO`, '✅');
+}
+
+// Функция для реферальных квестов
+async function claimSpecialQuest(questId) {
+    if (state.isLoading) return;
+    
+    if (state.user?.completedSpecialQuests?.includes(questId)) {
+        showToast('Вы уже получили награду за этот квест', 'ℹ️');
+        return;
+    }
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка', '❌');
+        return;
+    }
+    
+    state.user = res.user;
+    updateHeader();
+    await renderSpecialQuests();
+    showToast(`+${res.reward} MMO`, '✅');
+    spawnFloatingMMO(res.reward);
+}
+
+// Функция для custom link
+function markCustomLinkComplete(questId) {
+    const storageKey = `custom_link_${questId}_${state.user?.telegramId}`;
+    localStorage.setItem(storageKey, 'true');
+}
+
+function openCustomLinkAndComplete(questId, link) {
+    if (link) {
+        window.open(link, '_blank');
+    }
+    markCustomLinkComplete(questId);
+    setTimeout(() => {
+        renderSpecialQuests();
+        showToast('Награда получена!', '✅');
+    }, 500);
+}
+
+// Рендер спец-квестов
+async function renderSpecialQuests() {
+    const container = document.getElementById('specialQuestsList');
+    if (!container) return;
+
+    if (!SPECIAL_QUESTS.length) {
+        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 Нет активных спец-квестов</div>`;
+        return;
+    }
+
+    const completedQuests = new Set(state.user?.completedSpecialQuests || []);
+    
+    const filteredQuests = SPECIAL_QUESTS.filter(q => 
+        q.type === 'telegram_channel' || q.type === 'referral_count' || q.type === 'custom_link'
+    );
+    
+    if (filteredQuests.length === 0) {
+        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 Скоро появятся новые квесты!</div>`;
+        return;
+    }
+    
+    container.innerHTML = filteredQuests.map(quest => {
+        const isCompleted = completedQuests.has(quest.id);
+        const typeIcons = {
+            'telegram_channel': '📢',
+            'custom_link': '🔗',
+            'referral_count': '👥'
+        };
+        const typeIcon = typeIcons[quest.type] || '🎯';
+        
+        let actionHtml = '';
+        
+        if (isCompleted) {
+            actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ВЫПОЛНЕНО</button>`;
+        } else {
+            switch (quest.type) {
+                case 'telegram_channel':
+                    actionHtml = `
+                        <button class="special-quest-btn" data-quest-id="${quest.id}" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')">
+                            <i class="fa-brands fa-telegram"></i> ПЕРЕЙТИ
+                        </button>
+                    `;
+                    break;
+                    
+                case 'custom_link':
+                    actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> ПЕРЕЙТИ</button>`;
+                    break;
+                    
+                case 'referral_count':
+                    const currentFriends = state.user?.referralCount || 0;
+                    const required = quest.required_count || 1;
+                    if (currentFriends >= required) {
+                        actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})</button>`;
+                    } else {
+                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ (${currentFriends})</button>`;
+                    }
+                    break;
+            }
+        }
+        
+        let displayLink = quest.link;
+        if (quest.type === 'telegram_channel' && quest.link) {
+            if (quest.link.includes('t.me/')) {
+                displayLink = '@' + quest.link.split('t.me/')[1].split('?')[0];
+            }
+        }
+        
+        return `<div class="special-quest-card">
+            <div class="special-quest-header">
+                <div class="special-quest-icon">${quest.icon || typeIcon}</div>
+                <div class="special-quest-info">
+                    <div class="special-quest-title">${escapeHtml(quest.title)}</div>
+                    <div class="special-quest-desc">${escapeHtml(quest.description || getQuestDefaultDesc(quest.type))}</div>
+                    ${quest.type === 'telegram_channel' && displayLink ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:monospace">${displayLink}</div>` : ''}
+                </div>
+                <div class="special-quest-reward">+${quest.reward} MMO</div>
+            </div>
+            <div class="special-quest-footer">
+                ${actionHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function getQuestDefaultDesc(type) {
+    const descs = {
+        'telegram_channel': 'Перейди в Telegram канал',
+        'custom_link': 'Перейди по ссылке',
+        'referral_count': 'Пригласи друзей'
+    };
+    return descs[type] || 'Выполни задание';
+}
+
+async function updateSpecialQuests() {
+    await loadGameConfig();
+    renderSpecialQuests();
+}
+
+// ============================================================
 // NAVIGATION
 // ============================================================
 function switchTab(tab) {
@@ -1383,6 +1446,16 @@ function spawnFloatingMMO(amount) {
   el.style.transform = 'translateX(-50%)';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1600);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    return m;
+  });
 }
 
 // ============================================================
