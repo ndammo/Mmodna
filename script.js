@@ -7,13 +7,13 @@ const API_URL = 'https://serv-production-dbf3.up.railway.app';
 // ОПТИМИЗАЦИЯ: ИНТЕРВАЛЫ ОБНОВЛЕНИЯ
 // ============================================================
 const UPDATE_INTERVALS = {
-    LEADERBOARD: 5 * 60 * 1000,  // 5 минут
-    MARKETPLACE: 10 * 1000,       // 10 секунд (только если вкладка активна)
-    SPECIAL_QUESTS: 5 * 60 * 1000 // 5 минут
+    LEADERBOARD: 5 * 60 * 1000,
+    MARKETPLACE: 10 * 1000,
+    SPECIAL_QUESTS: 5 * 60 * 1000
 };
 
 // ============================================================
-// ЛОКАЛЬНЫЙ СЧЁТЧИК ДОХОДА (0 ЗАПРОСОВ К СЕРВЕРУ!)
+// ЛОКАЛЬНЫЙ СЧЁТЧИК ДОХОДА
 // ============================================================
 let localPendingIncome = 0;
 let localLastIncomeTime = Date.now();
@@ -34,7 +34,6 @@ function startLocalIncomeTicker() {
         
         if (elapsedSeconds >= 0.5) {
             const earnedThisTick = (localIncomePerHour / 3600) * elapsedSeconds;
-            
             if (earnedThisTick > 0) {
                 localPendingIncome += earnedThisTick;
                 localLastIncomeTime = now;
@@ -71,7 +70,6 @@ function showPendingIncomeHint() {
         `;
         document.body.appendChild(hint);
     }
-    
     hint.textContent = `💰 +${localPendingIncome.toFixed(2)} MMO`;
     hint.style.opacity = '1';
     
@@ -83,14 +81,12 @@ function showPendingIncomeHint() {
 
 function updateLocalBalance() {
     if (!state.user) return;
-    
     const displayBalance = state.user.balance + localPendingIncome;
     
     const balanceEl = document.getElementById('balanceDisplay');
     if (balanceEl) {
         const oldText = balanceEl.textContent;
         balanceEl.textContent = formatNum(displayBalance);
-        
         if (localPendingIncome > 0.01 && oldText !== balanceEl.textContent) {
             balanceEl.classList.add('pending');
             setTimeout(() => balanceEl.classList.remove('pending'), 500);
@@ -106,22 +102,16 @@ async function syncPendingIncome() {
     if (localPendingIncome < 0.01) return;
     
     syncInProgress = true;
-    
     try {
         const pendingToSync = Math.floor(localPendingIncome * 100) / 100;
-        
-        const res = await apiRequest('POST', '/api/game/sync-income', { 
-            pendingAmount: pendingToSync 
-        });
+        const res = await apiRequest('POST', '/api/game/sync-income', { pendingAmount: pendingToSync });
         
         if (res?.success) {
             state.user.balance = res.balance;
             localPendingIncome = 0;
             localLastIncomeTime = Date.now();
-            
             updateLocalBalance();
             updateHeader();
-            
             const hint = document.getElementById('pendingIncomeHint');
             if (hint) hint.style.opacity = '0';
         }
@@ -132,7 +122,6 @@ async function syncPendingIncome() {
     }
 }
 
-// Сохраняем pending в localStorage
 setInterval(() => {
     if (localPendingIncome > 0) {
         localStorage.setItem('pendingIncome', localPendingIncome);
@@ -161,17 +150,16 @@ let intervals = {
 
 let activeQuestTimers = new Map();
 let currentLeaderboardController = null;
-let lastMarketplaceData = null;
-let lastLeaderboardData = null;
 let isMarketplaceTabActive = false;
 
-// ============================================================
 // КЭШИ
-// ============================================================
 let creaturesCache = null;
 let gameConfigCache = null;
 let configCacheTime = 0;
 const CONFIG_CACHE_TTL = 5 * 60 * 1000;
+
+let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
+let leaderboardCache = { data: null, expiresAt: 0 };
 
 let state = {
     token: null,
@@ -208,10 +196,7 @@ let pendingRequests = new Map();
 
 async function apiRequest(method, path, body = null, signal = null) {
     const key = `${method}:${path}:${JSON.stringify(body)}`;
-    
-    if (pendingRequests.has(key)) {
-        return pendingRequests.get(key);
-    }
+    if (pendingRequests.has(key)) return pendingRequests.get(key);
     
     const opts = {
         method,
@@ -229,8 +214,7 @@ async function apiRequest(method, path, body = null, signal = null) {
                 if (res.status === 401 || res.status === 403) {
                     localStorage.removeItem('token');
                     state.token = null;
-                    showToast('Сессия истекла', '❌');
-                    showLoginModal();
+                    showToast('Сессия истекла, войдите заново', '❌');
                 }
             }
             return data;
@@ -248,7 +232,7 @@ async function apiRequest(method, path, body = null, signal = null) {
 }
 
 // ============================================================
-// ЗАГРУЗКА КОНФИГА С КЭШИРОВАНИЕМ
+// ЗАГРУЗКА КОНФИГА
 // ============================================================
 async function loadGameConfig(force = false) {
     const now = Date.now();
@@ -289,9 +273,6 @@ async function loadCreaturesFromServer(force = false) {
 
 function getCreature(id) { return CREATURES.find(c => c.id === id); }
 
-// ============================================================
-// ФОРМАТИРОВАНИЕ
-// ============================================================
 function formatNum(n) {
     const absN = Math.abs(n);
     const sign = n < 0 ? '-' : '';
@@ -315,28 +296,6 @@ function updatePlayerInfo() {
     const nameEl = document.querySelector('.player-name');
     if (avatarEl) avatarEl.textContent = name[0].toUpperCase();
     if (nameEl) nameEl.textContent = name.toUpperCase();
-}
-
-function updateUpgradeButton() {
-    if (!state.user) return;
-    const cost = Math.floor(UPGRADE_BASE_COST * Math.pow(UPGRADE_MULTIPLIER, state.user.inventoryUpgrades || 0));
-    const btn = document.getElementById('quickUpgradeBtn');
-    const costEl = document.getElementById('upgradeSlotCost');
-    if (btn && costEl) {
-        costEl.textContent = cost;
-        btn.style.opacity = state.user.balance >= cost ? '1' : '0.5';
-        btn.disabled = state.user.balance < cost;
-    }
-}
-
-function getUsedSlots() {
-    return state.inventory.reduce((s, i) => s + i.count, 0);
-}
-
-function canMerge(creatureId) {
-    const item = state.inventory.find(i => i.creatureId === creatureId);
-    const c = getCreature(creatureId);
-    return item && item.count >= 3 && c && c.rarity !== 'legendary' && c.rarity !== 'mythic';
 }
 
 function updateHeader() {
@@ -365,6 +324,28 @@ function updateHeader() {
     document.getElementById('walletMerges').textContent = state.user.mergeCount || 0;
     
     updateUpgradeButton();
+}
+
+function updateUpgradeButton() {
+    if (!state.user) return;
+    const cost = Math.floor(UPGRADE_BASE_COST * Math.pow(UPGRADE_MULTIPLIER, state.user.inventoryUpgrades || 0));
+    const btn = document.getElementById('quickUpgradeBtn');
+    const costEl = document.getElementById('upgradeSlotCost');
+    if (btn && costEl) {
+        costEl.textContent = cost;
+        btn.style.opacity = state.user.balance >= cost ? '1' : '0.5';
+        btn.disabled = state.user.balance < cost;
+    }
+}
+
+function getUsedSlots() {
+    return state.inventory.reduce((s, i) => s + i.count, 0);
+}
+
+function canMerge(creatureId) {
+    const item = state.inventory.find(i => i.creatureId === creatureId);
+    const c = getCreature(creatureId);
+    return item && item.count >= 3 && c && c.rarity !== 'legendary' && c.rarity !== 'mythic';
 }
 
 function renderCards() {
@@ -434,41 +415,25 @@ function renderAll() {
 }
 
 // ============================================================
-// ЛИДЕРБОРД (раз в 5 минут)
+// ЛИДЕРБОРД
 // ============================================================
-let leaderboardCache = { data: null, expiresAt: 0 };
-
 async function renderLeaderboard() {
     const list = document.getElementById('leaderboardList');
     if (!list) return;
-    
-    if (!state.token) {
-        list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px">Loading...</div>`;
-        return;
-    }
+    if (!state.token) return;
     
     if (Date.now() < leaderboardCache.expiresAt && leaderboardCache.data) {
         renderLeaderboardData(leaderboardCache.data);
         return;
     }
     
-    if (currentLeaderboardController) {
-        currentLeaderboardController.abort();
-    }
+    if (currentLeaderboardController) currentLeaderboardController.abort();
     currentLeaderboardController = new AbortController();
     
     const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
-    if (!res || !res.success) {
-        if (res === null) return;
-        list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px">Error</div>`;
-        return;
-    }
+    if (!res || !res.success) return;
     
-    leaderboardCache = {
-        data: res,
-        expiresAt: Date.now() + UPDATE_INTERVALS.LEADERBOARD
-    };
-    
+    leaderboardCache = { data: res, expiresAt: Date.now() + UPDATE_INTERVALS.LEADERBOARD };
     renderLeaderboardData(res);
     currentLeaderboardController = null;
 }
@@ -496,13 +461,9 @@ function renderLeaderboardData(data) {
 }
 
 // ============================================================
-// МАРКЕТПЛЕЙС (обновление только при изменениях)
+// МАРКЕТПЛЕЙС
 // ============================================================
-let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
-
-function getDataHash(data) {
-    return JSON.stringify(data);
-}
+function getDataHash(data) { return JSON.stringify(data); }
 
 async function renderMarketplaceBuy() {
     const container = document.getElementById('marketplaceListings');
@@ -531,12 +492,7 @@ async function renderMarketplaceBuy() {
         return;
     }
     
-    marketplaceCache = {
-        data: listings,
-        hash: newHash,
-        expiresAt: Date.now() + UPDATE_INTERVALS.MARKETPLACE
-    };
-    
+    marketplaceCache = { data: listings, hash: newHash, expiresAt: Date.now() + UPDATE_INTERVALS.MARKETPLACE };
     renderMarketplaceListings(listings);
 }
 
@@ -657,9 +613,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 
 async function refreshMarketplaceAfterAction() {
     marketplaceCache.expiresAt = 0;
-    if (isMarketplaceTabActive) {
-        await renderMarketplaceBuy();
-    }
+    if (isMarketplaceTabActive) await renderMarketplaceBuy();
     await renderMarketplaceMyListings();
     await renderMarketplaceSell();
 }
@@ -708,7 +662,6 @@ async function confirmSellListing(creatureId) {
 async function renderSpecialQuests() {
     const container = document.getElementById('specialQuestsList');
     if (!container) return;
-    
     await loadGameConfig();
     
     if (!SPECIAL_QUESTS.length) {
@@ -817,7 +770,7 @@ function inviteFriend() {
 }
 
 // ============================================================
-// ДЕЙСТВИЯ (с синхронизацией дохода)
+// ДЕЙСТВИЯ
 // ============================================================
 async function openCapsule(type) {
     if (state.isLoading) return;
@@ -1034,29 +987,6 @@ function showLoadingScreen(show) {
     }
 }
 
-function showLoginModal() {
-    const modalHtml = `
-        <div class="modal" id="loginModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center">
-            <div style="background:#141c2e;border-radius:20px;padding:24px;width:300px;border:1px solid #1e2d4a">
-                <h3 style="color:#a855f7;margin-bottom:16px;font-family:Orbitron">🔐 Login</h3>
-                <input type="text" id="tokenInput" placeholder="Enter JWT token" style="width:100%;padding:10px;margin-bottom:16px;border-radius:10px;background:#0d1120;border:1px solid #1e2d4a;color:#e2e8f0">
-                <button onclick="loginWithToken()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer">LOGIN</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-function loginWithToken() {
-    const token = document.getElementById('tokenInput')?.value;
-    if (token) {
-        state.token = token;
-        localStorage.setItem('token', token);
-        document.getElementById('loginModal')?.remove();
-        initTelegramApp();
-    }
-}
-
 // ============================================================
 // ИНТЕРВАЛЫ
 // ============================================================
@@ -1095,7 +1025,7 @@ function handleVisibilityChange() {
 }
 
 // ============================================================
-// ИНИЦИАЛИЗАЦИЯ
+// АВТОРИЗАЦИЯ (Telegram WebApp)
 // ============================================================
 async function initTelegramApp() {
     showLoadingScreen(true);
@@ -1110,6 +1040,7 @@ async function initTelegramApp() {
     let initData = tg?.initData || '';
     
     if (!initData && window.location.hostname === 'localhost') {
+        console.warn('⚠️ Dev mode: using mock Telegram user');
         const mockUser = { id: 123456789, first_name: 'Test', username: 'testuser' };
         initData = `user=${encodeURIComponent(JSON.stringify(mockUser))}&hash=devhash`;
     }
@@ -1166,7 +1097,9 @@ async function initTelegramApp() {
     }
 }
 
-// Стиль для анимации
+// ============================================================
+// СТИЛЬ ДЛЯ АНИМАЦИИ
+// ============================================================
 const style = document.createElement('style');
 style.textContent = `
     .balance-amount.pending {
@@ -1178,18 +1111,10 @@ style.textContent = `
         50% { transform: scale(1.05); text-shadow: 0 0 8px #22c55e; }
         100% { transform: scale(1); }
     }
-    @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
-    }
 `;
 document.head.appendChild(style);
 
+// ============================================================
 // ЗАПУСК
-const storedToken = localStorage.getItem('token');
-if (storedToken) {
-    state.token = storedToken;
-    initTelegramApp();
-} else {
-    showLoginModal();
-}
+// ============================================================
+initTelegramApp();
