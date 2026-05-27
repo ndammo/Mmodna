@@ -1,43 +1,93 @@
 // ============================================================
 // CONFIG
 // ============================================================
-const API_URL = 'https://serv-production-dbf3.up.railway.app'; 
+const API_URL = 'https://serv-production-dbf3.up.railway.app';
+
 // ============================================================
-// GAME DATA (только для отображения, логика на сервере)
+// КЭШ ЛИДЕРБОРДА НА КЛИЕНТЕ (ОПТИМИЗАЦИЯ)
+// ============================================================
+let leaderboardCache = {
+  data: null,
+  expiresAt: 0,
+  cacheTimeMs: 30000  // 30 секунд
+};
+
+// ============================================================
+// ЗАЩИТА ОТ ДУБЛИРУЮЩИХСЯ ЗАПРОСОВ
+// ============================================================
+let pendingRequests = new Map();
+
+async function apiRequest(method, path, body = null) {
+  const key = `${method}:${path}:${JSON.stringify(body)}`;
+  
+  // Если такой запрос уже выполняется, ждём его результат
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key);
+  }
+  
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (state.token) opts.headers['Authorization'] = `Bearer ${state.token}`;
+  if (body) opts.body = JSON.stringify(body);
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(API_URL + path, opts);
+      const data = await res.json();
+      if (!res.ok) {
+        console.warn(`API ${path} error:`, data.message);
+      }
+      return data;
+    } catch (e) {
+      console.error(`API ${path} fetch error:`, e);
+      return { success: false, message: 'Нет соединения с сервером' };
+    } finally {
+      setTimeout(() => pendingRequests.delete(key), 100);
+    }
+  })();
+  
+  pendingRequests.set(key, promise);
+  return promise;
+}
+
+// ============================================================
+// GAME DATA
 // ============================================================
 const CREATURES = [
-  { id:'duck_c',       name:'Duck',         rarity:'common',    icon:'🦆', incomeBase:2,    desc:'Young waterfowl. Just starting to learn.' },
-  { id:'duck_u',       name:'Duck',         rarity:'uncommon',  icon:'🦆', incomeBase:8,    desc:'Mature waterfowl. Skilled swimmer.' },
-  { id:'duck_r',       name:'Duck',         rarity:'rare',      icon:'🦆', incomeBase:25,   desc:'Ancient waterfowl. Master of waters.' },
-  { id:'duck_e',       name:'Duck',         rarity:'epic',      icon:'🦆', incomeBase:80,   desc:'Eternal waterfowl. Supreme mastery.' },
-  { id:'duck_l',       name:'Duck',         rarity:'legendary', icon:'🦆', incomeBase:250,  desc:'Divine waterfowl. Reality bender.' },
-  { id:'owl_c',        name:'Owl',          rarity:'common',    icon:'🦉', incomeBase:2,    desc:'Small night hunter. Learning to fly.' },
-  { id:'owl_u',        name:'Owl',          rarity:'uncommon',  icon:'🦉', incomeBase:8,    desc:'Experienced night hunter. Sharp talons.' },
-  { id:'owl_r',        name:'Owl',          rarity:'rare',      icon:'🦉', incomeBase:25,   desc:'Wise night guardian. All-seeing.' },
-  { id:'owl_e',        name:'Owl',          rarity:'epic',      icon:'🦉', incomeBase:80,   desc:'Eternal guardian. Infinite wisdom.' },
-  { id:'owl_l',        name:'Owl',          rarity:'legendary', icon:'🦉', incomeBase:250,  desc:'Divine guardian. All-knowing entity.' },
-  { id:'shark_c',      name:'Shark',        rarity:'common',    icon:'🦈', incomeBase:2,    desc:'Young predator. Testing the waters.' },
-  { id:'shark_u',      name:'Shark',        rarity:'uncommon',  icon:'🦈', incomeBase:8,    desc:'Experienced apex predator. Deadly bite.' },
-  { id:'shark_r',      name:'Shark',        rarity:'rare',      icon:'🦈', incomeBase:25,   desc:'Legendary predator. Ocean terror.' },
-  { id:'shark_e',      name:'Shark',        rarity:'epic',      icon:'🦈', incomeBase:80,   desc:'Eternal terror. Endless hunger.' },
-  { id:'shark_l',      name:'Shark',        rarity:'legendary', icon:'🦈', incomeBase:250,  desc:'Divine terror. Apex of apex.' },
-  { id:'wolf_c',       name:'Wolf',         rarity:'common',    icon:'🐺', incomeBase:2,    desc:'Young pack member. Growing stronger.' },
-  { id:'wolf_u',       name:'Wolf',         rarity:'uncommon',  icon:'🐺', incomeBase:8,    desc:'Pack leader in training. Strong hunter.' },
-  { id:'wolf_r',       name:'Wolf',         rarity:'rare',      icon:'🐺', incomeBase:25,   desc:'Alpha wolf. Pack dominance.' },
-  { id:'wolf_e',       name:'Wolf',         rarity:'epic',      icon:'🐺', incomeBase:80,   desc:'Eternal alpha. Infinite power.' },
-  { id:'wolf_l',       name:'Wolf',         rarity:'legendary', icon:'🐺', incomeBase:250,  desc:'Divine alpha. Dimension walker.' },
-  { id:'dragon_c',     name:'Dragon',       rarity:'common',    icon:'🐉', incomeBase:2,    desc:'Young fire breather. Learning to roar.' },
-  { id:'dragon_u',     name:'Dragon',       rarity:'uncommon',  icon:'🐉', incomeBase:8,    desc:'Grown fire breather. Breathing flames.' },
-  { id:'dragon_r',     name:'Dragon',       rarity:'rare',      icon:'🐉', incomeBase:25,   desc:'Ancient fire drake. Blazing power.' },
-  { id:'dragon_e',     name:'Dragon',       rarity:'epic',      icon:'🐉', incomeBase:80,   desc:'Eternal flame. Infinite fire.' },
-  { id:'dragon_l',     name:'Dragon',       rarity:'legendary', icon:'🐉', incomeBase:250,  desc:'Divine flame. Eternal inferno.' },
-  { id:'unicorn_c',    name:'Unicorn',      rarity:'common',    icon:'🦄', incomeBase:2,    desc:'Young magical beast. Horn growing.' },
-  { id:'unicorn_u',    name:'Unicorn',      rarity:'uncommon',  icon:'🦄', incomeBase:8,    desc:'Magical evolution. Horn shines bright.' },
-  { id:'unicorn_r',    name:'Unicorn',      rarity:'rare',      icon:'🦄', incomeBase:25,   desc:'Rare magical entity. Pure magic.' },
-  { id:'unicorn_e',    name:'Unicorn',      rarity:'epic',      icon:'🦄', incomeBase:80,   desc:'Eternal magic. Pure radiance.' },
-  { id:'unicorn_l',    name:'Unicorn',      rarity:'legendary', icon:'🦄', incomeBase:250,  desc:'Divine magic. Existence itself.' },
-  { id:'lion_mythic',  name:'Lion',         rarity:'mythic',    icon:'🦁', incomeBase:1000, desc:'THE MYTHIC KING. Absolute power.' },
-  { id:'panther_mythic',name:'Black Panther',rarity:'mythic',   icon:'🐆', incomeBase:2000, desc:'TOP 1 SEASON. Beyond comprehension.' },
+  { id:'duck_c', name:'Duck', rarity:'common', icon:'🦆', incomeBase:2, desc:'Young waterfowl. Just starting to learn.' },
+  { id:'duck_u', name:'Duck', rarity:'uncommon', icon:'🦆', incomeBase:8, desc:'Mature waterfowl. Skilled swimmer.' },
+  { id:'duck_r', name:'Duck', rarity:'rare', icon:'🦆', incomeBase:25, desc:'Ancient waterfowl. Master of waters.' },
+  { id:'duck_e', name:'Duck', rarity:'epic', icon:'🦆', incomeBase:80, desc:'Eternal waterfowl. Supreme mastery.' },
+  { id:'duck_l', name:'Duck', rarity:'legendary', icon:'🦆', incomeBase:250, desc:'Divine waterfowl. Reality bender.' },
+  { id:'owl_c', name:'Owl', rarity:'common', icon:'🦉', incomeBase:2, desc:'Small night hunter. Learning to fly.' },
+  { id:'owl_u', name:'Owl', rarity:'uncommon', icon:'🦉', incomeBase:8, desc:'Experienced night hunter. Sharp talons.' },
+  { id:'owl_r', name:'Owl', rarity:'rare', icon:'🦉', incomeBase:25, desc:'Wise night guardian. All-seeing.' },
+  { id:'owl_e', name:'Owl', rarity:'epic', icon:'🦉', incomeBase:80, desc:'Eternal guardian. Infinite wisdom.' },
+  { id:'owl_l', name:'Owl', rarity:'legendary', icon:'🦉', incomeBase:250, desc:'Divine guardian. All-knowing entity.' },
+  { id:'shark_c', name:'Shark', rarity:'common', icon:'🦈', incomeBase:2, desc:'Young predator. Testing the waters.' },
+  { id:'shark_u', name:'Shark', rarity:'uncommon', icon:'🦈', incomeBase:8, desc:'Experienced apex predator. Deadly bite.' },
+  { id:'shark_r', name:'Shark', rarity:'rare', icon:'🦈', incomeBase:25, desc:'Legendary predator. Ocean terror.' },
+  { id:'shark_e', name:'Shark', rarity:'epic', icon:'🦈', incomeBase:80, desc:'Eternal terror. Endless hunger.' },
+  { id:'shark_l', name:'Shark', rarity:'legendary', icon:'🦈', incomeBase:250, desc:'Divine terror. Apex of apex.' },
+  { id:'wolf_c', name:'Wolf', rarity:'common', icon:'🐺', incomeBase:2, desc:'Young pack member. Growing stronger.' },
+  { id:'wolf_u', name:'Wolf', rarity:'uncommon', icon:'🐺', incomeBase:8, desc:'Pack leader in training. Strong hunter.' },
+  { id:'wolf_r', name:'Wolf', rarity:'rare', icon:'🐺', incomeBase:25, desc:'Alpha wolf. Pack dominance.' },
+  { id:'wolf_e', name:'Wolf', rarity:'epic', icon:'🐺', incomeBase:80, desc:'Eternal alpha. Infinite power.' },
+  { id:'wolf_l', name:'Wolf', rarity:'legendary', icon:'🐺', incomeBase:250, desc:'Divine alpha. Dimension walker.' },
+  { id:'dragon_c', name:'Dragon', rarity:'common', icon:'🐉', incomeBase:2, desc:'Young fire breather. Learning to roar.' },
+  { id:'dragon_u', name:'Dragon', rarity:'uncommon', icon:'🐉', incomeBase:8, desc:'Grown fire breather. Breathing flames.' },
+  { id:'dragon_r', name:'Dragon', rarity:'rare', icon:'🐉', incomeBase:25, desc:'Ancient fire drake. Blazing power.' },
+  { id:'dragon_e', name:'Dragon', rarity:'epic', icon:'🐉', incomeBase:80, desc:'Eternal flame. Infinite fire.' },
+  { id:'dragon_l', name:'Dragon', rarity:'legendary', icon:'🐉', incomeBase:250, desc:'Divine flame. Eternal inferno.' },
+  { id:'unicorn_c', name:'Unicorn', rarity:'common', icon:'🦄', incomeBase:2, desc:'Young magical beast. Horn growing.' },
+  { id:'unicorn_u', name:'Unicorn', rarity:'uncommon', icon:'🦄', incomeBase:8, desc:'Magical evolution. Horn shines bright.' },
+  { id:'unicorn_r', name:'Unicorn', rarity:'rare', icon:'🦄', incomeBase:25, desc:'Rare magical entity. Pure magic.' },
+  { id:'unicorn_e', name:'Unicorn', rarity:'epic', icon:'🦄', incomeBase:80, desc:'Eternal magic. Pure radiance.' },
+  { id:'unicorn_l', name:'Unicorn', rarity:'legendary', icon:'🦄', incomeBase:250, desc:'Divine magic. Existence itself.' },
+  { id:'lion_mythic', name:'Lion', rarity:'mythic', icon:'🦁', incomeBase:1000, desc:'THE MYTHIC KING. Absolute power.' },
+  { id:'panther_mythic', name:'Black Panther', rarity:'mythic', icon:'🐆', incomeBase:2000, desc:'TOP 1 SEASON. Beyond comprehension.' },
 ];
 
 const RARITY_COLORS = {
@@ -52,7 +102,7 @@ const RARITY_WEIGHTS = {
 };
 
 // ============================================================
-// STATE (синхронизируется с сервером)
+// STATE
 // ============================================================
 let state = {
   token: null,
@@ -64,27 +114,18 @@ let state = {
 };
 
 // ============================================================
-// API HELPER
+// DEBOUNCE (ЗАЩИТА ОТ ЧАСТЫХ ДЕЙСТВИЙ)
 // ============================================================
-async function apiRequest(method, path, body = null) {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json' }
-  };
-  if (state.token) opts.headers['Authorization'] = `Bearer ${state.token}`;
-  if (body) opts.body = JSON.stringify(body);
+const debounceTimers = new Map();
 
-  try {
-    const res = await fetch(API_URL + path, opts);
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn(`API ${path} error:`, data.message);
-    }
-    return data;
-  } catch (e) {
-    console.error(`API ${path} fetch error:`, e);
-    return { success: false, message: 'Нет соединения с сервером' };
+function debounce(key, fn, delay) {
+  if (debounceTimers.has(key)) {
+    clearTimeout(debounceTimers.get(key));
   }
+  debounceTimers.set(key, setTimeout(() => {
+    debounceTimers.delete(key);
+    fn();
+  }, delay));
 }
 
 // ============================================================
@@ -148,7 +189,8 @@ async function initTelegramApp() {
   showLoadingScreen(false);
   renderAll();
 
-  setInterval(idleTick, 5000);
+  // ОПТИМИЗАЦИЯ: увеличен интервал с 5 до 15 секунд
+  setInterval(idleTick, 15000);
   setInterval(updateAdsTimer, 1000);
 
   if (loginRes.isNewUser) {
@@ -361,8 +403,10 @@ function renderCards() {
 }
 
 // ============================================================
-// CAPSULE
+// CAPSULE (с debounce)
 // ============================================================
+let lastCapsuleOpen = 0;
+
 function showCapsuleModal(type) {
   const odds = RARITY_WEIGHTS[type];
   const cost = CAPSULE_COSTS[type];
@@ -405,6 +449,13 @@ function showCapsuleModal(type) {
 
 async function openCapsule(type) {
   if (state.isLoading) return;
+  
+  // ЗАЩИТА: не чаще 1 раза в 2 секунды
+  if (Date.now() - lastCapsuleOpen < 2000) {
+    showToast('Слишком быстро! Подождите 2 секунды.', '⏳');
+    return;
+  }
+  lastCapsuleOpen = Date.now();
 
   const cost = CAPSULE_COSTS[type];
   if ((state.user?.balance || 0) < cost) {
@@ -499,8 +550,10 @@ function onCardClick(creatureId) {
 }
 
 // ============================================================
-// MERGE
+// MERGE (с debounce)
 // ============================================================
+let lastMergeTime = 0;
+
 function showMergePreview(creatureId) {
   const creature = getCreature(creatureId);
   if (!creature) return;
@@ -564,6 +617,13 @@ function showMergePreview(creatureId) {
 async function executeMerge(creatureId) {
   if (state.isLoading) return;
   if (!canMerge(creatureId)) return;
+  
+  // ЗАЩИТА: не чаще 1 раза в 1 секунду
+  if (Date.now() - lastMergeTime < 1000) {
+    showToast('Слишком быстро! Подождите.', '⏳');
+    return;
+  }
+  lastMergeTime = Date.now();
 
   state.isLoading = true;
   const res = await apiRequest('POST', '/api/game/merge', { creatureId });
@@ -676,7 +736,7 @@ async function watchAd() {
   }
 
   state.user = res.user;
-  state.adsCooldown = 30;
+  state.adsCooldown = 60;  // ОПТИМИЗАЦИЯ: увеличен кулдаун до 60 сек
   updateHeader();
   showToast('+50 MMO from ad!', '🎉');
   spawnFloatingMMO(50);
@@ -705,7 +765,7 @@ function updateAdsTimer() {
 }
 
 // ============================================================
-// IDLE TICK (каждые 5 секунд)
+// IDLE TICK (ОПТИМИЗАЦИЯ: интервал увеличен до 15 секунд)
 // ============================================================
 async function idleTick() {
   if (!state.token || state.isLoading) return;
@@ -904,7 +964,7 @@ function openSellModal(creatureId, creatureName, count) {
     <div class="price-input-modal">
       <div>
         <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Price (MMO)</div>
-        <input type="number" class="price-input-field" id="sellPriceInput" placeholder="Enter price" min="10" value="100" oninput="updateFeeCalculator()">
+        <input type="number" class="price-input-field" id="sellPriceInput" placeholder="Enter price" min="10" max="100000" value="100" oninput="updateFeeCalculator()">
       </div>
       <div class="fee-calculator">
         <div class="fee-row">
@@ -933,7 +993,7 @@ function openSellModal(creatureId, creatureName, count) {
 function updateFeeCalculator() {
   const input = document.getElementById('sellPriceInput');
   if (!input) return;
-  const price = Math.max(10, parseInt(input.value) || 0);
+  const price = Math.max(10, Math.min(100000, parseInt(input.value) || 0));
   const fee = Math.floor(price * 0.1);
   document.getElementById('priceDisplay').textContent = price;
   document.getElementById('feeDisplay').textContent = `-${fee}`;
@@ -942,7 +1002,7 @@ function updateFeeCalculator() {
 
 async function confirmSellListing(creatureId) {
   const input = document.getElementById('sellPriceInput');
-  const price = Math.max(10, parseInt(input?.value) || 0);
+  const price = Math.max(10, Math.min(100000, parseInt(input?.value) || 0));
 
   if (price < 10) { showToast('Price must be at least 10 MMO', '❌'); return; }
 
@@ -1043,7 +1103,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 }
 
 // ============================================================
-// LEADERBOARD
+// LEADERBOARD (ОПТИМИЗАЦИЯ: кэш на клиенте)
 // ============================================================
 async function renderLeaderboard() {
   const list = document.getElementById('leaderboardList');
@@ -1053,14 +1113,32 @@ async function renderLeaderboard() {
     list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Loading...</div>`;
     return;
   }
+  
+  // ОПТИМИЗАЦИЯ: кэш лидерборда на 30 секунд
+  if (Date.now() < leaderboardCache.expiresAt && leaderboardCache.data) {
+    renderLeaderboardData(leaderboardCache.data);
+    return;
+  }
 
   const res = await apiRequest('GET', '/api/user/leaderboard');
   if (!res.success) {
     list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Error loading leaderboard</div>`;
     return;
   }
+  
+  leaderboardCache = {
+    data: res,
+    expiresAt: Date.now() + 30000
+  };
+  
+  renderLeaderboardData(res);
+}
 
-  const leaders = res.leaders || [];
+function renderLeaderboardData(data) {
+  const list = document.getElementById('leaderboardList');
+  if (!list) return;
+  
+  const leaders = data.leaders || [];
   list.innerHTML = leaders.map(l => {
     const rank = l.rank;
     const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
