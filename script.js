@@ -4,6 +4,18 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
+// FIXED: ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ ИНТЕРВАЛОВ
+// ============================================
+let intervals = {
+  idleTick: null,
+  adsTimer: null,
+  specialQuests: null
+};
+
+let activeQuestTimers = new Map();
+let currentLeaderboardController = null;
+
+// ============================================================
 // КЭШ ЛИДЕРБОРДА НА КЛИЕНТЕ
 // ============================================================
 let leaderboardCache = {
@@ -17,7 +29,8 @@ let leaderboardCache = {
 // ============================================================
 let pendingRequests = new Map();
 
-async function apiRequest(method, path, body = null) {
+// FIXED: apiRequest с AbortController и обработкой ошибок
+async function apiRequest(method, path, body = null, signal = null) {
   const key = `${method}:${path}:${JSON.stringify(body)}`;
   
   if (pendingRequests.has(key)) {
@@ -26,7 +39,8 @@ async function apiRequest(method, path, body = null) {
   
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    signal
   };
   if (state.token) opts.headers['Authorization'] = `Bearer ${state.token}`;
   if (body) opts.body = JSON.stringify(body);
@@ -40,7 +54,12 @@ async function apiRequest(method, path, body = null) {
       }
       return data;
     } catch (e) {
+      if (e.name === 'AbortError') {
+        console.log('Request aborted:', path);
+        return null;
+      }
       console.error(`API ${path} fetch error:`, e);
+      showToast('Ошибка соединения с сервером', '❌');
       return { success: false, message: 'Нет соединения с сервером' };
     } finally {
       setTimeout(() => pendingRequests.delete(key), 100);
@@ -130,9 +149,24 @@ function debounce(key, fn, delay) {
 }
 
 // ============================================================
-// TELEGRAM WEB APP INIT
+// FIXED: ОЧИСТКА ВСЕХ ИНТЕРВАЛОВ
+// ============================================================
+function clearAllIntervals() {
+  if (intervals.idleTick) clearInterval(intervals.idleTick);
+  if (intervals.adsTimer) clearInterval(intervals.adsTimer);
+  if (intervals.specialQuests) clearInterval(intervals.specialQuests);
+  
+  for (const timer of activeQuestTimers.values()) {
+    clearTimeout(timer);
+  }
+  activeQuestTimers.clear();
+}
+
+// ============================================================
+// TELEGRAM WEBAPP INIT
 // ============================================================
 async function initTelegramApp() {
+  clearAllIntervals();
   showLoadingScreen(true);
 
   const tg = window.Telegram?.WebApp;
@@ -193,9 +227,9 @@ async function initTelegramApp() {
   showLoadingScreen(false);
   renderAll();
 
-  setInterval(idleTick, 15000);
-  setInterval(updateAdsTimer, 1000);
-  setInterval(updateSpecialQuests, 30000);
+  intervals.idleTick = setInterval(idleTick, 15000);
+  intervals.adsTimer = setInterval(updateAdsTimer, 1000);
+  intervals.specialQuests = setInterval(updateSpecialQuests, 30000);
 
   if (loginRes.isNewUser) {
     setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
@@ -242,10 +276,11 @@ function showLoadingScreen(show) {
 // ============================================================
 function getCreature(id) { return CREATURES.find(c => c.id === id); }
 function formatNum(n) {
-  n = Math.floor(n);
-  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
-  return n.toString();
+  const absN = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (absN >= 1000000) return sign + (absN/1000000).toFixed(1) + 'M';
+  if (absN >= 1000) return sign + (absN/1000).toFixed(1) + 'K';
+  return sign + Math.floor(absN).toString();
 }
 function getUsedSlots() {
   return state.inventory.reduce((s, i) => s + i.count, 0);
@@ -402,7 +437,7 @@ function renderCards() {
       ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
       ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
       <div class="card-icon">${c.icon}</div>
-      <div class="card-name">${c.name}</div>
+      <div class="card-name">${escapeHtml(c.name)}</div>
       <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
       <div class="card-income"><i class="fa-solid fa-bolt" style="font-size:7px"></i>${c.incomeBase}/hr</div>
     </div>`;
@@ -504,8 +539,8 @@ function showCapsulePopup(creature) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
     <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
-    <div class="popup-title" style="color:${color}">${c.name}</div>
-    <div class="popup-subtitle">${c.desc || ''}</div>
+    <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
+    <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
     <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
     <div class="popup-stats">
       <div class="popup-stat">
@@ -535,8 +570,8 @@ function onCardClick(creatureId) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
     <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
-    <div class="popup-title" style="color:${color}">${c.name}</div>
-    <div class="popup-subtitle">${c.desc || ''}</div>
+    <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
+    <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
     <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
     <div class="popup-stats">
       <div class="popup-stat">
@@ -576,13 +611,13 @@ function showMergePreview(creatureId) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
     <div class="popup-title" style="margin-bottom:4px">Merge Preview</div>
-    <div class="popup-subtitle">3x ${creature.name} → ?</div>
+    <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div style="text-align:center;flex:1">
           <div style="font-size:24px;margin-bottom:6px">${creature.icon}</div>
           <div style="font-size:10px;color:var(--text2)">Input</div>
-          <div style="font-size:11px;font-weight:600;color:var(--text);margin-top:2px">3x ${creature.name}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--text);margin-top:2px">3x ${escapeHtml(creature.name)}</div>
         </div>
         <div style="color:var(--text3);font-size:18px">→</div>
         <div style="text-align:center;flex:1">
@@ -598,7 +633,7 @@ function showMergePreview(creatureId) {
             <span style="font-size:18px">${nextCreature.icon}</span>
             <div style="flex:1">
               <div style="font-size:11px;font-weight:600;color:var(--uncommon)">30% Success</div>
-              <div style="font-size:10px;color:var(--text2)">${nextCreature.name} (${nextRarity.toUpperCase()})</div>
+              <div style="font-size:10px;color:var(--text2)">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
             </div>
             <div style="font-size:12px;font-weight:700;color:var(--uncommon)">▲ RANK UP</div>
           </div>
@@ -608,7 +643,7 @@ function showMergePreview(creatureId) {
             <span style="font-size:18px">${creature.icon}</span>
             <div style="flex:1">
               <div style="font-size:11px;font-weight:600;color:var(--legendary)">70% Mutation</div>
-              <div style="font-size:10px;color:var(--text2)">${creature.name} (${creature.rarity.toUpperCase()})</div>
+              <div style="font-size:10px;color:var(--text2)">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
             </div>
             <div style="font-size:12px;font-weight:700;color:var(--legendary)">= SAME</div>
           </div>
@@ -663,7 +698,7 @@ function showMergeResultPopup(from, to, success) {
       <div class="merge-arrow"><i class="fa-solid fa-arrow-right"></i></div>
       <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;font-size:32px">${toC.icon}</div>
     </div>
-    <div class="popup-title" style="color:${color}">${toC.name}</div>
+    <div class="popup-title" style="color:${color}">${escapeHtml(toC.name)}</div>
     <div class="popup-subtitle">${success ? '🎉 Evolution successful!' : '⚗️ Mutation complete!'}</div>
     <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
       ${toC.rarity.toUpperCase()} ${success ? '▲ UPGRADED' : ''}
@@ -806,7 +841,7 @@ function renderTransactions() {
     return `<div class="tx-item">
       <div class="tx-icon" style="background:${color}"><span style="font-size:16px">${icon}</span></div>
       <div class="tx-info">
-        <div class="tx-name">${tx.name}</div>
+        <div class="tx-name">${escapeHtml(tx.name)}</div>
         <div class="tx-time">${timeStr}</div>
       </div>
       <div class="tx-amount ${isPos ? 'positive' : isNeg ? 'negative' : ''}" style="${!isPos && !isNeg ? 'color:var(--accent3)' : ''}">
@@ -835,7 +870,7 @@ function showEncyclopedia() {
       const isFound = discovered.has(c.id);
       return `<div class="coll-item ${isFound ? 'found' : 'not-found'}" style="${isFound ? `border-color:${color}44` : ''};cursor:pointer" onclick="showCreatureInfo('${c.id}')">
         <span style="font-size:22px;${isFound ? `filter:drop-shadow(0 0 6px ${color})` : ''}">${c.icon}</span>
-        <div class="coll-item-name">${isFound ? c.name : '???'}</div>
+        <div class="coll-item-name">${isFound ? escapeHtml(c.name) : '???'}</div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:16px">
@@ -866,8 +901,8 @@ function showCreatureInfo(creatureId) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="showEncyclopedia()"><i class="fa-solid fa-arrow-left"></i></div>
     <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
-    <div class="popup-title" style="color:${color}">${c.name}</div>
-    <div class="popup-subtitle">${c.desc || ''}</div>
+    <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
+    <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
     <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
       ${c.rarity.toUpperCase()} ${isFound ? '✓ DISCOVERED' : '🔒 UNDISCOVERED'}
     </div>
@@ -888,11 +923,16 @@ function showCreatureInfo(creatureId) {
 // ============================================================
 // MARKETPLACE
 // ============================================================
-function switchMarketplaceTab(tab) {
+// FIXED: switchMarketplaceTab с параметром event
+function switchMarketplaceTab(tab, event) {
   document.querySelectorAll('.marketplace-subtab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.marketplace-tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`marketplace-${tab}`).classList.add('active');
-  event.target.closest('.marketplace-tab-btn').classList.add('active');
+  
+  if (event && event.target) {
+    const btn = event.target.closest('.marketplace-tab-btn');
+    if (btn) btn.classList.add('active');
+  }
 
   if (tab === 'buy') renderMarketplaceBuy();
   if (tab === 'sell') renderMarketplaceSell();
@@ -905,12 +945,12 @@ async function renderMarketplaceBuy() {
   container.innerHTML = `<div style="text-align:center;color:var(--text2);padding:20px;font-size:12px">Loading...</div>`;
 
   const res = await apiRequest('GET', '/api/marketplace/listings');
-  if (!res.success) {
+  if (!res || !res.success) {
     container.innerHTML = `<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Error loading listings</div>`;
     return;
   }
 
-  const listings = res.listings || [];
+  const listings = Array.isArray(res.listings) ? res.listings : [];
   if (!listings.length) {
     container.innerHTML = `<div style="text-align:center;color:var(--text3);padding:30px 20px;font-size:12px">No listings available</div>`;
     return;
@@ -927,8 +967,8 @@ async function renderMarketplaceBuy() {
     return `<div class="marketplace-listing">
       <div class="marketplace-listing-icon" style="background:${color}11;border-color:${color}44">${c.icon}</div>
       <div class="marketplace-listing-info">
-        <div class="marketplace-listing-name">${c.name}</div>
-        <div class="marketplace-listing-seller">by ${l.sellerName}${isOwn ? ' (You)' : ''}</div>
+        <div class="marketplace-listing-name">${escapeHtml(c.name)}</div>
+        <div class="marketplace-listing-seller">by ${escapeHtml(l.sellerName)}${isOwn ? ' (You)' : ''}</div>
         <div class="marketplace-listing-rarity badge-${c.rarity}">${c.rarity}</div>
       </div>
       <div class="marketplace-listing-price">
@@ -957,7 +997,7 @@ function renderMarketplaceSell() {
     const color = RARITY_COLORS[c.rarity];
     return `<div class="marketplace-sell-card" style="border-color:${color}44;cursor:pointer" onclick="openSellModal('${item.creatureId}', '${c.name}', ${item.count})">
       <div class="marketplace-sell-card-icon">${c.icon}</div>
-      <div class="marketplace-sell-card-name">${c.name}</div>
+      <div class="marketplace-sell-card-name">${escapeHtml(c.name)}</div>
       <div style="font-size:9px;color:var(--text3)">x${item.count}</div>
       <div style="font-size:10px;color:var(--accent2);font-weight:600;margin-top:4px">SET PRICE</div>
     </div>`;
@@ -967,7 +1007,7 @@ function renderMarketplaceSell() {
 function openSellModal(creatureId, creatureName, count) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-    <div class="popup-title">Sell ${creatureName}</div>
+    <div class="popup-title">Sell ${escapeHtml(creatureName)}</div>
     <div class="popup-subtitle" style="margin-bottom:16px">Set your listing price</div>
     <div class="price-input-modal">
       <div>
@@ -1037,12 +1077,12 @@ async function renderMarketplaceMyListings() {
   container.innerHTML = `<div style="text-align:center;color:var(--text2);padding:20px;font-size:12px">Loading...</div>`;
 
   const res = await apiRequest('GET', '/api/marketplace/my-listings');
-  if (!res.success) {
+  if (!res || !res.success) {
     container.innerHTML = `<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Error</div>`;
     return;
   }
 
-  const listings = res.listings || [];
+  const listings = Array.isArray(res.listings) ? res.listings : [];
   if (!listings.length) {
     container.innerHTML = `<div style="text-align:center;color:var(--text3);padding:30px 20px;font-size:12px">You have no active listings</div>`;
     return;
@@ -1058,7 +1098,7 @@ async function renderMarketplaceMyListings() {
     return `<div class="marketplace-my-listing">
       <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">${c.icon}</div>
       <div class="marketplace-my-listing-info">
-        <div class="marketplace-my-listing-name">${c.name}</div>
+        <div class="marketplace-my-listing-name">${escapeHtml(c.name)}</div>
         <div class="marketplace-my-listing-status">Listed ${timeStr}</div>
         <div class="marketplace-listing-rarity badge-${c.rarity}">${c.rarity}</div>
       </div>
@@ -1111,7 +1151,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 }
 
 // ============================================================
-// LEADERBOARD
+// FIXED: LEADERBOARD С ОТМЕНОЙ ПРЕДЫДУЩЕГО ЗАПРОСА
 // ============================================================
 async function renderLeaderboard() {
   const list = document.getElementById('leaderboardList');
@@ -1127,8 +1167,14 @@ async function renderLeaderboard() {
     return;
   }
 
-  const res = await apiRequest('GET', '/api/user/leaderboard');
-  if (!res.success) {
+  if (currentLeaderboardController) {
+    currentLeaderboardController.abort();
+  }
+  currentLeaderboardController = new AbortController();
+
+  const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
+  if (!res || !res.success) {
+    if (res === null) return;
     list.innerHTML = `<div style="text-align:center;color:var(--text3);padding:20px;font-size:12px">Error loading leaderboard</div>`;
     return;
   }
@@ -1139,6 +1185,7 @@ async function renderLeaderboard() {
   };
   
   renderLeaderboardData(res);
+  currentLeaderboardController = null;
 }
 
 function renderLeaderboardData(data) {
@@ -1155,7 +1202,7 @@ function renderLeaderboardData(data) {
       <div class="lb-rank ${rankClass}">${rankIcon}</div>
       <div class="lb-avatar" style="background:${color}33;border:1px solid ${color}44;color:${color}">${l.username[0]?.toUpperCase() || '?'}</div>
       <div class="lb-info">
-        <div class="lb-name">${l.username} ${l.isMe ? '<span style="font-size:9px;color:var(--accent3)">(You)</span>' : ''}</div>
+        <div class="lb-name">${escapeHtml(l.username)} ${l.isMe ? '<span style="font-size:9px;color:var(--accent3)">(You)</span>' : ''}</div>
         <div class="lb-level">LVL ${l.level} · ${getLevelTitle(l.level)}</div>
       </div>
       <div class="lb-score">${formatNum(l.balance)}</div>
@@ -1186,8 +1233,7 @@ async function inviteFriend() {
 // SPECIAL QUESTS
 // ============================================================
 
-let activeQuestTimers = new Map();
-
+// FIXED: openChannelAndStartTimer с очисткой таймеров
 function openChannelAndStartTimer(questId, channelLink) {
     if (channelLink) {
         if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
@@ -1256,19 +1302,13 @@ async function claimSpecialQuest(questId) {
     spawnFloatingMMO(res.reward);
 }
 
-function markCustomLinkComplete(questId) {
-    const storageKey = `custom_link_${questId}_${state.user?.telegramId}`;
-    localStorage.setItem(storageKey, 'true');
-}
-
+// FIXED: openCustomLinkAndComplete без localStorage
 function openCustomLinkAndComplete(questId, link) {
     if (link) {
         window.open(link, '_blank');
     }
-    markCustomLinkComplete(questId);
     setTimeout(() => {
-        renderSpecialQuests();
-        showToast('Награда получена!', '✅');
+        claimSpecialQuest(questId);
     }, 500);
 }
 
@@ -1344,7 +1384,7 @@ async function renderSpecialQuests() {
                 <div class="special-quest-info">
                     <div class="special-quest-title">${escapeHtml(quest.title)}</div>
                     <div class="special-quest-desc">${escapeHtml(quest.description || getQuestDefaultDesc(quest.type))}</div>
-                    ${quest.type === 'telegram_channel' && displayLink ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:monospace">${displayLink}</div>` : ''}
+                    ${quest.type === 'telegram_channel' && displayLink ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:monospace">${escapeHtml(displayLink)}</div>` : ''}
                 </div>
                 <div class="special-quest-reward">+${quest.reward} MMO</div>
             </div>
@@ -1370,7 +1410,7 @@ async function updateSpecialQuests() {
 }
 
 // ============================================================
-// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ТОЛЬКО ВОЛКИ)
+// РЕФЕРАЛЬНЫЕ НАГРАДЫ
 // ============================================================
 
 async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
@@ -1426,7 +1466,7 @@ function showFriendRewardPopup(creatureName, creatureIcon) {
   document.getElementById('popup').innerHTML = `
     <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
     <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${creatureIcon || '🐺'}</span>
-    <div class="popup-title" style="color:${color}">${creatureName}</div>
+    <div class="popup-title" style="color:${color}">${escapeHtml(creatureName)}</div>
     <div class="popup-subtitle">Получен за приглашение друзей!</div>
     <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
       🎁 НАГРАДА
@@ -1543,14 +1583,15 @@ function spawnFloatingMMO(amount) {
   setTimeout(() => el.remove(), 1600);
 }
 
+// FIXED: escapeHtml с экранированием кавычек
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ============================================================

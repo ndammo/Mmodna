@@ -422,7 +422,20 @@
     let totalUsers = 0;
 
     // ============================================================
-    // API HELPER
+    // FIXED: УЛУЧШЕННАЯ ФУНКЦИЯ escapeHtml
+    // ============================================================
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // ============================================================
+    // FIXED: API HELPER С УЛУЧШЕННОЙ ОБРАБОТКОЙ ОШИБОК
     // ============================================================
     async function apiRequest(path, method = 'GET', body = null) {
         const opts = {
@@ -446,7 +459,9 @@
             }
             return data;
         } catch (e) {
-            showToast(e.message, 'error');
+            if (e.name !== 'AbortError') {
+                showToast(e.message || 'Ошибка сети', 'error');
+            }
             return null;
         }
     }
@@ -587,7 +602,7 @@
                     <tbody>
                         ${res.users.map(u => `
                             <tr>
-                                <td>${u.telegramId}</td>
+                                <td>${escapeHtml(u.telegramId)}</td>
                                 <td>${escapeHtml(u.username || u.firstName || 'Аноним')}</td>
                                 <td>${formatNum(u.balance)}</td>
                                 <td>${u.level}</td>
@@ -612,6 +627,7 @@
         searchTimeout = setTimeout(() => loadUsers(1), 500);
     };
 
+    // FIXED: showUserDetail с использованием escapeHtml
     window.showUserDetail = async function(userId) {
         const res = await apiRequest(`/api/admin/users/${userId}`);
         if (!res) return;
@@ -624,7 +640,7 @@
                 <div class="modal-content">
                     <h3>${escapeHtml(u.username || u.firstName || 'Пользователь')}</h3>
                     <div class="user-stats">
-                        <div><strong>Telegram ID:</strong> ${u.telegramId}</div>
+                        <div><strong>Telegram ID:</strong> ${escapeHtml(u.telegramId)}</div>
                         <div><strong>Баланс:</strong> ${formatNum(u.balance)} MMO</div>
                         <div><strong>Уровень:</strong> ${u.level}</div>
                         <div><strong>XP:</strong> ${u.xp}/${u.level * 100}</div>
@@ -636,7 +652,7 @@
                     
                     <h4>📦 Инвентарь</h4>
                     <div class="inventory-list">
-                        ${inv.map(i => `<div class="inventory-item">${i.icon} ${i.name} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
+                        ${inv.map(i => `<div class="inventory-item">${escapeHtml(i.icon)} ${escapeHtml(i.name)} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
                     </div>
                     
                     <h4>👥 Рефералы (${referrals.length})</h4>
@@ -646,7 +662,7 @@
                     
                     <h4>✅ Выполненные спец-квесты</h4>
                     <div class="inventory-list">
-                        ${(u.completedSpecialQuests || []).map(q => `<div class="inventory-item">🎯 ${q}</div>`).join('') || 'Нет выполненных'}
+                        ${(u.completedSpecialQuests || []).map(q => `<div class="inventory-item">🎯 ${escapeHtml(q)}</div>`).join('') || 'Нет выполненных'}
                     </div>
                     
                     <h4>⚙️ Действия</h4>
@@ -662,7 +678,7 @@
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <select id="giveCreatureId" style="flex:2">
                                 <option value="">Выберите...</option>
-                                ${creaturesList.map(c => `<option value="${c.id}">${c.icon} ${c.name} (${c.rarity})</option>`).join('')}
+                                ${creaturesList.map(c => `<option value="${c.id}">${escapeHtml(c.icon)} ${escapeHtml(c.name)} (${c.rarity})</option>`).join('')}
                             </select>
                             <input type="number" id="giveCount" placeholder="Кол-во" style="width: 80px;">
                             <button onclick="giveItem('${userId}')">Выдать</button>
@@ -673,7 +689,7 @@
                         <div style="display: flex; gap: 8px;">
                             <select id="removeCreatureId" style="flex:2">
                                 <option value="">Выберите...</option>
-                                ${creaturesList.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+                                ${creaturesList.map(c => `<option value="${c.id}">${escapeHtml(c.icon)} ${escapeHtml(c.name)}</option>`).join('')}
                             </select>
                             <input type="number" id="removeCount" placeholder="Кол-во" style="width: 80px;">
                             <button onclick="removeItem('${userId}')" class="danger">Удалить</button>
@@ -753,7 +769,10 @@
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
         const res = await apiRequest('/api/admin/creatures');
-        if (!res) return;
+        if (!res || !res.creatures) {
+            main.innerHTML = '<div class="spinner">Ошибка загрузки существ</div>';
+            return;
+        }
         creaturesList = res.creatures;
         
         const html = `
@@ -768,9 +787,9 @@
                     <tbody>
                         ${res.creatures.map(c => `
                             <tr>
-                                <td style="font-size: 24px;">${c.icon}</td>
-                                <td><small>${c.id}</small></td>
-                                <td>${c.name}</td>
+                                <td style="font-size: 24px;">${escapeHtml(c.icon)}</td>
+                                <td><small>${escapeHtml(c.id)}</small></td>
+                                <td>${escapeHtml(c.name)}</td>
                                 <td class="rarity-${c.rarity}">${c.rarity}</td>
                                 <td>${c.incomeBase}/hr</td>
                                 <td>${c.isActive ? '✅' : '❌'}</td>
@@ -839,14 +858,14 @@
         const modalHtml = `
             <div class="modal" id="creatureModal">
                 <div class="modal-content">
-                    <h3>✏️ Редактировать ${creature.name}</h3>
+                    <h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
                     <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
                     <div class="form-group"><label>Редкость</label>
                         <select id="cRarity">
                             ${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="${creature.icon}" maxlength="2"></div>
+                    <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}" maxlength="2"></div>
                     <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
                     <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
                     <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
@@ -995,7 +1014,7 @@
             ${quests.map(q => `
                 <div class="quest-card">
                     <div class="quest-header">
-                        <div class="quest-icon">${q.icon || '🎯'}</div>
+                        <div class="quest-icon">${escapeHtml(q.icon || '🎯')}</div>
                         <div class="quest-info">
                             <div class="quest-title">${escapeHtml(q.title)}</div>
                             <div class="quest-desc">${escapeHtml(q.description || '')}</div>
@@ -1003,10 +1022,10 @@
                         <div class="${q.isActive ? 'badge-active' : 'badge-inactive'}">${q.isActive ? 'Активен' : 'Отключён'}</div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; margin-bottom: 12px;">
-                        <div><span style="color:#94a3b8">ID:</span> ${q.id}</div>
-                        <div><span style="color:#94a3b8">Тип:</span> ${q.type}</div>
+                        <div><span style="color:#94a3b8">ID:</span> ${escapeHtml(q.id)}</div>
+                        <div><span style="color:#94a3b8">Тип:</span> ${escapeHtml(q.type)}</div>
                         <div><span style="color:#94a3b8">Награда:</span> ${q.reward} MMO</div>
-                        ${q.link ? `<div><span style="color:#94a3b8">Ссылка:</span> <small>${q.link.substring(0, 30)}</small></div>` : ''}
+                        ${q.link ? `<div><span style="color:#94a3b8">Ссылка:</span> <small>${escapeHtml(q.link.substring(0, 30))}</small></div>` : ''}
                         ${q.required_count > 1 ? `<div><span style="color:#94a3b8">Требуется:</span> ${q.required_count}</div>` : ''}
                     </div>
                     <div class="quest-actions">
@@ -1086,10 +1105,10 @@
         const modalHtml = `
             <div class="modal" id="specialQuestModal">
                 <div class="modal-content">
-                    <h3>✏️ Редактировать: ${quest.title}</h3>
+                    <h3>✏️ Редактировать: ${escapeHtml(quest.title)}</h3>
                     <div class="form-group"><label>Название</label><input type="text" id="sqTitle" value="${escapeHtml(quest.title)}"></div>
                     <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2">${escapeHtml(quest.description || '')}</textarea></div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${quest.icon || '🎯'}" maxlength="2"></div>
+                    <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${escapeHtml(quest.icon || '🎯')}" maxlength="2"></div>
                     <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="${quest.reward}"></div>
                     <div class="form-group"><label>Тип</label>
                         <select id="sqType">
@@ -1178,16 +1197,6 @@
     window.closeModal = function() {
         document.querySelectorAll('.modal').forEach(m => m.remove());
     };
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
 
     function formatNum(n) {
         if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
