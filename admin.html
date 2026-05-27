@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA MMO — Админ-панель</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0c15;
+            color: #e2e8f0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        /* Админ-панель */
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Боковое меню */
+        .sidebar {
+            width: 260px;
+            background: #0d1120;
+            border-right: 1px solid #1e2d4a;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar-logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid #1e2d4a;
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-logo h2 {
+            color: #a855f7;
+            font-size: 18px;
+        }
+        
+        .sidebar-logo p {
+            font-size: 11px;
+            color: #4a5568;
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+        }
+        
+        .sidebar-nav li {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-nav li:hover {
+            background: rgba(124,58,237,0.1);
+            border-left-color: #7c3aed;
+        }
+        
+        .sidebar-nav li.active {
+            background: rgba(124,58,237,0.15);
+            border-left-color: #a855f7;
+            color: #a855f7;
+        }
+        
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 24px;
+        }
+        
+        /* Карточки */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: #141c2e;
+            border: 1px solid #1e2d4a;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        
+        .stat-card h3 {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #a855f7;
+        }
+        
+        /* Таблицы */
+        .section {
+            background: #141c2e;
+            border: 1px solid #1e2d4a;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #1e2d4a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .section-header h2 {
+            font-size: 16px;
+            color: #a855f7;
+        }
+        
+        .search-input {
+            background: #0d1120;
+            border: 1px solid #1e2d4a;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            width: 250px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #1e2d4a;
+        }
+        
+        th {
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 12px;
+            background: #0d1120;
+        }
+        
+        td {
+            font-size: 13px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            opacity: 0.85;
+            transform: scale(0.98);
+        }
+        
+        button.danger {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+        }
+        
+        button.warning {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #141c2e;
+            border: 1px solid #1e2d4a;
+            border-radius: 20px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 16px;
+        }
+        
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: #0d1120;
+            border: 1px solid #1e2d4a;
+            border-radius: 8px;
+            color: #e2e8f0;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        
+        .badge-active { background: #22c55e22; color: #22c55e; }
+        .badge-inactive { background: #ef444422; color: #ef4444; }
+        .badge-banned { background: #ef444422; color: #ef4444; }
+        
+        .hidden { display: none; }
+        
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; }
+            .sidebar span { display: none; }
+            .main-content { margin-left: 70px; }
+            .sidebar-nav li { text-align: center; }
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #4a5568;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            z-index: 1100;
+            animation: fadeInOut 2s ease;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="admin-container">
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <h2>🧬 DNA MMO</h2>
+            <p>Admin Panel</p>
+        </div>
+        <ul class="sidebar-nav">
+            <li data-tab="dashboard" class="active">📊 Дашборд</li>
+            <li data-tab="users">👥 Пользователи</li>
+            <li data-tab="creatures">🧬 Существа</li>
+            <li data-tab="economy">💰 Экономика</li>
+            <li data-tab="promocodes">🎫 Промокоды</li>
+            <li data-tab="logs">📜 Логи</li>
+        </ul>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+        <div class="loading">Загрузка...</div>
+    </div>
+</div>
+
+<script>
+    // Конфигурация
+    let API_URL = 'https://serv-production-dbf3.up.railway.app'; // Замените на ваш бекенд
+    let token = localStorage.getItem('admin_token');
+    let currentUser = null;
+    
+    // Вспомогательные функции
+    async function apiRequest(path, method = 'GET', body = null) {
+        const opts = {
+            method,
+            headers: { 'Content-Type': 'application/json' }
+        };
+        if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+        if (body) opts.body = JSON.stringify(body);
+        
+        try {
+            const res = await fetch(API_URL + path, opts);
+            const data = await res.json();
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem('admin_token');
+                    token = null;
+                    showToast('Сессия истекла, войдите снова', 'error');
+                    showLoginModal();
+                }
+                throw new Error(data.message || 'Ошибка');
+            }
+            return data;
+        } catch (e) {
+            showToast(e.message, 'error');
+            return null;
+        }
+    }
+    
+    function showToast(msg, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+    }
+    
+    function showLoginModal() {
+        const modalHtml = `
+            <div class="modal" id="loginModal">
+                <div class="modal-content">
+                    <h3>🔐 Вход в админ-панель</h3>
+                    <p style="margin-bottom: 16px; font-size: 13px; color: #94a3b8;">Введите ваш токен авторизации</p>
+                    <input type="password" id="adminToken" placeholder="JWT токен" />
+                    <div class="modal-buttons">
+                        <button onclick="login()">Войти</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    window.login = async function() {
+        const inputToken = document.getElementById('adminToken').value;
+        if (!inputToken) {
+            showToast('Введите токен', 'error');
+            return;
+        }
+        token = inputToken;
+        localStorage.setItem('admin_token', token);
+        document.getElementById('loginModal')?.remove();
+        await loadCurrentUser();
+        loadDashboard();
+    };
+    
+    async function loadCurrentUser() {
+        const res = await apiRequest('/api/user/profile');
+        if (res?.success) {
+            currentUser = res.user;
+        }
+    }
+    
+    // Загрузка разделов
+    async function loadDashboard() {
+        const statsRes = await apiRequest('/api/admin/stats');
+        if (!statsRes) return;
+        
+        const stats = statsRes.stats;
+        const html = `
+            <div class="stats-grid">
+                <div class="stat-card"><h3>Всего игроков</h3><div class="value">${stats.totalUsers}</div></div>
+                <div class="stat-card"><h3>Активные сегодня</h3><div class="value">${stats.activeToday}</div></div>
+                <div class="stat-card"><h3>Новых за 7 дней</h3><div class="value">${stats.newUsersLast7Days}</div></div>
+                <div class="stat-card"><h3>Забанено</h3><div class="value">${stats.bannedUsers}</div></div>
+                <div class="stat-card"><h3>Общий баланс</h3><div class="value">${formatNum(stats.totalBalance)}</div></div>
+                <div class="stat-card"><h3>Средний уровень</h3><div class="value">${stats.avgLevel.toFixed(1)}</div></div>
+                <div class="stat-card"><h3>Всего слияний</h3><div class="value">${formatNum(stats.totalMerges)}</div></div>
+                <div class="stat-card"><h3>Открыто капсул</h3><div class="value">${formatNum(stats.totalCapsules)}</div></div>
+            </div>
+            <div class="section">
+                <div class="section-header"><h2>📈 Быстрые действия</h2></div>
+                <div style="padding: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button onclick="showCreatePromoModal()">🎫 Создать промокод</button>
+                    <button onclick="showAddCreatureModal()">🧬 Добавить существо</button>
+                    <button onclick="showUserSearch()">👥 Найти пользователя</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+    }
+    
+    async function loadUsers() {
+        const res = await apiRequest('/api/admin/users?limit=100');
+        if (!res) return;
+        
+        const html = `
+            <div class="section">
+                <div class="section-header">
+                    <h2>👥 Пользователи</h2>
+                    <input type="text" class="search-input" id="userSearch" placeholder="Поиск по ID, имени..." oninput="searchUsers()">
+                </div>
+                <table>
+                    <thead><tr><th>ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th>Статус</th><th></th></tr></thead>
+                    <tbody id="usersTableBody">
+                        ${res.users.map(u => `
+                            <tr>
+                                <td>${u.telegramId}</td>
+                                <td>${u.username || u.firstName || 'Аноним'}</td>
+                                <td>${formatNum(u.balance)}</td>
+                                <td>${u.level}</td>
+                                <td>${u.isBanned ? '<span class="badge badge-banned">Забанен</span>' : '<span class="badge badge-active">Активен</span>'}</td>
+                                <td><button onclick="showUserDetail('${u._id}')">Подробнее</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+        window.allUsers = res.users;
+    }
+    
+    window.searchUsers = function() {
+        const search = document.getElementById('userSearch')?.value.toLowerCase();
+        if (!window.allUsers) return;
+        const filtered = window.allUsers.filter(u => 
+            u.telegramId.includes(search) || 
+            (u.username || '').toLowerCase().includes(search) ||
+            (u.firstName || '').toLowerCase().includes(search)
+        );
+        const tbody = document.getElementById('usersTableBody');
+        if (tbody) {
+            tbody.innerHTML = filtered.map(u => `
+                <tr>
+                    <td>${u.telegramId}</td>
+                    <td>${u.username || u.firstName || 'Аноним'}</td>
+                    <td>${formatNum(u.balance)}</td>
+                    <td>${u.level}</td>
+                    <td>${u.isBanned ? '<span class="badge badge-banned">Забанен</span>' : '<span class="badge badge-active">Активен</span>'}</td>
+                    <td><button onclick="showUserDetail('${u._id}')">Подробнее</button></td>
+                </tr>
+            `).join('');
+        }
+    };
+    
+    window.showUserDetail = async function(userId) {
+        const res = await apiRequest(`/api/admin/users/${userId}`);
+        if (!res) return;
+        const u = res.user;
+        const inv = res.inventory || [];
+        
+        const modalHtml = `
+            <div class="modal" id="userModal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <h3>${u.username || u.firstName || 'Пользователь'}</h3>
+                    <p><strong>Telegram ID:</strong> ${u.telegramId}</p>
+                    <p><strong>Баланс:</strong> ${formatNum(u.balance)} MMO</p>
+                    <p><strong>Уровень:</strong> ${u.level}</p>
+                    <p><strong>Рефералов:</strong> ${u.referralCount}</p>
+                    <p><strong>Статус:</strong> ${u.isBanned ? 'Забанен' : 'Активен'}</p>
+                    <hr style="margin: 16px 0; border-color: #1e2d4a;">
+                    <h4>Инвентарь</h4>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        ${inv.map(i => `<div>${i.icon || '🧬'} ${i.name || i.creatureId} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
+                    </div>
+                    <hr style="margin: 16px 0;">
+                    <h4>Действия</h4>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div><input type="number" id="balanceAmount" placeholder="Сумма (+/-)" style="width: 150px;"> <button onclick="changeBalance('${userId}')">Изменить баланс</button></div>
+                        <div><select id="giveCreatureId">${window.creaturesList ? window.creaturesList.map(c => `<option value="${c.id}">${c.name} (${c.rarity})</option>`).join('') : '<option>Загрузка...</option>'}</select>
+                        <input type="number" id="giveCount" placeholder="Кол-во" style="width: 80px;"> <button onclick="giveItem('${userId}')">Выдать</button></div>
+                        <div><button onclick="toggleBan('${userId}', ${!u.isBanned})" class="warning">${u.isBanned ? 'Разбанить' : 'Забанить'}</button>
+                        <button onclick="resetProgress('${userId}')" class="danger">Сбросить прогресс</button></div>
+                    </div>
+                    <div class="modal-buttons" style="margin-top: 20px;">
+                        <button onclick="closeModal()">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+    
+    window.changeBalance = async function(userId) {
+        const amount = parseInt(document.getElementById('balanceAmount')?.value);
+        if (isNaN(amount)) { showToast('Введите сумму', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/balance`, 'PUT', { amount, reason: 'Админ' });
+        if (res?.success) {
+            showToast(`Баланс изменён на ${amount > 0 ? '+' : ''}${amount}`);
+            closeModal();
+            loadUsers();
+        }
+    };
+    
+    window.giveItem = async function(userId) {
+        const creatureId = document.getElementById('giveCreatureId')?.value;
+        const count = parseInt(document.getElementById('giveCount')?.value || 1);
+        if (!creatureId) { showToast('Выберите существо', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/give-item`, 'POST', { creatureId, count });
+        if (res?.success) {
+            showToast(`Выдано ${count} существ`);
+            closeModal();
+        }
+    };
+    
+    window.toggleBan = async function(userId, ban) {
+        const res = await apiRequest(`/api/admin/users/${userId}/ban`, 'PUT', { isBanned: ban, reason: ban ? 'Нарушение правил' : '' });
+        if (res?.success) {
+            showToast(ban ? 'Пользователь забанен' : 'Пользователь разбанен');
+            closeModal();
+            loadUsers();
+        }
+    };
+    
+    window.resetProgress = async function(userId) {
+        if (!confirm('Сбросить прогресс пользователя? Это действие необратимо!')) return;
+        const res = await apiRequest(`/api/admin/users/${userId}/reset`, 'POST');
+        if (res?.success) {
+            showToast('Прогресс сброшен');
+            closeModal();
+        }
+    };
+    
+    async function loadCreatures() {
+        const res = await apiRequest('/api/admin/creatures');
+        if (!res) return;
+        window.creaturesList = res.creatures;
+        
+        const html = `
+            <div class="section">
+                <div class="section-header">
+                    <h2>🧬 Существа</h2>
+                    <button onclick="showAddCreatureModal()">+ Добавить существо</button>
+                </div>
+                <table>
+                    <thead><tr><th>ID</th><th>Имя</th><th>Редкость</th><th>Доход</th><th>Иконка</th><th>Статус</th><th></th></tr></thead>
+                    <tbody>
+                        ${res.creatures.map(c => `
+                            <tr>
+                                <td>${c.id}</td>
+                                <td>${c.name}</td>
+                                <td>${c.rarity}</td>
+                                <td>${c.incomeBase}/hr</td>
+                                <td style="font-size: 20px;">${c.icon}</td>
+                                <td>${c.isActive ? '<span class="badge badge-active">Активен</span>' : '<span class="badge badge-inactive">Отключен</span>'}</td>
+                                <td><button onclick="editCreature('${c.id}')">✏️</button> <button onclick="deleteCreature('${c.id}')" class="danger">🗑️</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+    }
+    
+    window.showAddCreatureModal = function() {
+        const modalHtml = `
+            <div class="modal" id="creatureModal">
+                <div class="modal-content">
+                    <h3>➕ Добавить существо</h3>
+                    <input type="text" id="creatureId" placeholder="ID (например: phoenix_legendary)" />
+                    <input type="text" id="creatureName" placeholder="Название" />
+                    <select id="creatureRarity">
+                        <option value="common">Common</option>
+                        <option value="uncommon">Uncommon</option>
+                        <option value="rare">Rare</option>
+                        <option value="epic">Epic</option>
+                        <option value="legendary">Legendary</option>
+                        <option value="mythic">Mythic</option>
+                    </select>
+                    <input type="number" id="creatureIncome" placeholder="Доход в час" />
+                    <input type="text" id="creatureIcon" placeholder="Иконка (эмодзи) 🧬" value="🧬" />
+                    <textarea id="creatureDesc" placeholder="Описание" rows="2"></textarea>
+                    <div class="modal-buttons">
+                        <button onclick="createCreature()">Создать</button>
+                        <button onclick="closeModal()">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+    
+    window.createCreature = async function() {
+        const data = {
+            id: document.getElementById('creatureId').value,
+            name: document.getElementById('creatureName').value,
+            rarity: document.getElementById('creatureRarity').value,
+            incomeBase: parseInt(document.getElementById('creatureIncome').value),
+            icon: document.getElementById('creatureIcon').value,
+            desc: document.getElementById('creatureDesc').value
+        };
+        if (!data.id || !data.name || !data.incomeBase) {
+            showToast('Заполните все поля', 'error');
+            return;
+        }
+        const res = await apiRequest('/api/admin/creatures', 'POST', data);
+        if (res?.success) {
+            showToast('Существо создано');
+            closeModal();
+            loadCreatures();
+        }
+    };
+    
+    window.editCreature = async function(creatureId) {
+        const creature = window.creaturesList?.find(c => c.id === creatureId);
+        if (!creature) return;
+        
+        const modalHtml = `
+            <div class="modal" id="creatureModal">
+                <div class="modal-content">
+                    <h3>✏️ Редактировать ${creature.name}</h3>
+                    <input type="text" id="creatureName" value="${creature.name}" placeholder="Название" />
+                    <select id="creatureRarity">
+                        <option value="common" ${creature.rarity === 'common' ? 'selected' : ''}>Common</option>
+                        <option value="uncommon" ${creature.rarity === 'uncommon' ? 'selected' : ''}>Uncommon</option>
+                        <option value="rare" ${creature.rarity === 'rare' ? 'selected' : ''}>Rare</option>
+                        <option value="epic" ${creature.rarity === 'epic' ? 'selected' : ''}>Epic</option>
+                        <option value="legendary" ${creature.rarity === 'legendary' ? 'selected' : ''}>Legendary</option>
+                        <option value="mythic" ${creature.rarity === 'mythic' ? 'selected' : ''}>Mythic</option>
+                    </select>
+                    <input type="number" id="creatureIncome" value="${creature.incomeBase}" placeholder="Доход в час" />
+                    <input type="text" id="creatureIcon" value="${creature.icon}" placeholder="Иконка (эмодзи)" />
+                    <textarea id="creatureDesc" placeholder="Описание" rows="2">${creature.desc || ''}</textarea>
+                    <div style="margin: 12px 0;">
+                        <label><input type="checkbox" id="creatureActive" ${creature.isActive ? 'checked' : ''}> Активен</label>
+                    </div>
+                    <div class="modal-buttons">
+                        <button onclick="updateCreature('${creatureId}')">Сохранить</button>
+                        <button onclick="closeModal()">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+    
+    window.updateCreature = async function(creatureId) {
+        const data = {
+            name: document.getElementById('creatureName').value,
+            rarity: document.getElementById('creatureRarity').value,
+            incomeBase: parseInt(document.getElementById('creatureIncome').value),
+            icon: document.getElementById('creatureIcon').value,
+            desc: document.getElementById('creatureDesc').value,
+            isActive: document.getElementById('creatureActive').checked
+        };
+        const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'PUT', data);
+        if (res?.success) {
+            showToast('Существо обновлено');
+            closeModal();
+            loadCreatures();
+        }
+    };
+    
+    window.deleteCreature = async function(creatureId) {
+        if (!confirm('Удалить существо? Это действие необратимо!')) return;
+        const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'DELETE');
+        if (res?.success) {
+            showToast('Существо удалено');
+            loadCreatures();
+        }
+    };
+    
+    async function loadEconomy() {
+        const res = await apiRequest('/api/admin/config');
+        if (!res) return;
+        const config = res.config;
+        
+        const html = `
+            <div class="section">
+                <div class="section-header">
+                    <h2>💰 Настройки экономики</h2>
+                </div>
+                <div style="padding: 20px;">
+                    <h3>Цены капсул</h3>
+                    <div><label>DNA Capsule: <input type="number" id="basicCost" value="${config.capsuleCosts?.basic || 50}" style="width: 100px;"></label></div>
+                    <div><label>Premium Capsule: <input type="number" id="premiumCost" value="${config.capsuleCosts?.premium || 200}" style="width: 100px;"></label></div>
+                    <h3 style="margin-top: 20px;">Реклама</h3>
+                    <div><label>Награда: <input type="number" id="adReward" value="${config.adReward || 50}" style="width: 100px;"></label></div>
+                    <div><label>Кулдаун (сек): <input type="number" id="adCooldown" value="${config.adCooldown || 60}" style="width: 100px;"></label></div>
+                    <button onclick="saveEconomy()" style="margin-top: 20px;">💾 Сохранить</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+    }
+    
+    window.saveEconomy = async function() {
+        const data = {
+            capsuleCosts: {
+                basic: parseInt(document.getElementById('basicCost').value),
+                premium: parseInt(document.getElementById('premiumCost').value)
+            },
+            adReward: parseInt(document.getElementById('adReward').value),
+            adCooldown: parseInt(document.getElementById('adCooldown').value)
+        };
+        const res = await apiRequest('/api/admin/config', 'PUT', data);
+        if (res?.success) {
+            showToast('Настройки сохранены');
+        }
+    };
+    
+    async function loadPromoCodes() {
+        const res = await apiRequest('/api/admin/promoCodes');
+        if (!res) return;
+        
+        const html = `
+            <div class="section">
+                <div class="section-header">
+                    <h2>🎫 Промокоды</h2>
+                    <button onclick="showCreatePromoModal()">+ Создать промокод</button>
+                </div>
+                <table>
+                    <thead><tr><th>Код</th><th>Награда</th><th>Использовано</th><th>Активен</th><th></th></tr></thead>
+                    <tbody>
+                        ${res.promoCodes.map(p => `
+                            <tr>
+                                <td><b>${p.code}</b></td>
+                                <td>${p.rewardCoins > 0 ? `${p.rewardCoins} MMO` : ''} ${p.rewardCreatureId ? `+ ${p.rewardCreatureId}` : ''}</td>
+                                <td>${p.usedCount}/${p.maxUses}</td>
+                                <td>${p.isActive ? '<span class="badge badge-active">Активен</span>' : '<span class="badge badge-inactive">Выкл</span>'}</td>
+                                <td><button onclick="togglePromoActive('${p._id}', ${!p.isActive})">${p.isActive ? 'Выключить' : 'Включить'}</button> <button onclick="deletePromo('${p._id}')" class="danger">Удалить</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+    }
+    
+    window.showCreatePromoModal = function() {
+        const modalHtml = `
+            <div class="modal" id="promoModal">
+                <div class="modal-content">
+                    <h3>🎫 Создать промокод</h3>
+                    <input type="text" id="promoCode" placeholder="Код (например: SUMMER2024)" />
+                    <input type="number" id="promoCoins" placeholder="Монеты (0 если нет)" value="0" />
+                    <input type="text" id="promoCreature" placeholder="ID существа (опционально)" />
+                    <input type="number" id="promoMaxUses" placeholder="Макс. использований" value="1" />
+                    <input type="datetime-local" id="promoExpires" />
+                    <div class="modal-buttons">
+                        <button onclick="createPromo()">Создать</button>
+                        <button onclick="closeModal()">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+    
+    window.createPromo = async function() {
+        const data = {
+            code: document.getElementById('promoCode').value,
+            rewardCoins: parseInt(document.getElementById('promoCoins').value) || 0,
+            rewardCreatureId: document.getElementById('promoCreature').value || null,
+            maxUses: parseInt(document.getElementById('promoMaxUses').value) || 1,
+            expiresAt: document.getElementById('promoExpires').value || null
+        };
+        if (!data.code) { showToast('Введите код', 'error'); return; }
+        const res = await apiRequest('/api/admin/promoCodes', 'POST', data);
+        if (res?.success) {
+            showToast('Промокод создан');
+            closeModal();
+            loadPromoCodes();
+        }
+    };
+    
+    window.togglePromoActive = async function(promoId, active) {
+        const res = await apiRequest(`/api/admin/promoCodes/${promoId}`, 'PUT', { isActive: active });
+        if (res?.success) {
+            showToast(active ? 'Промокод активирован' : 'Промокод деактивирован');
+            loadPromoCodes();
+        }
+    };
+    
+    window.deletePromo = async function(promoId) {
+        if (!confirm('Удалить промокод?')) return;
+        const res = await apiRequest(`/api/admin/promoCodes/${promoId}`, 'DELETE');
+        if (res?.success) {
+            showToast('Промокод удалён');
+            loadPromoCodes();
+        }
+    };
+    
+    async function loadLogs() {
+        const res = await apiRequest('/api/admin/logs?limit=100');
+        if (!res) return;
+        
+        const html = `
+            <div class="section">
+                <div class="section-header">
+                    <h2>📜 Логи действий админов</h2>
+                </div>
+                <table>
+                    <thead><tr><th>Время</th><th>Админ</th><th>Действие</th><th>Цель</th><th>Детали</th></tr></thead>
+                    <tbody>
+                        ${res.logs.map(l => `
+                            <tr>
+                                <td>${new Date(l.timestamp).toLocaleString()}</td>
+                                <td>${l.adminName || l.adminId}</td>
+                                <td>${l.action}</td>
+                                <td>${l.targetName || l.targetId}</td>
+                                <td>${JSON.stringify(l.details).slice(0, 50)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('mainContent').innerHTML = html;
+    }
+    
+    window.showUserSearch = function() {
+        loadUsers();
+        document.querySelector('[data-tab="users"]').click();
+    };
+    
+    window.closeModal = function() {
+        document.querySelectorAll('.modal').forEach(m => m.remove());
+    };
+    
+    window.formatNum = function(n) {
+        if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+        return Math.floor(n).toString();
+    };
+    
+    // Навигация
+    document.querySelectorAll('.sidebar-nav li').forEach(item => {
+        item.addEventListener('click', async () => {
+            document.querySelectorAll('.sidebar-nav li').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            const tab = item.dataset.tab;
+            if (tab === 'dashboard') await loadDashboard();
+            if (tab === 'users') await loadUsers();
+            if (tab === 'creatures') await loadCreatures();
+            if (tab === 'economy') await loadEconomy();
+            if (tab === 'promocodes') await loadPromoCodes();
+            if (tab === 'logs') await loadLogs();
+        });
+    });
+    
+    // Инициализация
+    if (!token) {
+        showLoginModal();
+    } else {
+        loadCurrentUser();
+        loadDashboard();
+    }
+</script>
+</body>
+</html>
