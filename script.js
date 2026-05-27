@@ -323,6 +323,7 @@ function renderAll() {
   updateUpgradeButton();
   renderLeaderboard();
   renderSpecialQuests();
+  updateFriendRewardButtons();
 }
 
 function updateHeader() {
@@ -353,6 +354,11 @@ function updateHeader() {
 
   updateUpgradeButton();
   renderTransactions();
+  
+  const friendCountDisplay = document.getElementById('friendCountDisplay');
+  if (friendCountDisplay && state.user) {
+    friendCountDisplay.textContent = `${state.user.referralCount || 0} friends invited`;
+  }
 }
 
 function updateUpgradeButton() {
@@ -1176,25 +1182,13 @@ async function inviteFriend() {
   }
 }
 
-function claimFriendReward(requiredFriends, creatureId) {
-  const currentFriends = state.user?.referralCount || 0;
-  if (currentFriends < requiredFriends) {
-    showToast(`Need ${requiredFriends} friends (${currentFriends}/${requiredFriends})`, '❌');
-    return;
-  }
-  showToast('Feature coming soon!', 'ℹ️');
-}
-
 // ============================================================
 // SPECIAL QUESTS С СКРЫТОЙ ПРОВЕРКОЙ
 // ============================================================
 
-// Хранилище активных таймеров для квестов
 let activeQuestTimers = new Map();
 
-// Функция для открытия канала и запуска скрытого таймера
 function openChannelAndStartTimer(questId, channelLink) {
-    // Открываем канал
     if (channelLink) {
         if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
             window.Telegram.WebApp.openTelegramLink(channelLink);
@@ -1203,21 +1197,16 @@ function openChannelAndStartTimer(questId, channelLink) {
         }
     }
     
-    // Если уже есть таймер для этого квеста - очищаем
     if (activeQuestTimers.has(questId)) {
         clearTimeout(activeQuestTimers.get(questId));
         activeQuestTimers.delete(questId);
     }
     
-    // Запускаем скрытый таймер на 60 секунд
     const timer = setTimeout(async () => {
-        // Проверяем, не выполнен ли уже квест
         if (state.user?.completedSpecialQuests?.includes(questId)) {
             activeQuestTimers.delete(questId);
             return;
         }
-        
-        // Зачисляем награду
         await claimSpecialQuestSilent(questId);
         activeQuestTimers.delete(questId);
     }, 60000);
@@ -1225,7 +1214,6 @@ function openChannelAndStartTimer(questId, channelLink) {
     activeQuestTimers.set(questId, timer);
 }
 
-// Функция для тихого получения награды
 async function claimSpecialQuestSilent(questId) {
     if (state.isLoading) return;
     
@@ -1244,7 +1232,6 @@ async function claimSpecialQuestSilent(questId) {
     showToast(`+${res.reward} MMO`, '✅');
 }
 
-// Функция для реферальных квестов
 async function claimSpecialQuest(questId) {
     if (state.isLoading) return;
     
@@ -1269,7 +1256,6 @@ async function claimSpecialQuest(questId) {
     spawnFloatingMMO(res.reward);
 }
 
-// Функция для custom link
 function markCustomLinkComplete(questId) {
     const storageKey = `custom_link_${questId}_${state.user?.telegramId}`;
     localStorage.setItem(storageKey, 'true');
@@ -1286,7 +1272,6 @@ function openCustomLinkAndComplete(questId, link) {
     }, 500);
 }
 
-// Рендер спец-квестов
 async function renderSpecialQuests() {
     const container = document.getElementById('specialQuestsList');
     if (!container) return;
@@ -1382,6 +1367,143 @@ function getQuestDefaultDesc(type) {
 async function updateSpecialQuests() {
     await loadGameConfig();
     renderSpecialQuests();
+}
+
+// ============================================================
+// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ТОЛЬКО ВОЛКИ)
+// ============================================================
+
+async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
+  if (state.isLoading) return;
+  
+  const currentFriends = state.user?.referralCount || 0;
+  
+  if (currentFriends < requiredFriends) {
+    showToast(`Нужно ${requiredFriends} друзей (у вас ${currentFriends})`, '❌');
+    return;
+  }
+  
+  const rewardKey = `friend_reward_${requiredFriends}`;
+  if (state.user?.completedSpecialQuests?.includes(rewardKey)) {
+    showToast('Вы уже получили эту награду', 'ℹ️');
+    return;
+  }
+  
+  state.isLoading = true;
+  showToast('🔄 Получение награды...', '');
+  
+  const res = await apiRequest('POST', '/api/game/claim-friend-reward', { 
+    requiredFriends, 
+    creatureId 
+  });
+  
+  state.isLoading = false;
+  
+  if (!res.success) {
+    showToast(res.message || 'Ошибка', '❌');
+    return;
+  }
+  
+  state.user = res.user;
+  state.inventory = res.inventory;
+  
+  updateHeader();
+  renderCards();
+  updateFriendRewardButtons();
+  renderSpecialQuests();
+  
+  showFriendRewardPopup(creatureName, creatureIcon);
+}
+
+function showFriendRewardPopup(creatureName, creatureIcon) {
+  const colorMap = {
+    'Rare Wolf': 'var(--rare)',
+    'Epic Wolf': 'var(--epic)',
+    'Legendary Wolf': 'var(--legendary)'
+  };
+  const color = colorMap[creatureName] || 'var(--accent3)';
+  
+  document.getElementById('popup').innerHTML = `
+    <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+    <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${creatureIcon || '🐺'}</span>
+    <div class="popup-title" style="color:${color}">${creatureName}</div>
+    <div class="popup-subtitle">Получен за приглашение друзей!</div>
+    <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
+      🎁 НАГРАДА
+    </div>
+    <button class="popup-btn" onclick="closeOverlay()">ОТЛИЧНО!</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  spawnStars('epic');
+}
+
+function updateFriendRewardButtons() {
+  const currentFriends = state.user?.referralCount || 0;
+  const completedQuests = new Set(state.user?.completedSpecialQuests || []);
+  
+  const rewards = [
+    { friends: 10, creatureId: 'wolf_r', creatureName: 'Rare Wolf', creatureIcon: '🐺', rarity: 'rare', btnId: 'reward-10-btn', cardId: 'reward-10' },
+    { friends: 50, creatureId: 'wolf_e', creatureName: 'Epic Wolf', creatureIcon: '🐺', rarity: 'epic', btnId: 'reward-50-btn', cardId: 'reward-50' },
+    { friends: 150, creatureId: 'wolf_l', creatureName: 'Legendary Wolf', creatureIcon: '🐺', rarity: 'legendary', btnId: 'reward-150-btn', cardId: 'reward-150' }
+  ];
+  
+  rewards.forEach(reward => {
+    const btn = document.getElementById(reward.btnId);
+    const card = document.getElementById(reward.cardId);
+    if (!btn) return;
+    
+    const alreadyClaimed = completedQuests.has(`friend_reward_${reward.friends}`);
+    
+    if (alreadyClaimed) {
+      btn.textContent = '✅ ПОЛУЧЕНО';
+      btn.style.background = 'rgba(34,197,94,0.2)';
+      btn.style.color = 'var(--uncommon)';
+      btn.style.cursor = 'default';
+      btn.disabled = true;
+      if (card) card.style.opacity = '0.6';
+    } else if (currentFriends >= reward.friends) {
+      btn.textContent = '🎁 ЗАБРАТЬ';
+      btn.style.background = `linear-gradient(135deg, var(--${reward.rarity}), var(--${reward.rarity}))`;
+      btn.style.color = '#fff';
+      btn.style.cursor = 'pointer';
+      btn.disabled = false;
+      btn.onclick = () => claimFriendReward(reward.friends, reward.creatureId, reward.creatureName, reward.creatureIcon);
+      if (card) card.style.borderColor = `var(--${reward.rarity})`;
+    } else {
+      btn.textContent = `🔒 ${reward.friends} ДРУЗЕЙ`;
+      btn.style.background = 'var(--surface2)';
+      btn.style.color = 'var(--text2)';
+      btn.style.cursor = 'not-allowed';
+      btn.disabled = true;
+    }
+  });
+}
+
+// ============================================================
+// ТЕСТОВАЯ КНОПКА ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ
+// ⚠️ УДАЛИТЬ ЭТУ ФУНКЦИЮ В ПРОДАКШЕНЕ ⚠️
+// ============================================================
+async function testAddFriend() {
+  if (state.isLoading) return;
+  
+  state.isLoading = true;
+  showToast('🧪 Добавление тестового друга...', '');
+  
+  const res = await apiRequest('POST', '/api/game/test-add-friend');
+  
+  state.isLoading = false;
+  
+  if (!res.success) {
+    showToast(res.message || 'Ошибка', '❌');
+    return;
+  }
+  
+  state.user = res.user;
+  updateHeader();
+  updateFriendRewardButtons();
+  renderSpecialQuests();
+  
+  showToast(res.message, '🧪');
 }
 
 // ============================================================
