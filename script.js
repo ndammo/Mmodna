@@ -1183,7 +1183,7 @@ async function inviteFriend() {
 }
 
 // ============================================================
-// SPECIAL QUESTS С СКРЫТОЙ ПРОВЕРКОЙ
+// SPECIAL QUESTS
 // ============================================================
 
 let activeQuestTimers = new Map();
@@ -1477,33 +1477,6 @@ function updateFriendRewardButtons() {
       btn.disabled = true;
     }
   });
-}
-
-// ============================================================
-// ТЕСТОВАЯ КНОПКА ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ
-// ⚠️ УДАЛИТЬ ЭТУ ФУНКЦИЮ В ПРОДАКШЕНЕ ⚠️
-// ============================================================
-async function testAddFriend() {
-  if (state.isLoading) return;
-  
-  state.isLoading = true;
-  showToast('🧪 Добавление тестового друга...', '');
-  
-  const res = await apiRequest('POST', '/api/game/test-add-friend');
-  
-  state.isLoading = false;
-  
-  if (!res.success) {
-    showToast(res.message || 'Ошибка', '❌');
-    return;
-  }
-  
-  state.user = res.user;
-  updateHeader();
-  updateFriendRewardButtons();
-  renderSpecialQuests();
-  
-  showToast(res.message, '🧪');
 }
 
 // ============================================================
