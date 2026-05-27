@@ -171,6 +171,10 @@
             background: #1e2d4a;
         }
 
+        button.success {
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+        }
+
         input, select, textarea {
             background: #0d1120;
             border: 1px solid #1e2d4a;
@@ -324,6 +328,61 @@
             border-color: #1e2d4a;
         }
 
+        .quest-card {
+            background: #141c2e;
+            border: 1px solid #1e2d4a;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .quest-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .quest-icon {
+            font-size: 32px;
+        }
+
+        .quest-info {
+            flex: 1;
+        }
+
+        .quest-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .quest-desc {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .quest-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .badge-active {
+            background: #22c55e22;
+            color: #22c55e;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+        }
+
+        .badge-inactive {
+            background: #ef444422;
+            color: #ef4444;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+        }
+
         @media (min-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
@@ -348,7 +407,7 @@
     <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Игроки</span></button>
     <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
     <button class="nav-item" data-tab="economy"><i class="fas fa-coins"></i><span>Экономика</span></button>
-    <button class="nav-item" data-tab="quests"><i class="fas fa-tasks"></i><span>Квесты</span></button>
+    <button class="nav-item" data-tab="special-quests"><i class="fas fa-star"></i><span>Special</span></button>
 </div>
 
 <script>
@@ -454,7 +513,7 @@
             if (tab === 'users') loadUsers();
             if (tab === 'creatures') loadCreatures();
             if (tab === 'economy') loadEconomy();
-            if (tab === 'quests') loadQuests();
+            if (tab === 'special-quests') loadSpecialQuests();
         });
     });
 
@@ -494,7 +553,7 @@
     }
 
     async function refreshCache() {
-        const res = await apiRequest('/api/admin/config', 'GET');
+        const res = await apiRequest('/api/admin/refresh-cache', 'POST');
         if (res?.success) {
             showToast('Кэш обновлён');
         }
@@ -583,6 +642,11 @@
                     <h4>👥 Рефералы (${referrals.length})</h4>
                     <div class="inventory-list">
                         ${referrals.map(r => `<div class="inventory-item">${escapeHtml(r.username || r.firstName || 'Аноним')} — ${formatNum(r.balance)} MMO</div>`).join('') || 'Нет рефералов'}
+                    </div>
+                    
+                    <h4>✅ Выполненные спец-квесты</h4>
+                    <div class="inventory-list">
+                        ${(u.completedSpecialQuests || []).map(q => `<div class="inventory-item">🎯 ${q}</div>`).join('') || 'Нет выполненных'}
                     </div>
                     
                     <h4>⚙️ Действия</h4>
@@ -912,125 +976,169 @@
     };
 
     // ============================================================
-    // QUESTS - ИСПРАВЛЕННАЯ ВЕРСИЯ
+    // SPECIAL QUESTS
     // ============================================================
-    async function loadQuests() {
+    async function loadSpecialQuests() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
-        const res = await apiRequest('/api/admin/config');
-        if (!res || !res.success) {
-            main.innerHTML = '<div class="spinner" style="color: red;">Ошибка загрузки квестов</div>';
-            return;
-        }
+        const res = await apiRequest('/api/admin/special-quests');
+        if (!res) return;
         
-        const config = res.config;
-        const q = config.quests || {};
+        const quests = res.specialQuests || [];
         
         const html = `
-            <div class="user-card">
-                <h3>🎯 Настройка квестов</h3>
-                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">⚠️ После изменения квестов, прогресс у игроков НЕ сбрасывается автоматически</p>
-                
-                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
-                    <h4 style="color: #a855f7; margin-bottom: 12px;">📦 Открытие капсул</h4>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="quest_open_enabled" ${q.openCapsules?.enabled !== false ? 'checked' : ''}> Включен</label>
-                    </div>
-                    <div class="form-group">
-                        <label>Цель (количество открытий)</label>
-                        <input type="number" id="quest_open_target" value="${q.openCapsules?.target || 5}">
-                    </div>
-                    <div class="form-group">
-                        <label>Награда (MMO)</label>
-                        <input type="number" id="quest_open_reward" value="${q.openCapsules?.reward || 200}">
-                    </div>
-                </div>
-                
-                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
-                    <h4 style="color: #22c55e; margin-bottom: 12px;">🔀 Слияния существ</h4>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="quest_merge_enabled" ${q.merges?.enabled !== false ? 'checked' : ''}> Включен</label>
-                    </div>
-                    <div class="form-group">
-                        <label>Цель (количество слияний)</label>
-                        <input type="number" id="quest_merge_target" value="${q.merges?.target || 3}">
-                    </div>
-                    <div class="form-group">
-                        <label>Награда (MMO)</label>
-                        <input type="number" id="quest_merge_reward" value="${q.merges?.reward || 150}">
-                    </div>
-                </div>
-                
-                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
-                    <h4 style="color: #f59e0b; margin-bottom: 12px;">💰 Заработок MMO</h4>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="quest_earn_enabled" ${q.earnMMO?.enabled !== false ? 'checked' : ''}> Включен</label>
-                    </div>
-                    <div class="form-group">
-                        <label>Цель (MMO)</label>
-                        <input type="number" id="quest_earn_target" value="${q.earnMMO?.target || 500}">
-                    </div>
-                    <div class="form-group">
-                        <label>Награда (MMO)</label>
-                        <input type="number" id="quest_earn_reward" value="${q.earnMMO?.reward || 100}">
-                    </div>
-                </div>
-                
-                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
-                    <h4 style="color: #3b82f6; margin-bottom: 12px;">📖 Открытие существ</h4>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="quest_discover_enabled" ${q.discoverCreatures?.enabled !== false ? 'checked' : ''}> Включен</label>
-                    </div>
-                    <div class="form-group">
-                        <label>Цель (количество уникальных существ)</label>
-                        <input type="number" id="quest_discover_target" value="${q.discoverCreatures?.target || 10}">
-                    </div>
-                    <div class="form-group">
-                        <label>Награда (MMO)</label>
-                        <input type="number" id="quest_discover_reward" value="${q.discoverCreatures?.reward || 300}">
-                    </div>
-                </div>
-                
-                <button onclick="saveQuests()" style="width:100%; margin-top: 16px;">
-                    💾 СОХРАНИТЬ ВСЕ КВЕСТЫ
-                </button>
+            <div style="margin-bottom: 16px;">
+                <button onclick="showAddSpecialQuestModal()" class="success"><i class="fas fa-plus"></i> Добавить спец-квест</button>
             </div>
+            ${quests.length === 0 ? '<div class="user-card" style="text-align:center">Нет спец-квестов. Создайте первый!</div>' : ''}
+            ${quests.map(q => `
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-icon">${q.icon || '🎯'}</div>
+                        <div class="quest-info">
+                            <div class="quest-title">${escapeHtml(q.title)}</div>
+                            <div class="quest-desc">${escapeHtml(q.description || '')}</div>
+                        </div>
+                        <div class="${q.isActive ? 'badge-active' : 'badge-inactive'}">${q.isActive ? 'Активен' : 'Отключён'}</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; margin-bottom: 12px;">
+                        <div><span style="color:#94a3b8">ID:</span> ${q.id}</div>
+                        <div><span style="color:#94a3b8">Тип:</span> ${q.type}</div>
+                        <div><span style="color:#94a3b8">Награда:</span> ${q.reward} MMO</div>
+                        ${q.link ? `<div><span style="color:#94a3b8">Ссылка:</span> <small>${q.link.substring(0, 30)}</small></div>` : ''}
+                        ${q.required_count > 1 ? `<div><span style="color:#94a3b8">Требуется:</span> ${q.required_count}</div>` : ''}
+                    </div>
+                    <div class="quest-actions">
+                        <button onclick="editSpecialQuest('${q.id}')" class="secondary"><i class="fas fa-edit"></i> Редактировать</button>
+                        <button onclick="deleteSpecialQuest('${q.id}')" class="danger"><i class="fas fa-trash"></i> Удалить</button>
+                    </div>
+                </div>
+            `).join('')}
         `;
         main.innerHTML = html;
     }
 
-    window.saveQuests = async function() {
-        // Собираем данные только по квестам
-        const questsData = {
-            openCapsules: {
-                enabled: document.getElementById('quest_open_enabled')?.checked || false,
-                target: parseInt(document.getElementById('quest_open_target')?.value) || 5,
-                reward: parseInt(document.getElementById('quest_open_reward')?.value) || 200
-            },
-            merges: {
-                enabled: document.getElementById('quest_merge_enabled')?.checked || false,
-                target: parseInt(document.getElementById('quest_merge_target')?.value) || 3,
-                reward: parseInt(document.getElementById('quest_merge_reward')?.value) || 150
-            },
-            earnMMO: {
-                enabled: document.getElementById('quest_earn_enabled')?.checked || false,
-                target: parseInt(document.getElementById('quest_earn_target')?.value) || 500,
-                reward: parseInt(document.getElementById('quest_earn_reward')?.value) || 100
-            },
-            discoverCreatures: {
-                enabled: document.getElementById('quest_discover_enabled')?.checked || false,
-                target: parseInt(document.getElementById('quest_discover_target')?.value) || 10,
-                reward: parseInt(document.getElementById('quest_discover_reward')?.value) || 300
-            }
+    window.showAddSpecialQuestModal = function() {
+        const modalHtml = `
+            <div class="modal" id="specialQuestModal">
+                <div class="modal-content">
+                    <h3>✨ Добавить спец-квест</h3>
+                    <div class="form-group"><label>ID (уникальный)</label><input type="text" id="sqId" placeholder="например: join_channel"></div>
+                    <div class="form-group"><label>Название</label><input type="text" id="sqTitle" placeholder="Подпишись на канал"></div>
+                    <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2" placeholder="Получи награду за подписку"></textarea></div>
+                    <div class="form-group"><label>Иконка (эмодзи)</label><input type="text" id="sqIcon" value="📢" maxlength="2"></div>
+                    <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="100"></div>
+                    <div class="form-group"><label>Тип квеста</label>
+                        <select id="sqType">
+                            <option value="telegram_channel">Telegram канал</option>
+                            <option value="twitter_follow">Twitter/X подписка</option>
+                            <option value="youtube_sub">YouTube подписка</option>
+                            <option value="custom_link">Переход по ссылке</option>
+                            <option value="referral_count">Привести друзей</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Ссылка (для канала/Twitter/YouTube)</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
+                    <div class="form-group"><label>Необходимое количество (для referral_count)</label><input type="number" id="sqRequiredCount" value="1"></div>
+                    <div class="form-group"><label><input type="checkbox" id="sqIsActive" checked> Активен</label></div>
+                    <div class="modal-buttons">
+                        <button onclick="createSpecialQuest()" class="success">Создать</button>
+                        <button onclick="closeModal()">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.createSpecialQuest = async function() {
+        const data = {
+            id: document.getElementById('sqId').value,
+            title: document.getElementById('sqTitle').value,
+            description: document.getElementById('sqDesc').value,
+            icon: document.getElementById('sqIcon').value,
+            reward: parseInt(document.getElementById('sqReward').value),
+            type: document.getElementById('sqType').value,
+            link: document.getElementById('sqLink').value,
+            required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1,
+            isActive: document.getElementById('sqIsActive').checked
         };
         
-        const res = await apiRequest('/api/admin/config', 'PUT', { quests: questsData });
+        if (!data.id || !data.title || !data.reward) {
+            showToast('Заполните ID, название и награду', 'error');
+            return;
+        }
+        
+        const res = await apiRequest('/api/admin/special-quests', 'POST', data);
         if (res?.success) {
-            showToast('✅ Квесты сохранены!');
-            loadQuests();
-        } else {
-            showToast('❌ Ошибка сохранения: ' + (res?.message || 'неизвестная'), 'error');
+            showToast('Спец-квест создан');
+            closeModal();
+            loadSpecialQuests();
+        }
+    };
+
+    window.editSpecialQuest = async function(questId) {
+        const res = await apiRequest('/api/admin/special-quests');
+        if (!res) return;
+        const quest = res.specialQuests.find(q => q.id === questId);
+        if (!quest) return;
+        
+        const modalHtml = `
+            <div class="modal" id="specialQuestModal">
+                <div class="modal-content">
+                    <h3>✏️ Редактировать: ${quest.title}</h3>
+                    <div class="form-group"><label>Название</label><input type="text" id="sqTitle" value="${escapeHtml(quest.title)}"></div>
+                    <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2">${escapeHtml(quest.description || '')}</textarea></div>
+                    <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${quest.icon || '🎯'}" maxlength="2"></div>
+                    <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="${quest.reward}"></div>
+                    <div class="form-group"><label>Тип</label>
+                        <select id="sqType">
+                            <option value="telegram_channel" ${quest.type === 'telegram_channel' ? 'selected' : ''}>Telegram канал</option>
+                            <option value="twitter_follow" ${quest.type === 'twitter_follow' ? 'selected' : ''}>Twitter/X подписка</option>
+                            <option value="youtube_sub" ${quest.type === 'youtube_sub' ? 'selected' : ''}>YouTube подписка</option>
+                            <option value="custom_link" ${quest.type === 'custom_link' ? 'selected' : ''}>Переход по ссылке</option>
+                            <option value="referral_count" ${quest.type === 'referral_count' ? 'selected' : ''}>Привести друзей</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" value="${escapeHtml(quest.link || '')}"></div>
+                    <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="${quest.required_count || 1}"></div>
+                    <div class="form-group"><label><input type="checkbox" id="sqIsActive" ${quest.isActive ? 'checked' : ''}> Активен</label></div>
+                    <div class="modal-buttons">
+                        <button onclick="updateSpecialQuest('${quest.id}')" class="success">Сохранить</button>
+                        <button onclick="closeModal()">Отмена</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.updateSpecialQuest = async function(questId) {
+        const data = {
+            title: document.getElementById('sqTitle').value,
+            description: document.getElementById('sqDesc').value,
+            icon: document.getElementById('sqIcon').value,
+            reward: parseInt(document.getElementById('sqReward').value),
+            type: document.getElementById('sqType').value,
+            link: document.getElementById('sqLink').value,
+            required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1,
+            isActive: document.getElementById('sqIsActive').checked
+        };
+        
+        const res = await apiRequest(`/api/admin/special-quests/${questId}`, 'PUT', data);
+        if (res?.success) {
+            showToast('Спец-квест обновлён');
+            closeModal();
+            loadSpecialQuests();
+        }
+    };
+
+    window.deleteSpecialQuest = async function(questId) {
+        if (!confirm('Удалить спец-квест? Пользователи не смогут его выполнить.')) return;
+        const res = await apiRequest(`/api/admin/special-quests/${questId}`, 'DELETE');
+        if (res?.success) {
+            showToast('Спец-квест удалён');
+            loadSpecialQuests();
         }
     };
 

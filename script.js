@@ -4,12 +4,12 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
-// КЭШ ЛИДЕРБОРДА НА КЛИЕНТЕ (ОПТИМИЗАЦИЯ)
+// КЭШ ЛИДЕРБОРДА НА КЛИЕНТЕ
 // ============================================================
 let leaderboardCache = {
   data: null,
   expiresAt: 0,
-  cacheTimeMs: 30000  // 30 секунд
+  cacheTimeMs: 30000
 };
 
 // ============================================================
@@ -52,9 +52,9 @@ async function apiRequest(method, path, body = null) {
 }
 
 // ============================================================
-// GAME DATA - ЗАГРУЖАЕТСЯ С СЕРВЕРА!
+// GAME DATA - ЗАГРУЖАЕТСЯ С СЕРВЕРА
 // ============================================================
-let CREATURES = [];  // Пустой массив, заполнится с сервера
+let CREATURES = [];
 let CAPSULE_COSTS = { basic: 50, premium: 200 };
 let RARITY_WEIGHTS = {
   basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
@@ -65,6 +65,7 @@ let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 100;
 let UPGRADE_MULTIPLIER = 1.5;
 let MAX_INVENTORY_SLOTS = 50;
+let SPECIAL_QUESTS = [];
 
 const RARITY_COLORS = {
   common: '#94a3b8', uncommon: '#22c55e', rare: '#3b82f6',
@@ -84,6 +85,7 @@ async function loadGameConfig() {
     UPGRADE_BASE_COST = cfg.upgradeBaseCost || 100;
     UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
     MAX_INVENTORY_SLOTS = cfg.limits?.maxInventorySlots || 50;
+    SPECIAL_QUESTS = cfg.specialQuests || [];
     return true;
   }
   return false;
@@ -172,7 +174,6 @@ async function initTelegramApp() {
   state.user = loginRes.user;
   state.inventory = loginRes.inventory || [];
 
-  // Загружаем конфиг и существ с сервера
   await loadGameConfig();
   await loadCreaturesFromServer();
 
@@ -194,6 +195,7 @@ async function initTelegramApp() {
 
   setInterval(idleTick, 15000);
   setInterval(updateAdsTimer, 1000);
+  setInterval(updateSpecialQuests, 30000); // Обновляем спец-квесты каждые 30 сек
 
   if (loginRes.isNewUser) {
     setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
@@ -320,7 +322,7 @@ function renderAll() {
   renderCards();
   updateUpgradeButton();
   renderLeaderboard();
-  renderQuests();
+  renderSpecialQuests();
 }
 
 function updateHeader() {
@@ -405,7 +407,7 @@ function renderCards() {
 }
 
 // ============================================================
-// CAPSULE (с debounce)
+// CAPSULE
 // ============================================================
 let lastCapsuleOpen = 0;
 
@@ -551,7 +553,7 @@ function onCardClick(creatureId) {
 }
 
 // ============================================================
-// MERGE (с debounce)
+// MERGE
 // ============================================================
 let lastMergeTime = 0;
 
@@ -878,6 +880,142 @@ function showCreatureInfo(creatureId) {
 }
 
 // ============================================================
+// SPECIAL QUESTS (новая система)
+// ============================================================
+async function renderSpecialQuests() {
+  const container = document.getElementById('specialQuestsList');
+  if (!container) return;
+
+  if (!SPECIAL_QUESTS.length) {
+    container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">No special quests available</div>`;
+    return;
+  }
+
+  const completedQuests = new Set(state.user?.completedSpecialQuests || []);
+
+  container.innerHTML = SPECIAL_QUESTS.map(quest => {
+    const isCompleted = completedQuests.has(quest.id);
+    const typeIcons = {
+      'telegram_channel': '📢',
+      'twitter_follow': '🐦',
+      'youtube_sub': '📺',
+      'custom_link': '🔗',
+      'referral_count': '👥'
+    };
+    const typeIcon = typeIcons[quest.type] || '🎯';
+    
+    let actionHtml = '';
+    if (isCompleted) {
+      actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> COMPLETED</button>`;
+    } else {
+      if (quest.type === 'referral_count') {
+        const currentFriends = state.user?.referralCount || 0;
+        if (currentFriends >= quest.required_count) {
+          actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> CLAIM (${currentFriends}/${quest.required_count})</button>`;
+        } else {
+          actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> NEED ${quest.required_count} FRIENDS (${currentFriends})</button>`;
+        }
+      } else if (quest.type === 'custom_link') {
+        actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> VISIT & CLAIM</button>`;
+      } else {
+        actionHtml = `<button class="special-quest-btn" onclick="openLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid ${quest.type === 'telegram_channel' ? 'fa-telegram' : 'fa-external-link-alt'}"></i> CHECK & CLAIM</button>`;
+      }
+    }
+
+    return `<div class="special-quest-card">
+      <div class="special-quest-header">
+        <div class="special-quest-icon">${quest.icon || typeIcon}</div>
+        <div class="special-quest-info">
+          <div class="special-quest-title">${escapeHtml(quest.title)}</div>
+          <div class="special-quest-desc">${escapeHtml(quest.description || getQuestDefaultDesc(quest.type))}</div>
+        </div>
+        <div class="special-quest-reward">+${quest.reward} MMO</div>
+      </div>
+      <div class="special-quest-footer">
+        ${actionHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getQuestDefaultDesc(type) {
+  const descs = {
+    'telegram_channel': 'Подпишись на Telegram канал',
+    'twitter_follow': 'Подпишись на Twitter/X',
+    'youtube_sub': 'Подпишись на YouTube',
+    'custom_link': 'Перейди по ссылке',
+    'referral_count': 'Пригласи друзей'
+  };
+  return descs[type] || 'Выполни задание';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    return m;
+  });
+}
+
+function openLinkAndComplete(questId, link) {
+  if (!link) {
+    showToast('Ссылка не указана', '❌');
+    return;
+  }
+  
+  // Открываем ссылку
+  if (window.Telegram?.WebApp && link.includes('t.me')) {
+    window.Telegram.WebApp.openTelegramLink(link);
+  } else {
+    window.open(link, '_blank');
+  }
+  
+  // Даём время на переход и предлагаем подтвердить
+  setTimeout(() => {
+    if (confirm('Вы выполнили действие? Нажмите OK, чтобы получить награду.')) {
+      claimSpecialQuest(questId);
+    }
+  }, 3000);
+}
+
+function openCustomLinkAndComplete(questId, link) {
+  if (link) {
+    window.open(link, '_blank');
+  }
+  setTimeout(() => {
+    if (confirm('Вы посетили ссылку? Нажмите OK, чтобы получить награду.')) {
+      claimSpecialQuest(questId);
+    }
+  }, 2000);
+}
+
+async function claimSpecialQuest(questId) {
+  if (state.isLoading) return;
+  
+  state.isLoading = true;
+  const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+  state.isLoading = false;
+  
+  if (!res.success) {
+    showToast(res.message || 'Ошибка', '❌');
+    return;
+  }
+  
+  state.user = res.user;
+  updateHeader();
+  await renderSpecialQuests();
+  showToast(res.message || `+${res.reward} MMO получено!`, '✅');
+  spawnFloatingMMO(res.reward);
+}
+
+async function updateSpecialQuests() {
+  await loadGameConfig();
+  renderSpecialQuests();
+}
+
+// ============================================================
 // MARKETPLACE
 // ============================================================
 function switchMarketplaceTab(tab) {
@@ -1156,96 +1294,6 @@ function renderLeaderboardData(data) {
 }
 
 // ============================================================
-// QUESTS
-// ============================================================
-const QUEST_DEFS = [
-  { id: 'openCapsules', name: 'Capsule Collector', desc: 'Open DNA capsules', icon: '🧬', reward: 200, color: 'var(--accent3)' },
-  { id: 'merges', name: 'Merge Master', desc: 'Merge creatures', icon: '🔀', reward: 150, color: 'var(--uncommon)' },
-  { id: 'earnMMO', name: 'MMO Earner', desc: 'Earn MMO total', icon: '💰', reward: 100, color: 'var(--legendary)' },
-  { id: 'discoverCreatures', name: 'Discoverer', desc: 'Discover creatures', icon: '📖', reward: 300, color: 'var(--accent2)' },
-];
-
-const ACHIEVEMENT_DEFS = [
-  { id: 'first_open', name: 'First Contact', desc: 'Open your first capsule', icon: '🎯', reward: 50 },
-  { id: 'first_merge', name: 'Alchemist', desc: 'Perform your first merge', icon: '⚗️', reward: 100 },
-  { id: 'get_legendary', name: 'Legend Born', desc: 'Obtain a Legendary creature', icon: '🌟', reward: 500 },
-  { id: 'level5', name: 'Rising Star', desc: 'Reach Level 5', icon: '⭐', reward: 200 },
-];
-
-function checkAchievement(id) {
-  if (!state.user) return false;
-  const discovered = new Set(state.user.discovered || []);
-  if (id === 'first_open') return (state.user.capsulesOpened || 0) >= 1;
-  if (id === 'first_merge') return (state.user.mergeCount || 0) >= 1;
-  if (id === 'get_legendary') return CREATURES.filter(c => c.rarity === 'legendary').some(c => discovered.has(c.id));
-  if (id === 'level5') return (state.user.level || 1) >= 5;
-  return false;
-}
-
-function renderQuests() {
-  const list = document.getElementById('questsList');
-  const achList = document.getElementById('achievementsList');
-  if (!list || !achList) return;
-
-  const quests = state.user?.quests || {};
-
-  list.innerHTML = QUEST_DEFS.map(def => {
-    const q = quests[def.id] || { done: false, progress: 0, target: def.id === 'openCapsules' ? 5 : def.id === 'merges' ? 3 : def.id === 'earnMMO' ? 500 : 10 };
-    const pct = Math.min(100, (q.progress / q.target) * 100);
-    const complete = q.progress >= q.target;
-    return `<div class="quest-item ${q.done ? 'completed' : ''}">
-      <div class="quest-icon" style="background:rgba(124,58,237,0.2)">${def.icon}</div>
-      <div class="quest-info">
-        <div class="quest-name">${def.name}</div>
-        <div class="quest-desc">${def.desc} (${Math.floor(q.progress)}/${q.target})</div>
-        <div class="quest-progress-bar">
-          <div class="quest-progress-fill" style="width:${pct}%;background:${def.color}"></div>
-        </div>
-      </div>
-      <div class="quest-reward">
-        <div class="quest-reward-val">+${def.reward}</div>
-        <button class="quest-claim-btn" ${(!complete || q.done) ? 'disabled' : ''} onclick="claimQuest('${def.id}')">
-          ${q.done ? 'DONE' : complete ? 'CLAIM' : 'LOCKED'}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  achList.innerHTML = ACHIEVEMENT_DEFS.map(ach => {
-    const unlocked = checkAchievement(ach.id);
-    return `<div class="quest-item ${unlocked ? '' : 'completed'}">
-      <div class="quest-icon" style="background:rgba(245,158,11,0.15)">${ach.icon}</div>
-      <div class="quest-info">
-        <div class="quest-name">${ach.name}</div>
-        <div class="quest-desc">${ach.desc}</div>
-      </div>
-      <div class="quest-reward">
-        <div class="quest-reward-val" style="color:var(--legendary)">+${ach.reward}</div>
-        <div style="font-size:9px;color:${unlocked ? 'var(--uncommon)' : 'var(--text3)'}">
-          ${unlocked ? '✓ DONE' : 'LOCKED'}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function claimQuest(questId) {
-  if (state.isLoading) return;
-  state.isLoading = true;
-  const res = await apiRequest('POST', '/api/game/claim-quest', { questId });
-  state.isLoading = false;
-
-  if (!res.success) {
-    showToast(res.message || 'Error', '❌'); return;
-  }
-
-  state.user = res.user;
-  updateHeader();
-  renderQuests();
-  showToast(`Quest complete! +${res.reward} MMO`, '✅');
-}
-
-// ============================================================
 // FRIENDS
 // ============================================================
 async function inviteFriend() {
@@ -1284,7 +1332,7 @@ function switchTab(tab) {
   document.getElementById('mainContent').scrollTop = 0;
 
   if (tab === 'leaderboard') renderLeaderboard();
-  if (tab === 'quests') renderQuests();
+  if (tab === 'special') renderSpecialQuests();
   if (tab === 'wallet') updateHeader();
   if (tab === 'shop') renderMarketplaceBuy();
 }

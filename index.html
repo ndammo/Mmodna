@@ -4,22 +4,20 @@
     <meta charset="UTF-8">
     <meta name="type" value="app" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DNA MMO — Merge & Evolve</title>
-    <meta property="og:title" content="DNA MMO — Merge & Evolve">
+    <title>DNA MMO � Merge & Evolve</title>
+    <meta property="og:title" content="DNA MMO � Merge & Evolve">
     <meta property="og:description" content="Open DNA capsules, collect creatures, merge to evolve and earn MMO tokens.">
     <meta property="og:type" content="website">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     
-    <!-- ✅ Telegram WebApp SDK -->
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-
 <body>
-
 <canvas id="particles-canvas"></canvas>
 
 <!-- HEADER -->
@@ -29,7 +27,7 @@
             <div class="avatar" id="playerAvatar">G</div>
             <div>
                 <div class="player-name">GENOME_X</div>
-                <div class="player-level" id="playerLevelLabel">LVL 1 · Researcher</div>
+                <div class="player-level" id="playerLevelLabel">LVL 1 � Researcher</div>
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
@@ -58,13 +56,13 @@
 
         <div class="capsule-area">
             <div class="capsule-card" id="basicCapsuleCard" onclick="showCapsuleModal('basic')">
-                <div class="capsule-icon dna">🧬</div>
+                <div class="capsule-icon dna"></div>
                 <div class="capsule-name">DNA CAPSULE</div>
                 <div class="capsule-cost"><i class="fa-solid fa-dna" style="font-size:10px"></i> 50 MMO</div>
                 <button class="capsule-btn" onclick="event.stopPropagation();showCapsuleModal('basic')">OPEN</button>
             </div>
             <div class="capsule-card premium" id="premiumCapsuleCard" onclick="showCapsuleModal('premium')">
-                <div class="capsule-icon premium-icon">💎</div>
+                <div class="capsule-icon premium-icon"></div>
                 <div class="capsule-name">PREMIUM DNA</div>
                 <div class="capsule-cost gold"><i class="fa-solid fa-gem" style="font-size:10px"></i> 200 MMO</div>
                 <button class="capsule-btn gold-btn" onclick="event.stopPropagation();showCapsuleModal('premium')">OPEN</button>
@@ -131,12 +129,12 @@
 
     <!-- LEADERBOARD TAB -->
     <div class="tab-content" id="tab-leaderboard">
-        <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast('Займи #1 и получи Black Pantera Mythic!', '🏆')">
+        <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast(' #1   Black Pantera Mythic!', '')">
             <div style="position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:20px;border:1px solid rgba(255,255,255,0.18);background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(168,85,247,0.08) 40%,rgba(0,0,0,0) 100%)"></div>
             <div style="position:absolute;top:0;left:-10%;width:40%;height:100%;z-index:3;pointer-events:none;background:linear-gradient(105deg,rgba(255,255,255,0) 40%,rgba(255,255,255,0.13) 50%,rgba(255,255,255,0) 60%);border-radius:20px"></div>
             <div style="position:absolute;top:0;left:12%;width:76%;height:1.5px;z-index:4;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);border-radius:2px"></div>
             <img src="https://storage.yandexcloud.net/timenote/tmp/824f3177814a9035c2d9d37847e9c169caa97f4123274f5630877aefe899602c.jpg"
-                 alt="Season 1 — Black Pantera Mythic"
+                 alt="Season 1 � Black Pantera Mythic"
                  style="width:100%;display:block;border-radius:20px;object-fit:cover;max-height:160px;object-position:center top">
         </div>
         <div class="section-title"><i class="fa-solid fa-trophy" style="color:var(--legendary)"></i> Global Leaderboard</div>
@@ -146,7 +144,7 @@
     <!-- FRIENDS TAB -->
     <div class="tab-content" id="tab-friends">
         <div class="friends-hero">
-            <div class="friends-hero-icon">👥</div>
+            <div class="friends-hero-icon"></div>
             <div class="friends-hero-title">INVITE FRIENDS</div>
             <button class="invite-btn" onclick="inviteFriend()">
                 <i class="fa-solid fa-user-plus"></i>
@@ -157,19 +155,19 @@
             <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-gift" style="color:var(--legendary)"></i> Friend Milestones</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
                 <div class="friends-reward-card" onclick="claimFriendReward(10, 'wolf_r')" id="reward-10">
-                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 8px rgba(59,130,246,0.7))">🐺</div>
+                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 8px rgba(59,130,246,0.7))"></div>
                     <div style="font-size:11px;font-weight:700;color:var(--rare);text-align:center;margin-bottom:4px">Rare Wolf</div>
                     <div style="font-size:9px;color:var(--text2);text-align:center;margin-bottom:8px">10 Friends</div>
                     <button class="friends-reward-btn" style="width:100%;padding:6px;border:none;border-radius:8px;background:var(--surface2);color:var(--text2);font-size:9px;font-weight:700;font-family:'Orbitron',monospace;cursor:not-allowed">LOCKED</button>
                 </div>
                 <div class="friends-reward-card" onclick="claimFriendReward(50, 'wolf_e')" id="reward-50">
-                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 10px rgba(168,85,247,0.8))">🐺</div>
+                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 10px rgba(168,85,247,0.8))"></div>
                     <div style="font-size:11px;font-weight:700;color:var(--epic);text-align:center;margin-bottom:4px">Epic Wolf</div>
                     <div style="font-size:9px;color:var(--text2);text-align:center;margin-bottom:8px">50 Friends</div>
                     <button class="friends-reward-btn" style="width:100%;padding:6px;border:none;border-radius:8px;background:var(--surface2);color:var(--text2);font-size:9px;font-weight:700;font-family:'Orbitron',monospace;cursor:not-allowed">LOCKED</button>
                 </div>
                 <div class="friends-reward-card" onclick="claimFriendReward(150, 'wolf_l')" id="reward-150">
-                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 12px rgba(245,158,11,0.9))">🐺</div>
+                    <div style="font-size:28px;margin-bottom:8px;filter:drop-shadow(0 0 12px rgba(245,158,11,0.9))"></div>
                     <div style="font-size:11px;font-weight:700;color:var(--legendary);text-align:center;margin-bottom:4px">Legendary Wolf</div>
                     <div style="font-size:9px;color:var(--text2);text-align:center;margin-bottom:8px">150 Friends</div>
                     <button class="friends-reward-btn" style="width:100%;padding:6px;border:none;border-radius:8px;background:var(--surface2);color:var(--text2);font-size:9px;font-weight:700;font-family:'Orbitron',monospace;cursor:not-allowed">LOCKED</button>
@@ -180,12 +178,10 @@
         <div class="leaderboard-list" id="friendsList"></div>
     </div>
 
-    <!-- QUESTS TAB -->
-    <div class="tab-content" id="tab-quests">
-        <div class="section-title"><i class="fa-solid fa-list-check" style="color:var(--accent2)"></i> Daily Quests</div>
-        <div id="questsList"></div>
-        <div class="section-title"><i class="fa-solid fa-star" style="color:var(--legendary)"></i> Achievements</div>
-        <div id="achievementsList"></div>
+    <!-- SPECIAL QUESTS TAB (  Quests) -->
+    <div class="tab-content" id="tab-special">
+        <div class="section-title"><i class="fa-solid fa-star" style="color:var(--legendary)"></i> Special Quests</div>
+        <div id="specialQuestsList"></div>
     </div>
 
     <!-- WALLET TAB -->
@@ -193,35 +189,35 @@
         <div class="wallet-hero">
             <div class="wallet-label">Total Balance</div>
             <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
-            <div class="wallet-sub" id="walletSub">≈ $0.00 USD</div>
+            <div class="wallet-sub" id="walletSub"> $0.00 USD</div>
         </div>
         <div class="wallet-stats">
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">⚡</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletIncome">0</div>
                 <div class="wallet-stat-label">MMO / Hour</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">🧬</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletCards">0</div>
                 <div class="wallet-stat-label">Creatures</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">🔀</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletMerges">0</div>
                 <div class="wallet-stat-label">Total Merges</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">📦</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletStorage">0/10</div>
                 <div class="wallet-stat-label">Storage</div>
             </div>
         </div>
         <div class="wallet-actions">
-            <button class="wallet-action-btn deposit" onclick="showToast('Deposit coming soon!', '💎')">
+            <button class="wallet-action-btn deposit" onclick="showToast('Deposit coming soon!', '')">
                 <i class="fa-solid fa-arrow-down"></i> DEPOSIT
             </button>
-            <button class="wallet-action-btn withdraw" onclick="showToast('Withdraw coming soon!', '🔒')">
+            <button class="wallet-action-btn withdraw" onclick="showToast('Withdraw coming soon!', '')">
                 <i class="fa-solid fa-arrow-up"></i> WITHDRAW
             </button>
         </div>
@@ -230,7 +226,7 @@
     </div>
 </div>
 
-<!-- BOTTOM NAV -->
+<!-- BOTTOM NAV () -->
 <div class="bottom-nav">
     <div class="nav-item active" onclick="switchTab('game')" id="nav-game">
         <i class="fa-solid fa-dna"></i>
@@ -248,9 +244,9 @@
         <i class="fa-solid fa-users"></i>
         <span>Friends</span>
     </div>
-    <div class="nav-item" onclick="switchTab('quests')" id="nav-quests">
-        <i class="fa-solid fa-list-check"></i>
-        <span>Quests</span>
+    <div class="nav-item" onclick="switchTab('special')" id="nav-special">
+        <i class="fa-solid fa-star"></i>
+        <span>Special</span>
     </div>
     <div class="nav-item" onclick="switchTab('wallet')" id="nav-wallet">
         <i class="fa-solid fa-wallet"></i>

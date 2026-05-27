@@ -1546,3 +1546,157 @@
             font-size: 20px;
             animation: starBurst 0.8s ease-out forwards;
         }
+        
+        /* Добавьте в конец вашего существующего style.css */
+
+/* ============================================
+   SPECIAL QUESTS STYLES
+   ============================================ */
+
+.special-quest-card {
+    background: linear-gradient(135deg, #141c2e 0%, #0d1120 100%);
+    border: 1px solid #1e2d4a;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+
+.special-quest-card:hover {
+    border-color: rgba(168, 85, 247, 0.5);
+    transform: translateY(-2px);
+}
+
+.special-quest-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.special-quest-icon {
+    font-size: 36px;
+    min-width: 50px;
+    text-align: center;
+    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.5));
+}
+
+.special-quest-info {
+    flex: 1;
+}
+
+.special-quest-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin-bottom: 4px;
+    font-family: 'Orbitron', monospace;
+}
+
+.special-quest-desc {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.special-quest-reward {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    font-family: 'Orbitron', monospace;
+}
+
+.special-quest-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid #1e2d4a;
+}
+
+.special-quest-btn {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: none;
+    border-radius: 12px;
+    padding: 8px 20px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Orbitron', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.special-quest-btn i {
+    font-size: 12px;
+}
+
+.special-quest-btn:hover:not(:disabled) {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+.special-quest-btn.completed {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    cursor: default;
+    opacity: 0.7;
+}
+
+.special-quest-btn.claim {
+    background: linear-gradient(135deg, #eab308, #ca8a04);
+    animation: pulse 1.5s infinite;
+}
+
+.special-quest-btn.locked {
+    background: #1e2d4a;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(234, 179, 8, 0);
+    }
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 480px) {
+    .special-quest-header {
+        flex-wrap: wrap;
+    }
+    
+    .special-quest-reward {
+        margin-left: auto;
+    }
+    
+    .special-quest-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Стили для пустого состояния */
+.empty-grid {
+    background: #141c2e;
+    border: 1px dashed #1e2d4a;
+    border-radius: 20px;
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.empty-grid i {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.5;
+}
