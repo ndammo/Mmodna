@@ -19,7 +19,6 @@
             padding-bottom: 70px;
         }
 
-        /* Header */
         .admin-header {
             background: #0d1120;
             border-bottom: 1px solid #1e2d4a;
@@ -45,7 +44,6 @@
             color: #a855f7;
         }
 
-        /* Bottom Navigation (как в Telegram) */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -80,7 +78,6 @@
             color: #a855f7;
         }
 
-        /* Main Content */
         .main-content {
             padding: 16px;
             max-width: 800px;
@@ -95,7 +92,6 @@
             display: block;
         }
 
-        /* Cards */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -124,7 +120,6 @@
             color: #a855f7;
         }
 
-        /* Tables */
         .data-table {
             width: 100%;
             overflow-x: auto;
@@ -147,7 +142,6 @@
             font-weight: 600;
         }
 
-        /* Buttons */
         button {
             background: linear-gradient(135deg, #7c3aed, #a855f7);
             border: none;
@@ -177,7 +171,6 @@
             background: #1e2d4a;
         }
 
-        /* Forms */
         input, select, textarea {
             background: #0d1120;
             border: 1px solid #1e2d4a;
@@ -199,7 +192,6 @@
             margin-bottom: 4px;
         }
 
-        /* Modal */
         .modal {
             position: fixed;
             top: 0;
@@ -230,13 +222,19 @@
             color: #a855f7;
         }
 
+        .modal-content h4 {
+            margin: 16px 0 8px 0;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
         .modal-buttons {
             display: flex;
             gap: 12px;
             margin-top: 20px;
+            flex-wrap: wrap;
         }
 
-        /* Toast */
         .toast {
             position: fixed;
             bottom: 80px;
@@ -262,14 +260,12 @@
             100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         }
 
-        /* Loading */
         .spinner {
             text-align: center;
             padding: 40px;
             color: #4a5568;
         }
 
-        /* User card */
         .user-card {
             background: #141c2e;
             border: 1px solid #1e2d4a;
@@ -299,7 +295,6 @@
             font-size: 12px;
         }
 
-        /* Search */
         .search-bar {
             display: flex;
             gap: 8px;
@@ -310,7 +305,6 @@
             flex: 1;
         }
 
-        /* Rarity badges */
         .rarity-common { color: #94a3b8; }
         .rarity-uncommon { color: #22c55e; }
         .rarity-rare { color: #3b82f6; }
@@ -318,7 +312,6 @@
         .rarity-legendary { color: #f59e0b; }
         .rarity-mythic { color: #ef4444; }
 
-        /* Pagination */
         .pagination {
             display: flex;
             justify-content: center;
@@ -326,7 +319,11 @@
             margin-top: 16px;
         }
 
-        /* Responsive */
+        hr {
+            margin: 16px 0;
+            border-color: #1e2d4a;
+        }
+
         @media (min-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
@@ -338,7 +335,7 @@
 <body>
 
 <div class="admin-header">
-    <h1>🧬 DNA MMO</h1>
+    <h1>🧬 DNA MMO Admin</h1>
     <button class="menu-btn" onclick="showUserSearch()"><i class="fas fa-search"></i></button>
 </div>
 
@@ -497,7 +494,6 @@
     }
 
     async function refreshCache() {
-        // Просто инвалидируем кэш через обновление конфига
         const res = await apiRequest('/api/admin/config', 'GET');
         if (res?.success) {
             showToast('Кэш обновлён');
@@ -916,69 +912,125 @@
     };
 
     // ============================================================
-    // QUESTS
+    // QUESTS - ИСПРАВЛЕННАЯ ВЕРСИЯ
     // ============================================================
     async function loadQuests() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
         const res = await apiRequest('/api/admin/config');
-        if (!res) return;
-        const q = res.config.quests;
+        if (!res || !res.success) {
+            main.innerHTML = '<div class="spinner" style="color: red;">Ошибка загрузки квестов</div>';
+            return;
+        }
+        
+        const config = res.config;
+        const q = config.quests || {};
         
         const html = `
             <div class="user-card">
-                <h3>🎯 Квесты</h3>
-                <div class="form-group"><label><input type="checkbox" id="quest_open_enabled" ${q.openCapsules.enabled ? 'checked' : ''}> Открыть капсулы</label></div>
-                <div class="form-group"><label>Цель</label><input type="number" id="quest_open_target" value="${q.openCapsules.target}"></div>
-                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_open_reward" value="${q.openCapsules.reward}"></div>
-                <hr style="margin: 16px 0; border-color: #1e2d4a;">
-                <div class="form-group"><label><input type="checkbox" id="quest_merge_enabled" ${q.merges.enabled ? 'checked' : ''}> Слияния</label></div>
-                <div class="form-group"><label>Цель</label><input type="number" id="quest_merge_target" value="${q.merges.target}"></div>
-                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_merge_reward" value="${q.merges.reward}"></div>
-                <hr style="margin: 16px 0; border-color: #1e2d4a;">
-                <div class="form-group"><label><input type="checkbox" id="quest_earn_enabled" ${q.earnMMO.enabled ? 'checked' : ''}> Заработать MMO</label></div>
-                <div class="form-group"><label>Цель</label><input type="number" id="quest_earn_target" value="${q.earnMMO.target}"></div>
-                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_earn_reward" value="${q.earnMMO.reward}"></div>
-                <hr style="margin: 16px 0; border-color: #1e2d4a;">
-                <div class="form-group"><label><input type="checkbox" id="quest_discover_enabled" ${q.discoverCreatures.enabled ? 'checked' : ''}> Открыть существ</label></div>
-                <div class="form-group"><label>Цель</label><input type="number" id="quest_discover_target" value="${q.discoverCreatures.target}"></div>
-                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_discover_reward" value="${q.discoverCreatures.reward}"></div>
-                <button onclick="saveQuests()" style="width:100%; margin-top: 16px;">💾 Сохранить квесты</button>
+                <h3>🎯 Настройка квестов</h3>
+                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">⚠️ После изменения квестов, прогресс у игроков НЕ сбрасывается автоматически</p>
+                
+                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
+                    <h4 style="color: #a855f7; margin-bottom: 12px;">📦 Открытие капсул</h4>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="quest_open_enabled" ${q.openCapsules?.enabled !== false ? 'checked' : ''}> Включен</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Цель (количество открытий)</label>
+                        <input type="number" id="quest_open_target" value="${q.openCapsules?.target || 5}">
+                    </div>
+                    <div class="form-group">
+                        <label>Награда (MMO)</label>
+                        <input type="number" id="quest_open_reward" value="${q.openCapsules?.reward || 200}">
+                    </div>
+                </div>
+                
+                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
+                    <h4 style="color: #22c55e; margin-bottom: 12px;">🔀 Слияния существ</h4>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="quest_merge_enabled" ${q.merges?.enabled !== false ? 'checked' : ''}> Включен</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Цель (количество слияний)</label>
+                        <input type="number" id="quest_merge_target" value="${q.merges?.target || 3}">
+                    </div>
+                    <div class="form-group">
+                        <label>Награда (MMO)</label>
+                        <input type="number" id="quest_merge_reward" value="${q.merges?.reward || 150}">
+                    </div>
+                </div>
+                
+                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
+                    <h4 style="color: #f59e0b; margin-bottom: 12px;">💰 Заработок MMO</h4>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="quest_earn_enabled" ${q.earnMMO?.enabled !== false ? 'checked' : ''}> Включен</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Цель (MMO)</label>
+                        <input type="number" id="quest_earn_target" value="${q.earnMMO?.target || 500}">
+                    </div>
+                    <div class="form-group">
+                        <label>Награда (MMO)</label>
+                        <input type="number" id="quest_earn_reward" value="${q.earnMMO?.reward || 100}">
+                    </div>
+                </div>
+                
+                <div style="border-bottom: 1px solid #1e2d4a; padding-bottom: 16px; margin-bottom: 16px;">
+                    <h4 style="color: #3b82f6; margin-bottom: 12px;">📖 Открытие существ</h4>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="quest_discover_enabled" ${q.discoverCreatures?.enabled !== false ? 'checked' : ''}> Включен</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Цель (количество уникальных существ)</label>
+                        <input type="number" id="quest_discover_target" value="${q.discoverCreatures?.target || 10}">
+                    </div>
+                    <div class="form-group">
+                        <label>Награда (MMO)</label>
+                        <input type="number" id="quest_discover_reward" value="${q.discoverCreatures?.reward || 300}">
+                    </div>
+                </div>
+                
+                <button onclick="saveQuests()" style="width:100%; margin-top: 16px;">
+                    💾 СОХРАНИТЬ ВСЕ КВЕСТЫ
+                </button>
             </div>
         `;
         main.innerHTML = html;
     }
 
     window.saveQuests = async function() {
-        const data = {
-            quests: {
-                openCapsules: {
-                    enabled: document.getElementById('quest_open_enabled').checked,
-                    target: parseInt(document.getElementById('quest_open_target').value) || 5,
-                    reward: parseInt(document.getElementById('quest_open_reward').value) || 200
-                },
-                merges: {
-                    enabled: document.getElementById('quest_merge_enabled').checked,
-                    target: parseInt(document.getElementById('quest_merge_target').value) || 3,
-                    reward: parseInt(document.getElementById('quest_merge_reward').value) || 150
-                },
-                earnMMO: {
-                    enabled: document.getElementById('quest_earn_enabled').checked,
-                    target: parseInt(document.getElementById('quest_earn_target').value) || 500,
-                    reward: parseInt(document.getElementById('quest_earn_reward').value) || 100
-                },
-                discoverCreatures: {
-                    enabled: document.getElementById('quest_discover_enabled').checked,
-                    target: parseInt(document.getElementById('quest_discover_target').value) || 10,
-                    reward: parseInt(document.getElementById('quest_discover_reward').value) || 300
-                }
+        // Собираем данные только по квестам
+        const questsData = {
+            openCapsules: {
+                enabled: document.getElementById('quest_open_enabled')?.checked || false,
+                target: parseInt(document.getElementById('quest_open_target')?.value) || 5,
+                reward: parseInt(document.getElementById('quest_open_reward')?.value) || 200
+            },
+            merges: {
+                enabled: document.getElementById('quest_merge_enabled')?.checked || false,
+                target: parseInt(document.getElementById('quest_merge_target')?.value) || 3,
+                reward: parseInt(document.getElementById('quest_merge_reward')?.value) || 150
+            },
+            earnMMO: {
+                enabled: document.getElementById('quest_earn_enabled')?.checked || false,
+                target: parseInt(document.getElementById('quest_earn_target')?.value) || 500,
+                reward: parseInt(document.getElementById('quest_earn_reward')?.value) || 100
+            },
+            discoverCreatures: {
+                enabled: document.getElementById('quest_discover_enabled')?.checked || false,
+                target: parseInt(document.getElementById('quest_discover_target')?.value) || 10,
+                reward: parseInt(document.getElementById('quest_discover_reward')?.value) || 300
             }
         };
         
-        const res = await apiRequest('/api/admin/config', 'PUT', data);
+        const res = await apiRequest('/api/admin/config', 'PUT', { quests: questsData });
         if (res?.success) {
-            showToast('Квесты сохранены');
+            showToast('✅ Квесты сохранены!');
+            loadQuests();
+        } else {
+            showToast('❌ Ошибка сохранения: ' + (res?.message || 'неизвестная'), 'error');
         }
     };
 
@@ -992,11 +1044,10 @@
     };
 
     window.showGiveAllCreature = async function() {
-        // Загружаем список существ для выбора
         const res = await apiRequest('/api/admin/creatures');
         if (!res) return;
         
-        const creatureList = res.creatures.map(c => `${c.id}|${c.icon} ${c.name}`).join(',');
+        const creatureList = res.creatures.map(c => `${c.id}|${c.icon} ${c.name}`).join(', ');
         const creatureId = prompt('Введите ID существа (например: duck_c):\n\nДоступные: ' + creatureList, 'duck_c');
         if (!creatureId) return;
         giveToAll('creature', null, creatureId);
