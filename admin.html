@@ -2,304 +2,372 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>DNA MMO — Админ-панель</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
             background: #0a0c15;
             color: #e2e8f0;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding-bottom: 70px;
         }
-        
-        /* Админ-панель */
-        .admin-container {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        /* Боковое меню */
-        .sidebar {
-            width: 260px;
+
+        /* Header */
+        .admin-header {
             background: #0d1120;
-            border-right: 1px solid #1e2d4a;
-            padding: 20px 0;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
-        
-        .sidebar-logo {
-            padding: 0 20px 20px;
             border-bottom: 1px solid #1e2d4a;
-            margin-bottom: 20px;
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
-        .sidebar-logo h2 {
-            color: #a855f7;
+
+        .admin-header h1 {
             font-size: 18px;
+            color: #a855f7;
         }
-        
-        .sidebar-logo p {
-            font-size: 11px;
+
+        .menu-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #a855f7;
+        }
+
+        /* Bottom Navigation (как в Telegram) */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #0d1120;
+            border-top: 1px solid #1e2d4a;
+            display: flex;
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
             color: #4a5568;
-        }
-        
-        .sidebar-nav {
-            list-style: none;
-        }
-        
-        .sidebar-nav li {
-            padding: 10px 20px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.2s;
-            border-left: 3px solid transparent;
         }
-        
-        .sidebar-nav li:hover {
-            background: rgba(124,58,237,0.1);
-            border-left-color: #7c3aed;
+
+        .nav-item i {
+            font-size: 20px;
         }
-        
-        .sidebar-nav li.active {
-            background: rgba(124,58,237,0.15);
-            border-left-color: #a855f7;
+
+        .nav-item.active {
             color: #a855f7;
         }
-        
-        /* Основной контент */
+
+        /* Main Content */
         .main-content {
-            flex: 1;
-            margin-left: 260px;
-            padding: 24px;
+            padding: 16px;
+            max-width: 800px;
+            margin: 0 auto;
         }
-        
-        /* Карточки */
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
         }
-        
+
         .stat-card {
             background: #141c2e;
             border: 1px solid #1e2d4a;
             border-radius: 16px;
-            padding: 20px;
+            padding: 16px;
         }
-        
+
         .stat-card h3 {
-            font-size: 12px;
+            font-size: 11px;
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
         }
-        
+
         .stat-card .value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             color: #a855f7;
         }
-        
-        /* Таблицы */
-        .section {
-            background: #141c2e;
-            border: 1px solid #1e2d4a;
-            border-radius: 16px;
-            margin-bottom: 24px;
-            overflow: hidden;
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            overflow-x: auto;
         }
-        
-        .section-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #1e2d4a;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        
-        .section-header h2 {
-            font-size: 16px;
-            color: #a855f7;
-        }
-        
-        .search-input {
-            background: #0d1120;
-            border: 1px solid #1e2d4a;
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: #e2e8f0;
-            width: 250px;
-        }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 13px;
         }
-        
+
         th, td {
-            padding: 12px 16px;
+            padding: 10px 8px;
             text-align: left;
             border-bottom: 1px solid #1e2d4a;
         }
-        
+
         th {
             color: #94a3b8;
             font-weight: 600;
-            font-size: 12px;
-            background: #0d1120;
         }
-        
-        td {
-            font-size: 13px;
-        }
-        
+
+        /* Buttons */
         button {
             background: linear-gradient(135deg, #7c3aed, #a855f7);
             border: none;
-            border-radius: 8px;
-            padding: 6px 12px;
+            border-radius: 10px;
+            padding: 8px 16px;
             color: white;
             font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
-        
-        button:hover {
-            opacity: 0.85;
-            transform: scale(0.98);
+
+        button:active {
+            transform: scale(0.96);
+            opacity: 0.8;
         }
-        
+
         button.danger {
             background: linear-gradient(135deg, #dc2626, #ef4444);
         }
-        
+
         button.warning {
             background: linear-gradient(135deg, #d97706, #f59e0b);
         }
-        
+
+        button.secondary {
+            background: #1e2d4a;
+        }
+
+        /* Forms */
+        input, select, textarea {
+            background: #0d1120;
+            border: 1px solid #1e2d4a;
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        /* Modal */
         .modal {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            padding: 20px;
         }
-        
+
         .modal-content {
             background: #141c2e;
             border: 1px solid #1e2d4a;
             border-radius: 20px;
             padding: 24px;
-            width: 90%;
+            width: 100%;
             max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
-        
+
         .modal-content h3 {
             margin-bottom: 16px;
+            color: #a855f7;
         }
-        
-        .modal-content input, .modal-content select, .modal-content textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 12px;
-            background: #0d1120;
-            border: 1px solid #1e2d4a;
-            border-radius: 8px;
-            color: #e2e8f0;
-        }
-        
+
         .modal-buttons {
             display: flex;
             gap: 12px;
-            justify-content: flex-end;
+            margin-top: 20px;
         }
-        
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #22c55e;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 13px;
+            z-index: 1100;
+            animation: fadeInOut 2s ease;
         }
-        
-        .badge-active { background: #22c55e22; color: #22c55e; }
-        .badge-inactive { background: #ef444422; color: #ef4444; }
-        .badge-banned { background: #ef444422; color: #ef4444; }
-        
-        .hidden { display: none; }
-        
-        @media (max-width: 768px) {
-            .sidebar { width: 70px; }
-            .sidebar span { display: none; }
-            .main-content { margin-left: 70px; }
-            .sidebar-nav li { text-align: center; }
+
+        .toast.error {
+            background: #ef4444;
         }
-        
-        .loading {
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        /* Loading */
+        .spinner {
             text-align: center;
             padding: 40px;
             color: #4a5568;
         }
-        
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #22c55e;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            z-index: 1100;
-            animation: fadeInOut 2s ease;
+
+        /* User card */
+        .user-card {
+            background: #141c2e;
+            border: 1px solid #1e2d4a;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
-        
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateY(20px); }
-            15% { opacity: 1; transform: translateY(0); }
-            85% { opacity: 1; }
-            100% { opacity: 0; transform: translateY(-20px); }
+
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .inventory-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .inventory-item {
+            background: #0d1120;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        /* Search */
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .search-bar input {
+            flex: 1;
+        }
+
+        /* Rarity badges */
+        .rarity-common { color: #94a3b8; }
+        .rarity-uncommon { color: #22c55e; }
+        .rarity-rare { color: #3b82f6; }
+        .rarity-epic { color: #a855f7; }
+        .rarity-legendary { color: #f59e0b; }
+        .rarity-mythic { color: #ef4444; }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        /* Responsive */
+        @media (min-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-<div class="admin-container">
-    <div class="sidebar">
-        <div class="sidebar-logo">
-            <h2>🧬 DNA MMO</h2>
-            <p>Admin Panel</p>
-        </div>
-        <ul class="sidebar-nav">
-            <li data-tab="dashboard" class="active">📊 Дашборд</li>
-            <li data-tab="users">👥 Пользователи</li>
-            <li data-tab="creatures">🧬 Существа</li>
-            <li data-tab="economy">💰 Экономика</li>
-            <li data-tab="promocodes">🎫 Промокоды</li>
-            <li data-tab="logs">📜 Логи</li>
-        </ul>
-    </div>
-    
-    <div class="main-content" id="mainContent">
-        <div class="loading">Загрузка...</div>
-    </div>
+
+<div class="admin-header">
+    <h1>🧬 DNA MMO</h1>
+    <button class="menu-btn" onclick="showUserSearch()"><i class="fas fa-search"></i></button>
+</div>
+
+<div class="main-content" id="mainContent">
+    <div class="spinner">Загрузка...</div>
+</div>
+
+<div class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-tab="dashboard"><i class="fas fa-chart-line"></i><span>Дашборд</span></button>
+    <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Игроки</span></button>
+    <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
+    <button class="nav-item" data-tab="economy"><i class="fas fa-coins"></i><span>Экономика</span></button>
+    <button class="nav-item" data-tab="quests"><i class="fas fa-tasks"></i><span>Квесты</span></button>
 </div>
 
 <script>
-    // Конфигурация
-    let API_URL = 'https://serv-production-dbf3.up.railway.app'; // Замените на ваш бекенд
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const API_URL = 'https://serv-production-dbf3.up.railway.app';
     let token = localStorage.getItem('admin_token');
     let currentUser = null;
-    
-    // Вспомогательные функции
+    let creaturesList = [];
+    let currentPage = 1;
+    let totalUsers = 0;
+
+    // ============================================================
+    // API HELPER
+    // ============================================================
     async function apiRequest(path, method = 'GET', body = null) {
         const opts = {
             method,
@@ -307,7 +375,7 @@
         };
         if (token) opts.headers['Authorization'] = `Bearer ${token}`;
         if (body) opts.body = JSON.stringify(body);
-        
+
         try {
             const res = await fetch(API_URL + path, opts);
             const data = await res.json();
@@ -326,22 +394,27 @@
             return null;
         }
     }
-    
+
+    // ============================================================
+    // TOAST
+    // ============================================================
     function showToast(msg, type = 'success') {
         const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+        toast.className = 'toast ' + (type === 'error' ? 'error' : '');
         toast.textContent = msg;
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+        setTimeout(() => toast.remove(), 2500);
     }
-    
+
+    // ============================================================
+    // LOGIN MODAL
+    // ============================================================
     function showLoginModal() {
         const modalHtml = `
             <div class="modal" id="loginModal">
                 <div class="modal-content">
                     <h3>🔐 Вход в админ-панель</h3>
-                    <p style="margin-bottom: 16px; font-size: 13px; color: #94a3b8;">Введите ваш токен авторизации</p>
+                    <p style="margin-bottom: 16px; font-size: 13px; color: #94a3b8;">Введите JWT токен</p>
                     <input type="password" id="adminToken" placeholder="JWT токен" />
                     <div class="modal-buttons">
                         <button onclick="login()">Войти</button>
@@ -351,7 +424,7 @@
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
-    
+
     window.login = async function() {
         const inputToken = document.getElementById('adminToken').value;
         if (!inputToken) {
@@ -364,20 +437,42 @@
         await loadCurrentUser();
         loadDashboard();
     };
-    
+
     async function loadCurrentUser() {
         const res = await apiRequest('/api/user/profile');
         if (res?.success) {
             currentUser = res.user;
         }
     }
-    
-    // Загрузка разделов
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            if (tab === 'dashboard') loadDashboard();
+            if (tab === 'users') loadUsers();
+            if (tab === 'creatures') loadCreatures();
+            if (tab === 'economy') loadEconomy();
+            if (tab === 'quests') loadQuests();
+        });
+    });
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
     async function loadDashboard() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
         const statsRes = await apiRequest('/api/admin/stats');
         if (!statsRes) return;
         
         const stats = statsRes.stats;
+        
         const html = `
             <div class="stats-grid">
                 <div class="stat-card"><h3>Всего игроков</h3><div class="value">${stats.totalUsers}</div></div>
@@ -389,102 +484,144 @@
                 <div class="stat-card"><h3>Всего слияний</h3><div class="value">${formatNum(stats.totalMerges)}</div></div>
                 <div class="stat-card"><h3>Открыто капсул</h3><div class="value">${formatNum(stats.totalCapsules)}</div></div>
             </div>
-            <div class="section">
-                <div class="section-header"><h2>📈 Быстрые действия</h2></div>
-                <div style="padding: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button onclick="showCreatePromoModal()">🎫 Создать промокод</button>
-                    <button onclick="showAddCreatureModal()">🧬 Добавить существо</button>
-                    <button onclick="showUserSearch()">👥 Найти пользователя</button>
+            <div class="user-card">
+                <h3>⚡ Быстрые действия</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px;">
+                    <button onclick="showGiveAllCoins()"><i class="fas fa-gift"></i> Выдать MMO всем</button>
+                    <button onclick="showGiveAllCreature()"><i class="fas fa-paw"></i> Выдать существо всем</button>
+                    <button class="secondary" onclick="refreshCache()"><i class="fas fa-sync"></i> Обновить кэш</button>
                 </div>
             </div>
         `;
-        document.getElementById('mainContent').innerHTML = html;
+        main.innerHTML = html;
     }
-    
-    async function loadUsers() {
-        const res = await apiRequest('/api/admin/users?limit=100');
+
+    async function refreshCache() {
+        // Просто инвалидируем кэш через обновление конфига
+        const res = await apiRequest('/api/admin/config', 'GET');
+        if (res?.success) {
+            showToast('Кэш обновлён');
+        }
+    }
+
+    // ============================================================
+    // USERS
+    // ============================================================
+    async function loadUsers(page = 1) {
+        currentPage = page;
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
+        const search = document.getElementById('userSearch')?.value || '';
+        const skip = (page - 1) * 20;
+        const res = await apiRequest(`/api/admin/users?limit=20&skip=${skip}&search=${encodeURIComponent(search)}`);
         if (!res) return;
         
+        totalUsers = res.total;
+        
         const html = `
-            <div class="section">
-                <div class="section-header">
-                    <h2>👥 Пользователи</h2>
-                    <input type="text" class="search-input" id="userSearch" placeholder="Поиск по ID, имени..." oninput="searchUsers()">
-                </div>
+            <div class="search-bar">
+                <input type="text" id="userSearch" placeholder="Поиск по ID, имени..." value="${escapeHtml(search)}" oninput="debounceSearch()">
+                <button onclick="loadUsers(1)"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="data-table">
                 <table>
-                    <thead><tr><th>ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th>Статус</th><th></th></tr></thead>
-                    <tbody id="usersTableBody">
+                    <thead>
+                        <tr><th>Telegram ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th></th></tr>
+                    </thead>
+                    <tbody>
                         ${res.users.map(u => `
                             <tr>
                                 <td>${u.telegramId}</td>
-                                <td>${u.username || u.firstName || 'Аноним'}</td>
+                                <td>${escapeHtml(u.username || u.firstName || 'Аноним')}</td>
                                 <td>${formatNum(u.balance)}</td>
                                 <td>${u.level}</td>
-                                <td>${u.isBanned ? '<span class="badge badge-banned">Забанен</span>' : '<span class="badge badge-active">Активен</span>'}</td>
-                                <td><button onclick="showUserDetail('${u._id}')">Подробнее</button></td>
+                                <td><button onclick="showUserDetail('${u._id}')">👤</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             </div>
+            <div class="pagination">
+                ${page > 1 ? `<button onclick="loadUsers(${page - 1})">← Назад</button>` : ''}
+                <span style="padding: 8px;">Стр. ${page} / ${Math.ceil(totalUsers / 20)}</span>
+                ${page < Math.ceil(totalUsers / 20) ? `<button onclick="loadUsers(${page + 1})">Вперёд →</button>` : ''}
+            </div>
         `;
-        document.getElementById('mainContent').innerHTML = html;
-        window.allUsers = res.users;
+        main.innerHTML = html;
     }
-    
-    window.searchUsers = function() {
-        const search = document.getElementById('userSearch')?.value.toLowerCase();
-        if (!window.allUsers) return;
-        const filtered = window.allUsers.filter(u => 
-            u.telegramId.includes(search) || 
-            (u.username || '').toLowerCase().includes(search) ||
-            (u.firstName || '').toLowerCase().includes(search)
-        );
-        const tbody = document.getElementById('usersTableBody');
-        if (tbody) {
-            tbody.innerHTML = filtered.map(u => `
-                <tr>
-                    <td>${u.telegramId}</td>
-                    <td>${u.username || u.firstName || 'Аноним'}</td>
-                    <td>${formatNum(u.balance)}</td>
-                    <td>${u.level}</td>
-                    <td>${u.isBanned ? '<span class="badge badge-banned">Забанен</span>' : '<span class="badge badge-active">Активен</span>'}</td>
-                    <td><button onclick="showUserDetail('${u._id}')">Подробнее</button></td>
-                </tr>
-            `).join('');
-        }
+
+    let searchTimeout;
+    window.debounceSearch = function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => loadUsers(1), 500);
     };
-    
+
     window.showUserDetail = async function(userId) {
         const res = await apiRequest(`/api/admin/users/${userId}`);
         if (!res) return;
         const u = res.user;
         const inv = res.inventory || [];
+        const referrals = res.referrals || [];
         
         const modalHtml = `
             <div class="modal" id="userModal">
-                <div class="modal-content" style="max-width: 600px;">
-                    <h3>${u.username || u.firstName || 'Пользователь'}</h3>
-                    <p><strong>Telegram ID:</strong> ${u.telegramId}</p>
-                    <p><strong>Баланс:</strong> ${formatNum(u.balance)} MMO</p>
-                    <p><strong>Уровень:</strong> ${u.level}</p>
-                    <p><strong>Рефералов:</strong> ${u.referralCount}</p>
-                    <p><strong>Статус:</strong> ${u.isBanned ? 'Забанен' : 'Активен'}</p>
-                    <hr style="margin: 16px 0; border-color: #1e2d4a;">
-                    <h4>Инвентарь</h4>
-                    <div style="max-height: 200px; overflow-y: auto;">
-                        ${inv.map(i => `<div>${i.icon || '🧬'} ${i.name || i.creatureId} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
+                <div class="modal-content">
+                    <h3>${escapeHtml(u.username || u.firstName || 'Пользователь')}</h3>
+                    <div class="user-stats">
+                        <div><strong>Telegram ID:</strong> ${u.telegramId}</div>
+                        <div><strong>Баланс:</strong> ${formatNum(u.balance)} MMO</div>
+                        <div><strong>Уровень:</strong> ${u.level}</div>
+                        <div><strong>XP:</strong> ${u.xp}/${u.level * 100}</div>
+                        <div><strong>Рефералов:</strong> ${u.referralCount}</div>
+                        <div><strong>Слияний:</strong> ${u.mergeCount}</div>
+                        <div><strong>Дата регистрации:</strong> ${new Date(u.createdAt).toLocaleDateString()}</div>
+                        <div><strong>Последний вход:</strong> ${new Date(u.lastLogin).toLocaleDateString()}</div>
                     </div>
-                    <hr style="margin: 16px 0;">
-                    <h4>Действия</h4>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div><input type="number" id="balanceAmount" placeholder="Сумма (+/-)" style="width: 150px;"> <button onclick="changeBalance('${userId}')">Изменить баланс</button></div>
-                        <div><select id="giveCreatureId">${window.creaturesList ? window.creaturesList.map(c => `<option value="${c.id}">${c.name} (${c.rarity})</option>`).join('') : '<option>Загрузка...</option>'}</select>
-                        <input type="number" id="giveCount" placeholder="Кол-во" style="width: 80px;"> <button onclick="giveItem('${userId}')">Выдать</button></div>
-                        <div><button onclick="toggleBan('${userId}', ${!u.isBanned})" class="warning">${u.isBanned ? 'Разбанить' : 'Забанить'}</button>
-                        <button onclick="resetProgress('${userId}')" class="danger">Сбросить прогресс</button></div>
+                    
+                    <h4>📦 Инвентарь</h4>
+                    <div class="inventory-list">
+                        ${inv.map(i => `<div class="inventory-item">${i.icon} ${i.name} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
                     </div>
-                    <div class="modal-buttons" style="margin-top: 20px;">
+                    
+                    <h4>👥 Рефералы (${referrals.length})</h4>
+                    <div class="inventory-list">
+                        ${referrals.map(r => `<div class="inventory-item">${escapeHtml(r.username || r.firstName || 'Аноним')} — ${formatNum(r.balance)} MMO</div>`).join('') || 'Нет рефералов'}
+                    </div>
+                    
+                    <h4>⚙️ Действия</h4>
+                    <div class="form-group">
+                        <label>Изменить баланс</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="number" id="balanceAmount" placeholder="Сумма (+/-)" style="flex:1">
+                            <button onclick="changeBalance('${userId}')">Применить</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Выдать существо</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <select id="giveCreatureId" style="flex:2">
+                                <option value="">Выберите...</option>
+                                ${creaturesList.map(c => `<option value="${c.id}">${c.icon} ${c.name} (${c.rarity})</option>`).join('')}
+                            </select>
+                            <input type="number" id="giveCount" placeholder="Кол-во" style="width: 80px;">
+                            <button onclick="giveItem('${userId}')">Выдать</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Удалить существо</label>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="removeCreatureId" style="flex:2">
+                                <option value="">Выберите...</option>
+                                ${creaturesList.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+                            </select>
+                            <input type="number" id="removeCount" placeholder="Кол-во" style="width: 80px;">
+                            <button onclick="removeItem('${userId}')" class="danger">Удалить</button>
+                        </div>
+                    </div>
+                    <div class="modal-buttons">
+                        <button onclick="toggleBan('${userId}', ${!u.isBanned})" class="warning">${u.isBanned ? 'Разбанить' : 'Забанить'}</button>
+                        <button onclick="resetProgress('${userId}')" class="danger">Сброс прогресса</button>
                         <button onclick="closeModal()">Закрыть</button>
                     </div>
                 </div>
@@ -492,7 +629,7 @@
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
-    
+
     window.changeBalance = async function(userId) {
         const amount = parseInt(document.getElementById('balanceAmount')?.value);
         if (isNaN(amount)) { showToast('Введите сумму', 'error'); return; }
@@ -500,10 +637,10 @@
         if (res?.success) {
             showToast(`Баланс изменён на ${amount > 0 ? '+' : ''}${amount}`);
             closeModal();
-            loadUsers();
+            loadUsers(currentPage);
         }
     };
-    
+
     window.giveItem = async function(userId) {
         const creatureId = document.getElementById('giveCreatureId')?.value;
         const count = parseInt(document.getElementById('giveCount')?.value || 1);
@@ -512,49 +649,71 @@
         if (res?.success) {
             showToast(`Выдано ${count} существ`);
             closeModal();
+            loadUsers(currentPage);
         }
     };
-    
+
+    window.removeItem = async function(userId) {
+        const creatureId = document.getElementById('removeCreatureId')?.value;
+        const count = parseInt(document.getElementById('removeCount')?.value || 1);
+        if (!creatureId) { showToast('Выберите существо', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/item`, 'DELETE', { creatureId, count });
+        if (res?.success) {
+            showToast(`Удалено ${count} существ`);
+            closeModal();
+            loadUsers(currentPage);
+        }
+    };
+
     window.toggleBan = async function(userId, ban) {
-        const res = await apiRequest(`/api/admin/users/${userId}/ban`, 'PUT', { isBanned: ban, reason: ban ? 'Нарушение правил' : '' });
+        const reason = ban ? prompt('Причина бана:') : '';
+        const res = await apiRequest(`/api/admin/users/${userId}/ban`, 'PUT', { isBanned: ban, reason });
         if (res?.success) {
             showToast(ban ? 'Пользователь забанен' : 'Пользователь разбанен');
             closeModal();
-            loadUsers();
+            loadUsers(currentPage);
         }
     };
-    
+
     window.resetProgress = async function(userId) {
         if (!confirm('Сбросить прогресс пользователя? Это действие необратимо!')) return;
         const res = await apiRequest(`/api/admin/users/${userId}/reset`, 'POST');
         if (res?.success) {
             showToast('Прогресс сброшен');
             closeModal();
+            loadUsers(currentPage);
         }
     };
-    
+
+    // ============================================================
+    // CREATURES
+    // ============================================================
     async function loadCreatures() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
         const res = await apiRequest('/api/admin/creatures');
         if (!res) return;
-        window.creaturesList = res.creatures;
+        creaturesList = res.creatures;
         
         const html = `
-            <div class="section">
-                <div class="section-header">
-                    <h2>🧬 Существа</h2>
-                    <button onclick="showAddCreatureModal()">+ Добавить существо</button>
-                </div>
+            <div style="margin-bottom: 16px;">
+                <button onclick="showAddCreatureModal()"><i class="fas fa-plus"></i> Добавить существо</button>
+            </div>
+            <div class="data-table">
                 <table>
-                    <thead><tr><th>ID</th><th>Имя</th><th>Редкость</th><th>Доход</th><th>Иконка</th><th>Статус</th><th></th></tr></thead>
+                    <thead>
+                        <tr><th>Иконка</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr>
+                    </thead>
                     <tbody>
                         ${res.creatures.map(c => `
                             <tr>
-                                <td>${c.id}</td>
+                                <td style="font-size: 24px;">${c.icon}</td>
+                                <td><small>${c.id}</small></td>
                                 <td>${c.name}</td>
-                                <td>${c.rarity}</td>
+                                <td class="rarity-${c.rarity}">${c.rarity}</td>
                                 <td>${c.incomeBase}/hr</td>
-                                <td style="font-size: 20px;">${c.icon}</td>
-                                <td>${c.isActive ? '<span class="badge badge-active">Активен</span>' : '<span class="badge badge-inactive">Отключен</span>'}</td>
+                                <td>${c.isActive ? '✅' : '❌'}</td>
                                 <td><button onclick="editCreature('${c.id}')">✏️</button> <button onclick="deleteCreature('${c.id}')" class="danger">🗑️</button></td>
                             </tr>
                         `).join('')}
@@ -562,27 +721,26 @@
                 </table>
             </div>
         `;
-        document.getElementById('mainContent').innerHTML = html;
+        main.innerHTML = html;
     }
-    
+
     window.showAddCreatureModal = function() {
         const modalHtml = `
             <div class="modal" id="creatureModal">
                 <div class="modal-content">
                     <h3>➕ Добавить существо</h3>
-                    <input type="text" id="creatureId" placeholder="ID (например: phoenix_legendary)" />
-                    <input type="text" id="creatureName" placeholder="Название" />
-                    <select id="creatureRarity">
-                        <option value="common">Common</option>
-                        <option value="uncommon">Uncommon</option>
-                        <option value="rare">Rare</option>
-                        <option value="epic">Epic</option>
-                        <option value="legendary">Legendary</option>
-                        <option value="mythic">Mythic</option>
-                    </select>
-                    <input type="number" id="creatureIncome" placeholder="Доход в час" />
-                    <input type="text" id="creatureIcon" placeholder="Иконка (эмодзи) 🧬" value="🧬" />
-                    <textarea id="creatureDesc" placeholder="Описание" rows="2"></textarea>
+                    <div class="form-group"><label>ID (уникальный)</label><input type="text" id="cId" placeholder="например: phoenix_legendary"></div>
+                    <div class="form-group"><label>Название</label><input type="text" id="cName"></div>
+                    <div class="form-group"><label>Редкость</label>
+                        <select id="cRarity">
+                            <option value="common">Common</option><option value="uncommon">Uncommon</option>
+                            <option value="rare">Rare</option><option value="epic">Epic</option>
+                            <option value="legendary">Legendary</option><option value="mythic">Mythic</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Иконка (эмодзи)</label><input type="text" id="cIcon" value="🧬" maxlength="2"></div>
+                    <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
+                    <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
                     <div class="modal-buttons">
                         <button onclick="createCreature()">Создать</button>
                         <button onclick="closeModal()">Отмена</button>
@@ -592,15 +750,15 @@
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
-    
+
     window.createCreature = async function() {
         const data = {
-            id: document.getElementById('creatureId').value,
-            name: document.getElementById('creatureName').value,
-            rarity: document.getElementById('creatureRarity').value,
-            incomeBase: parseInt(document.getElementById('creatureIncome').value),
-            icon: document.getElementById('creatureIcon').value,
-            desc: document.getElementById('creatureDesc').value
+            id: document.getElementById('cId').value,
+            name: document.getElementById('cName').value,
+            rarity: document.getElementById('cRarity').value,
+            icon: document.getElementById('cIcon').value,
+            incomeBase: parseInt(document.getElementById('cIncome').value),
+            desc: document.getElementById('cDesc').value
         };
         if (!data.id || !data.name || !data.incomeBase) {
             showToast('Заполните все поля', 'error');
@@ -613,30 +771,25 @@
             loadCreatures();
         }
     };
-    
+
     window.editCreature = async function(creatureId) {
-        const creature = window.creaturesList?.find(c => c.id === creatureId);
+        const creature = creaturesList.find(c => c.id === creatureId);
         if (!creature) return;
         
         const modalHtml = `
             <div class="modal" id="creatureModal">
                 <div class="modal-content">
                     <h3>✏️ Редактировать ${creature.name}</h3>
-                    <input type="text" id="creatureName" value="${creature.name}" placeholder="Название" />
-                    <select id="creatureRarity">
-                        <option value="common" ${creature.rarity === 'common' ? 'selected' : ''}>Common</option>
-                        <option value="uncommon" ${creature.rarity === 'uncommon' ? 'selected' : ''}>Uncommon</option>
-                        <option value="rare" ${creature.rarity === 'rare' ? 'selected' : ''}>Rare</option>
-                        <option value="epic" ${creature.rarity === 'epic' ? 'selected' : ''}>Epic</option>
-                        <option value="legendary" ${creature.rarity === 'legendary' ? 'selected' : ''}>Legendary</option>
-                        <option value="mythic" ${creature.rarity === 'mythic' ? 'selected' : ''}>Mythic</option>
-                    </select>
-                    <input type="number" id="creatureIncome" value="${creature.incomeBase}" placeholder="Доход в час" />
-                    <input type="text" id="creatureIcon" value="${creature.icon}" placeholder="Иконка (эмодзи)" />
-                    <textarea id="creatureDesc" placeholder="Описание" rows="2">${creature.desc || ''}</textarea>
-                    <div style="margin: 12px 0;">
-                        <label><input type="checkbox" id="creatureActive" ${creature.isActive ? 'checked' : ''}> Активен</label>
+                    <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
+                    <div class="form-group"><label>Редкость</label>
+                        <select id="cRarity">
+                            ${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}
+                        </select>
                     </div>
+                    <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="${creature.icon}" maxlength="2"></div>
+                    <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
+                    <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
+                    <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
                     <div class="modal-buttons">
                         <button onclick="updateCreature('${creatureId}')">Сохранить</button>
                         <button onclick="closeModal()">Отмена</button>
@@ -646,15 +799,15 @@
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
-    
+
     window.updateCreature = async function(creatureId) {
         const data = {
-            name: document.getElementById('creatureName').value,
-            rarity: document.getElementById('creatureRarity').value,
-            incomeBase: parseInt(document.getElementById('creatureIncome').value),
-            icon: document.getElementById('creatureIcon').value,
-            desc: document.getElementById('creatureDesc').value,
-            isActive: document.getElementById('creatureActive').checked
+            name: document.getElementById('cName').value,
+            rarity: document.getElementById('cRarity').value,
+            icon: document.getElementById('cIcon').value,
+            incomeBase: parseInt(document.getElementById('cIncome').value),
+            desc: document.getElementById('cDesc').value,
+            isActive: document.getElementById('cActive').checked
         };
         const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'PUT', data);
         if (res?.success) {
@@ -663,197 +816,229 @@
             loadCreatures();
         }
     };
-    
+
     window.deleteCreature = async function(creatureId) {
-        if (!confirm('Удалить существо? Это действие необратимо!')) return;
+        if (!confirm('Удалить существо? (нельзя удалить, если есть у игроков)')) return;
         const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'DELETE');
         if (res?.success) {
             showToast('Существо удалено');
             loadCreatures();
         }
     };
-    
+
+    // ============================================================
+    // ECONOMY
+    // ============================================================
     async function loadEconomy() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
         const res = await apiRequest('/api/admin/config');
         if (!res) return;
-        const config = res.config;
+        const cfg = res.config;
         
         const html = `
-            <div class="section">
-                <div class="section-header">
-                    <h2>💰 Настройки экономики</h2>
-                </div>
-                <div style="padding: 20px;">
-                    <h3>Цены капсул</h3>
-                    <div><label>DNA Capsule: <input type="number" id="basicCost" value="${config.capsuleCosts?.basic || 50}" style="width: 100px;"></label></div>
-                    <div><label>Premium Capsule: <input type="number" id="premiumCost" value="${config.capsuleCosts?.premium || 200}" style="width: 100px;"></label></div>
-                    <h3 style="margin-top: 20px;">Реклама</h3>
-                    <div><label>Награда: <input type="number" id="adReward" value="${config.adReward || 50}" style="width: 100px;"></label></div>
-                    <div><label>Кулдаун (сек): <input type="number" id="adCooldown" value="${config.adCooldown || 60}" style="width: 100px;"></label></div>
-                    <button onclick="saveEconomy()" style="margin-top: 20px;">💾 Сохранить</button>
-                </div>
+            <div class="user-card">
+                <h3>💰 Цены капсул</h3>
+                <div class="form-group"><label>DNA Capsule</label><input type="number" id="basicCost" value="${cfg.capsuleCosts.basic}"></div>
+                <div class="form-group"><label>Premium Capsule</label><input type="number" id="premiumCost" value="${cfg.capsuleCosts.premium}"></div>
             </div>
+            <div class="user-card">
+                <h3>🎲 Шансы выпадения (DNA Capsule)</h3>
+                ${['common','uncommon','rare','epic','legendary'].map(r => `
+                    <div class="form-group"><label>${r}</label><input type="number" id="basic_${r}" value="${cfg.capsuleRarities.basic[r]}">%</div>
+                `).join('')}
+            </div>
+            <div class="user-card">
+                <h3>🎲 Шансы выпадения (Premium)</h3>
+                ${['common','uncommon','rare','epic','legendary'].map(r => `
+                    <div class="form-group"><label>${r}</label><input type="number" id="premium_${r}" value="${cfg.capsuleRarities.premium[r]}">%</div>
+                `).join('')}
+            </div>
+            <div class="user-card">
+                <h3>📺 Реклама</h3>
+                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="adReward" value="${cfg.adReward}"></div>
+                <div class="form-group"><label>Кулдаун (сек)</label><input type="number" id="adCooldown" value="${cfg.adCooldown}"></div>
+            </div>
+            <div class="user-card">
+                <h3>🔧 Улучшения</h3>
+                <div class="form-group"><label>Базовая стоимость</label><input type="number" id="upgradeBaseCost" value="${cfg.upgradeBaseCost}"></div>
+                <div class="form-group"><label>Множитель</label><input type="number" step="0.1" id="upgradeMultiplier" value="${cfg.upgradeMultiplier}"></div>
+            </div>
+            <div class="user-card">
+                <h3>📦 Лимиты</h3>
+                <div class="form-group"><label>Макс. слотов инвентаря</label><input type="number" id="maxInventorySlots" value="${cfg.limits.maxInventorySlots}"></div>
+                <div class="form-group"><label>Макс. цена в маркетплейсе</label><input type="number" id="maxMarketplacePrice" value="${cfg.limits.maxMarketplacePrice}"></div>
+                <div class="form-group"><label>Макс. уровень</label><input type="number" id="maxLevel" value="${cfg.limits.maxLevel}"></div>
+            </div>
+            <button onclick="saveEconomy()" style="width:100%; margin-top: 16px;">💾 Сохранить все настройки</button>
         `;
-        document.getElementById('mainContent').innerHTML = html;
+        main.innerHTML = html;
     }
-    
+
     window.saveEconomy = async function() {
         const data = {
             capsuleCosts: {
-                basic: parseInt(document.getElementById('basicCost').value),
-                premium: parseInt(document.getElementById('premiumCost').value)
+                basic: parseInt(document.getElementById('basicCost')?.value) || 50,
+                premium: parseInt(document.getElementById('premiumCost')?.value) || 200
             },
-            adReward: parseInt(document.getElementById('adReward').value),
-            adCooldown: parseInt(document.getElementById('adCooldown').value)
+            capsuleRarities: {
+                basic: {
+                    common: parseInt(document.getElementById('basic_common')?.value) || 0,
+                    uncommon: parseInt(document.getElementById('basic_uncommon')?.value) || 0,
+                    rare: parseInt(document.getElementById('basic_rare')?.value) || 0,
+                    epic: parseInt(document.getElementById('basic_epic')?.value) || 0,
+                    legendary: parseInt(document.getElementById('basic_legendary')?.value) || 0
+                },
+                premium: {
+                    common: parseInt(document.getElementById('premium_common')?.value) || 0,
+                    uncommon: parseInt(document.getElementById('premium_uncommon')?.value) || 0,
+                    rare: parseInt(document.getElementById('premium_rare')?.value) || 0,
+                    epic: parseInt(document.getElementById('premium_epic')?.value) || 0,
+                    legendary: parseInt(document.getElementById('premium_legendary')?.value) || 0
+                }
+            },
+            adReward: parseInt(document.getElementById('adReward')?.value) || 50,
+            adCooldown: parseInt(document.getElementById('adCooldown')?.value) || 60,
+            upgradeBaseCost: parseInt(document.getElementById('upgradeBaseCost')?.value) || 100,
+            upgradeMultiplier: parseFloat(document.getElementById('upgradeMultiplier')?.value) || 1.5,
+            limits: {
+                maxInventorySlots: parseInt(document.getElementById('maxInventorySlots')?.value) || 50,
+                maxMarketplacePrice: parseInt(document.getElementById('maxMarketplacePrice')?.value) || 100000,
+                maxLevel: parseInt(document.getElementById('maxLevel')?.value) || 100
+            }
         };
+        
         const res = await apiRequest('/api/admin/config', 'PUT', data);
         if (res?.success) {
             showToast('Настройки сохранены');
         }
     };
-    
-    async function loadPromoCodes() {
-        const res = await apiRequest('/api/admin/promoCodes');
+
+    // ============================================================
+    // QUESTS
+    // ============================================================
+    async function loadQuests() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
+        const res = await apiRequest('/api/admin/config');
         if (!res) return;
+        const q = res.config.quests;
         
         const html = `
-            <div class="section">
-                <div class="section-header">
-                    <h2>🎫 Промокоды</h2>
-                    <button onclick="showCreatePromoModal()">+ Создать промокод</button>
-                </div>
-                <table>
-                    <thead><tr><th>Код</th><th>Награда</th><th>Использовано</th><th>Активен</th><th></th></tr></thead>
-                    <tbody>
-                        ${res.promoCodes.map(p => `
-                            <tr>
-                                <td><b>${p.code}</b></td>
-                                <td>${p.rewardCoins > 0 ? `${p.rewardCoins} MMO` : ''} ${p.rewardCreatureId ? `+ ${p.rewardCreatureId}` : ''}</td>
-                                <td>${p.usedCount}/${p.maxUses}</td>
-                                <td>${p.isActive ? '<span class="badge badge-active">Активен</span>' : '<span class="badge badge-inactive">Выкл</span>'}</td>
-                                <td><button onclick="togglePromoActive('${p._id}', ${!p.isActive})">${p.isActive ? 'Выключить' : 'Включить'}</button> <button onclick="deletePromo('${p._id}')" class="danger">Удалить</button></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+            <div class="user-card">
+                <h3>🎯 Квесты</h3>
+                <div class="form-group"><label><input type="checkbox" id="quest_open_enabled" ${q.openCapsules.enabled ? 'checked' : ''}> Открыть капсулы</label></div>
+                <div class="form-group"><label>Цель</label><input type="number" id="quest_open_target" value="${q.openCapsules.target}"></div>
+                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_open_reward" value="${q.openCapsules.reward}"></div>
+                <hr style="margin: 16px 0; border-color: #1e2d4a;">
+                <div class="form-group"><label><input type="checkbox" id="quest_merge_enabled" ${q.merges.enabled ? 'checked' : ''}> Слияния</label></div>
+                <div class="form-group"><label>Цель</label><input type="number" id="quest_merge_target" value="${q.merges.target}"></div>
+                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_merge_reward" value="${q.merges.reward}"></div>
+                <hr style="margin: 16px 0; border-color: #1e2d4a;">
+                <div class="form-group"><label><input type="checkbox" id="quest_earn_enabled" ${q.earnMMO.enabled ? 'checked' : ''}> Заработать MMO</label></div>
+                <div class="form-group"><label>Цель</label><input type="number" id="quest_earn_target" value="${q.earnMMO.target}"></div>
+                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_earn_reward" value="${q.earnMMO.reward}"></div>
+                <hr style="margin: 16px 0; border-color: #1e2d4a;">
+                <div class="form-group"><label><input type="checkbox" id="quest_discover_enabled" ${q.discoverCreatures.enabled ? 'checked' : ''}> Открыть существ</label></div>
+                <div class="form-group"><label>Цель</label><input type="number" id="quest_discover_target" value="${q.discoverCreatures.target}"></div>
+                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="quest_discover_reward" value="${q.discoverCreatures.reward}"></div>
+                <button onclick="saveQuests()" style="width:100%; margin-top: 16px;">💾 Сохранить квесты</button>
             </div>
         `;
-        document.getElementById('mainContent').innerHTML = html;
+        main.innerHTML = html;
     }
-    
-    window.showCreatePromoModal = function() {
-        const modalHtml = `
-            <div class="modal" id="promoModal">
-                <div class="modal-content">
-                    <h3>🎫 Создать промокод</h3>
-                    <input type="text" id="promoCode" placeholder="Код (например: SUMMER2024)" />
-                    <input type="number" id="promoCoins" placeholder="Монеты (0 если нет)" value="0" />
-                    <input type="text" id="promoCreature" placeholder="ID существа (опционально)" />
-                    <input type="number" id="promoMaxUses" placeholder="Макс. использований" value="1" />
-                    <input type="datetime-local" id="promoExpires" />
-                    <div class="modal-buttons">
-                        <button onclick="createPromo()">Создать</button>
-                        <button onclick="closeModal()">Отмена</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    };
-    
-    window.createPromo = async function() {
+
+    window.saveQuests = async function() {
         const data = {
-            code: document.getElementById('promoCode').value,
-            rewardCoins: parseInt(document.getElementById('promoCoins').value) || 0,
-            rewardCreatureId: document.getElementById('promoCreature').value || null,
-            maxUses: parseInt(document.getElementById('promoMaxUses').value) || 1,
-            expiresAt: document.getElementById('promoExpires').value || null
+            quests: {
+                openCapsules: {
+                    enabled: document.getElementById('quest_open_enabled').checked,
+                    target: parseInt(document.getElementById('quest_open_target').value) || 5,
+                    reward: parseInt(document.getElementById('quest_open_reward').value) || 200
+                },
+                merges: {
+                    enabled: document.getElementById('quest_merge_enabled').checked,
+                    target: parseInt(document.getElementById('quest_merge_target').value) || 3,
+                    reward: parseInt(document.getElementById('quest_merge_reward').value) || 150
+                },
+                earnMMO: {
+                    enabled: document.getElementById('quest_earn_enabled').checked,
+                    target: parseInt(document.getElementById('quest_earn_target').value) || 500,
+                    reward: parseInt(document.getElementById('quest_earn_reward').value) || 100
+                },
+                discoverCreatures: {
+                    enabled: document.getElementById('quest_discover_enabled').checked,
+                    target: parseInt(document.getElementById('quest_discover_target').value) || 10,
+                    reward: parseInt(document.getElementById('quest_discover_reward').value) || 300
+                }
+            }
         };
-        if (!data.code) { showToast('Введите код', 'error'); return; }
-        const res = await apiRequest('/api/admin/promoCodes', 'POST', data);
+        
+        const res = await apiRequest('/api/admin/config', 'PUT', data);
         if (res?.success) {
-            showToast('Промокод создан');
-            closeModal();
-            loadPromoCodes();
+            showToast('Квесты сохранены');
         }
     };
-    
-    window.togglePromoActive = async function(promoId, active) {
-        const res = await apiRequest(`/api/admin/promoCodes/${promoId}`, 'PUT', { isActive: active });
-        if (res?.success) {
-            showToast(active ? 'Промокод активирован' : 'Промокод деактивирован');
-            loadPromoCodes();
-        }
+
+    // ============================================================
+    // MASS ACTIONS
+    // ============================================================
+    window.showGiveAllCoins = function() {
+        const amount = prompt('Введите количество MMO для выдачи всем игрокам:', '100');
+        if (!amount) return;
+        giveToAll('coins', parseInt(amount));
     };
-    
-    window.deletePromo = async function(promoId) {
-        if (!confirm('Удалить промокод?')) return;
-        const res = await apiRequest(`/api/admin/promoCodes/${promoId}`, 'DELETE');
-        if (res?.success) {
-            showToast('Промокод удалён');
-            loadPromoCodes();
-        }
-    };
-    
-    async function loadLogs() {
-        const res = await apiRequest('/api/admin/logs?limit=100');
+
+    window.showGiveAllCreature = async function() {
+        // Загружаем список существ для выбора
+        const res = await apiRequest('/api/admin/creatures');
         if (!res) return;
         
-        const html = `
-            <div class="section">
-                <div class="section-header">
-                    <h2>📜 Логи действий админов</h2>
-                </div>
-                <table>
-                    <thead><tr><th>Время</th><th>Админ</th><th>Действие</th><th>Цель</th><th>Детали</th></tr></thead>
-                    <tbody>
-                        ${res.logs.map(l => `
-                            <tr>
-                                <td>${new Date(l.timestamp).toLocaleString()}</td>
-                                <td>${l.adminName || l.adminId}</td>
-                                <td>${l.action}</td>
-                                <td>${l.targetName || l.targetId}</td>
-                                <td>${JSON.stringify(l.details).slice(0, 50)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-        document.getElementById('mainContent').innerHTML = html;
+        const creatureList = res.creatures.map(c => `${c.id}|${c.icon} ${c.name}`).join(',');
+        const creatureId = prompt('Введите ID существа (например: duck_c):\n\nДоступные: ' + creatureList, 'duck_c');
+        if (!creatureId) return;
+        giveToAll('creature', null, creatureId);
+    };
+
+    async function giveToAll(type, amount, creatureId) {
+        const res = await apiRequest('/api/admin/give-to-all', 'POST', { type, amount, creatureId });
+        if (res?.success) {
+            showToast(res.message);
+        }
     }
-    
+
+    // ============================================================
+    // UTILS
+    // ============================================================
     window.showUserSearch = function() {
-        loadUsers();
         document.querySelector('[data-tab="users"]').click();
     };
-    
+
     window.closeModal = function() {
         document.querySelectorAll('.modal').forEach(m => m.remove());
     };
-    
-    window.formatNum = function(n) {
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function formatNum(n) {
         if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n/1000).toFixed(1) + 'K';
         return Math.floor(n).toString();
-    };
-    
-    // Навигация
-    document.querySelectorAll('.sidebar-nav li').forEach(item => {
-        item.addEventListener('click', async () => {
-            document.querySelectorAll('.sidebar-nav li').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            const tab = item.dataset.tab;
-            if (tab === 'dashboard') await loadDashboard();
-            if (tab === 'users') await loadUsers();
-            if (tab === 'creatures') await loadCreatures();
-            if (tab === 'economy') await loadEconomy();
-            if (tab === 'promocodes') await loadPromoCodes();
-            if (tab === 'logs') await loadLogs();
-        });
-    });
-    
-    // Инициализация
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
     if (!token) {
         showLoginModal();
     } else {
