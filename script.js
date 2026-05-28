@@ -11,6 +11,7 @@ let localLastIncomeTime = Date.now();
 let localIncomePerHour = 0;
 let localTickerInterval = null;
 let syncInProgress = false;
+let pendingHintTimeout = null;
 
 function startLocalIncomeTicker() {
     if (localTickerInterval) clearInterval(localTickerInterval);
@@ -22,15 +23,51 @@ function startLocalIncomeTicker() {
         const now = Date.now();
         const elapsedSeconds = (now - localLastIncomeTime) / 1000;
         
-        if (elapsedSeconds >= 0.1) {
+        if (elapsedSeconds >= 0.5) {
             const earnedThisTick = (localIncomePerHour / 3600) * elapsedSeconds;
             if (earnedThisTick > 0) {
                 localPendingIncome += earnedThisTick;
                 localLastIncomeTime = now;
                 updateLocalBalance();
+                
+                if (localPendingIncome > 0.5 && !pendingHintTimeout) {
+                    showPendingIncomeHint();
+                }
             }
         }
-    }, 100);
+    }, 1000);
+}
+
+function showPendingIncomeHint() {
+    let hint = document.getElementById('pendingIncomeHint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'pendingIncomeHint';
+        hint.style.cssText = `
+            position: fixed; bottom: 80px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(34,197,94,0.2);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(34,197,94,0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 10px;
+            color: #22c55e;
+            z-index: 50;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+            font-family: 'Orbitron', monospace;
+        `;
+        document.body.appendChild(hint);
+    }
+    hint.textContent = `💰 +${localPendingIncome.toFixed(2)} MMO`;
+    hint.style.opacity = '1';
+    
+    if (pendingHintTimeout) clearTimeout(pendingHintTimeout);
+    pendingHintTimeout = setTimeout(() => {
+        hint.style.opacity = '0';
+    }, 2000);
 }
 
 function updateLocalBalance() {
@@ -40,12 +77,10 @@ function updateLocalBalance() {
     const balanceEl = document.getElementById('balanceDisplay');
     if (balanceEl) {
         const oldText = balanceEl.textContent;
-        const newText = formatNum(displayBalance);
-        balanceEl.textContent = newText;
-        
-        if (oldText !== newText) {
-            balanceEl.classList.add('updated');
-            setTimeout(() => balanceEl.classList.remove('updated'), 150);
+        balanceEl.textContent = formatNum(displayBalance);
+        if (localPendingIncome > 0.01 && oldText !== balanceEl.textContent) {
+            balanceEl.classList.add('pending');
+            setTimeout(() => balanceEl.classList.remove('pending'), 500);
         }
     }
     
@@ -68,6 +103,8 @@ async function syncPendingIncome() {
             localLastIncomeTime = Date.now();
             updateLocalBalance();
             updateHeader();
+            const hint = document.getElementById('pendingIncomeHint');
+            if (hint) hint.style.opacity = '0';
         }
     } catch (e) {
         console.warn('Sync error:', e);
@@ -78,11 +115,11 @@ async function syncPendingIncome() {
 
 // Сохраняем pending в localStorage
 setInterval(() => {
-    if (localPendingIncome > 0.1) {
+    if (localPendingIncome > 0) {
         localStorage.setItem('pendingIncome', localPendingIncome);
         localStorage.setItem('pendingTime', localLastIncomeTime);
     }
-}, 30000);
+}, 10000);
 
 function restorePendingIncome() {
     const saved = localStorage.getItem('pendingIncome');
@@ -92,28 +129,6 @@ function restorePendingIncome() {
         localStorage.removeItem('pendingIncome');
         localStorage.removeItem('pendingTime');
     }
-}
-
-// ============================================================
-// ФОРМАТИРОВАНИЕ ЧИСЕЛ (с 4 знаками после запятой)
-// ============================================================
-function formatNum(n) {
-    const absN = Math.abs(n);
-    const sign = n < 0 ? '-' : '';
-    
-    if (absN < 1) {
-        return sign + absN.toFixed(4);
-    }
-    if (absN < 1000) {
-        return sign + absN.toFixed(2);
-    }
-    if (absN >= 1000000) {
-        return sign + (absN / 1000000).toFixed(2) + 'M';
-    }
-    if (absN >= 1000) {
-        return sign + (absN / 1000).toFixed(2) + 'K';
-    }
-    return sign + Math.floor(absN).toString();
 }
 
 // ============================================================
@@ -141,7 +156,7 @@ let marketplaceCache = {
 };
 
 // ============================================================
-// API REQUEST
+// ЗАЩИТА ОТ ДУБЛИРУЮЩИХСЯ ЗАПРОСОВ
 // ============================================================
 let pendingRequests = new Map();
 
@@ -185,7 +200,7 @@ async function apiRequest(method, path, body = null, signal = null) {
 }
 
 // ============================================================
-// GAME DATA
+// GAME DATA - ЗАГРУЖАЕТСЯ С СЕРВЕРА
 // ============================================================
 let CREATURES = [];
 let CAPSULE_COSTS = { basic: 50, premium: 200 };
@@ -249,21 +264,24 @@ let state = {
 // HELPER FUNCTIONS
 // ============================================================
 function getCreature(id) { return CREATURES.find(c => c.id === id); }
-
+function formatNum(n) {
+    const absN = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (absN >= 1000000) return sign + (absN/1000000).toFixed(1) + 'M';
+    if (absN >= 1000) return sign + (absN/1000).toFixed(1) + 'K';
+    return sign + Math.floor(absN).toString();
+}
 function getUsedSlots() {
     return state.inventory.reduce((s, i) => s + i.count, 0);
 }
-
 function getUpgradeCost() {
     return Math.floor(UPGRADE_BASE_COST * Math.pow(UPGRADE_MULTIPLIER, state.user?.inventoryUpgrades || 0));
 }
-
 function canMerge(creatureId) {
     const item = state.inventory.find(i => i.creatureId === creatureId);
     const c = getCreature(creatureId);
     return item && item.count >= 3 && c && c.rarity !== 'legendary' && c.rarity !== 'mythic';
 }
-
 function getLevelTitle(lvl) {
     if (lvl >= 20) return 'God Scientist';
     if (lvl >= 15) return 'DNA Master';
@@ -272,7 +290,6 @@ function getLevelTitle(lvl) {
     if (lvl >= 3) return 'Biologist';
     return 'Researcher';
 }
-
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -345,8 +362,13 @@ async function initTelegramApp() {
     showLoadingScreen(false);
     renderAll();
 
+    // НОВЫЙ ЛОКАЛЬНЫЙ ТИКЕР (0 запросов к серверу!)
     startLocalIncomeTicker();
+    
+    // ОПТИМИЗИРОВАННЫЕ ИНТЕРВАЛЫ
     startOptimizedIntervals();
+    
+    // ОБРАБОТКА ВИДИМОСТИ ВКЛАДКИ
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (loginRes.isNewUser) {
@@ -365,10 +387,12 @@ function clearAllIntervals() {
 }
 
 function startOptimizedIntervals() {
+    // Лидерборд раз в 5 минут
     intervals.leaderboard = setInterval(() => {
         if (!document.hidden) renderLeaderboard();
     }, 5 * 60 * 1000);
     
+    // Спец-квесты раз в 5 минут
     intervals.specialQuests = setInterval(() => {
         if (!document.hidden) {
             loadGameConfig();
@@ -376,20 +400,24 @@ function startOptimizedIntervals() {
         }
     }, 5 * 60 * 1000);
     
+    // Маркетплейс (будет запускаться только при активной вкладке)
     intervals.marketplace = setInterval(() => {
         if (!document.hidden && isMarketplaceTabActive) {
             renderMarketplaceBuy();
         }
     }, 10 * 1000);
     
+    // Таймер рекламы
     intervals.adsTimer = setInterval(updateAdsTimer, 1000);
 }
 
 function handleVisibilityChange() {
     if (document.hidden) {
+        // Вкладка в фоне - останавливаем обновления маркета
         if (intervals.marketplace) clearInterval(intervals.marketplace);
         intervals.marketplace = null;
     } else {
+        // Вернулись - обновляем данные и запускаем маркет снова
         if (isMarketplaceTabActive) {
             renderMarketplaceBuy();
             intervals.marketplace = setInterval(() => {
@@ -1673,19 +1701,10 @@ function spawnFloatingMMO(amount) {
 }
 
 // ============================================================
-// СТИЛЬ ДЛЯ АНИМАЦИИ
+// ДОБАВЛЯЕМ СТИЛЬ ДЛЯ PENDING АНИМАЦИИ
 // ============================================================
 const animationStyle = document.createElement('style');
 animationStyle.textContent = `
-    .balance-amount {
-        transition: all 0.1s ease-out;
-        font-feature-settings: "tnum";
-        font-variant-numeric: tabular-nums;
-    }
-    .balance-amount.updated {
-        transform: scale(1.02);
-        color: #22c55e;
-    }
     .balance-amount.pending {
         animation: incomePulse 0.5s ease;
         color: #22c55e;
