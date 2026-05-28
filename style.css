@@ -1815,3 +1815,15 @@
     0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
     50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); }
 }
+
+/* Плавное обновление баланса */
+.balance-amount {
+    transition: all 0.1s ease-out;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-amount.updated {
+    transform: scale(1.02);
+    color: #22c55e;
+}
