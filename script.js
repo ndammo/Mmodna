@@ -61,7 +61,7 @@ const RARITY_COLORS = {
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 // ============================================================
-// ВИЗУАЛЬНЫЙ ТИКЕР — обновляет баланс 2 раза в секунду
+// ВИЗУАЛЬНЫЙ ТИКЕР — обновляет баланс 1 раз в секунду
 // Реальный доход начисляется только через /api/game/collect-income
 // ============================================================
 let visualTickerInterval = null;
@@ -69,7 +69,6 @@ let visualTickerInterval = null;
 function startVisualTicker() {
     if (visualTickerInterval) clearInterval(visualTickerInterval);
     
-    // Обновляем 2 раза в секунду (каждые 500 мс)
     visualTickerInterval = setInterval(() => {
         if (document.hidden || !state.user) return;
         
@@ -80,17 +79,16 @@ function startVisualTicker() {
         
         const walletBalanceEl = document.getElementById('walletBalance');
         if (walletBalanceEl) walletBalanceEl.textContent = formatBalance(visualBalance);
-    }, 500);
+    }, 1000);
     
     state.visualTicker = { cancel: () => clearInterval(visualTickerInterval) };
 }
 
-// Форматирует баланс с 4 знаками после запятой: 123456.7890
-// Всегда показывает 4 знака после запятой, без сокращений
+// Форматирует баланс с 3 знаками после запятой
 function formatBalance(n) {
     const absN = Math.abs(n);
     const sign = n < 0 ? '-' : '';
-    return sign + absN.toFixed(4);
+    return sign + absN.toFixed(3);
 }
 
 function getVisualBalance() {
@@ -120,7 +118,7 @@ async function startCollectIncomeLoop() {
                 if (state.user) state.user.balance = res.balance;
             }
         } catch (e) {
-            // тихо игнорируем ошибки сети — тикер продолжает работать
+            // тихо игнорируем ошибки сети
         }
     }, 5 * 60 * 1000);
 }
@@ -281,8 +279,6 @@ function handleVisibilityChange() {
         if (intervals.marketplace) clearInterval(intervals.marketplace);
         intervals.marketplace = null;
     } else {
-        // При возврате в приложение — немедленно собираем доход и обновляем UI
-        // НЕ делаем полный refreshUserProfile (лишний тяжёлый запрос)
         apiRequest('POST', '/api/game/collect-income').then(res => {
             if (res && res.success) {
                 updateServerSnapshot(res.balance, res.incomePerHour, res.lastPassiveIncome);
@@ -294,6 +290,8 @@ function handleVisibilityChange() {
                     showToast(`+${formatNum(res.earned)} MMO получено`, '💰');
                 }
             }
+        }).catch(err => {
+            console.warn('collect-income error on visibility change:', err);
         });
 
         if (isMarketplaceTabActive) {
@@ -494,7 +492,6 @@ function updateHeader() {
     if (!state.user) return;
     const u = state.user;
 
-    // Пересчитываем incomePerHour из инвентаря только если он ещё не установлен с сервера
     if (!state.incomePerHour) {
         let income = 0;
         state.inventory.forEach(item => {
