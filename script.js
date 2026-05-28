@@ -36,6 +36,10 @@ let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
 let currentDisplayBalance = 0;
 let balanceAnimationFrame = null;
 
+// ДЛЯ ПЕРИОДИЧЕСКОЙ СИНХРОНИЗАЦИИ ДОХОДА
+let lastIncomeSyncTime = Date.now();
+let incomeSyncInterval = null;
+
 // ============================================================
 // ФОРМАТИРОВАНИЕ ЧИСЕЛ
 // ============================================================
@@ -59,7 +63,7 @@ function formatNum(n) {
 }
 
 // ============================================================
-// ПЛАВНАЯ АНИМАЦИЯ БАЛАНСА
+// ПЛАВНАЯ АНИМАЦИЯ БАЛАНСА (из v2)
 // ============================================================
 function animateBalance(newBalance) {
     const balanceEl = document.getElementById('balanceDisplay');
@@ -74,12 +78,11 @@ function animateBalance(newBalance) {
     if (balanceAnimationFrame) cancelAnimationFrame(balanceAnimationFrame);
     
     const startTime = performance.now();
-    const duration = 500; // 0.5 секунды
+    const duration = 500;
     
     function animate(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(1, elapsed / duration);
-        // easeOutCubic для плавного замедления
         const easeProgress = 1 - Math.pow(1 - progress, 3);
         const currentValue = startValue + diff * easeProgress;
         
@@ -94,7 +97,6 @@ function animateBalance(newBalance) {
             if (walletBalanceEl) walletBalanceEl.textContent = formatNum(newBalance);
             currentDisplayBalance = newBalance;
             
-            // Эффект пульсации
             balanceEl.classList.add('updated');
             setTimeout(() => balanceEl.classList.remove('updated'), 300);
             balanceAnimationFrame = null;
@@ -108,6 +110,39 @@ function animateBalance(newBalance) {
 function updateBalanceDisplay() {
     if (!state.user) return;
     animateBalance(state.user.balance);
+}
+
+// ============================================================
+// СИНХРОНИЗАЦИЯ ДОХОДА С СЕРВЕРОМ (исправленный, без двойного начисления)
+// ============================================================
+async function syncIncomeWithServer() {
+    if (state.isLoading) return;
+    if (!state.user) return;
+    
+    const now = Date.now();
+    const elapsedSeconds = (now - lastIncomeSyncTime) / 1000;
+    
+    // Не синхронизируем слишком часто (минимум 5 секунд)
+    if (elapsedSeconds < 5) return;
+    
+    lastIncomeSyncTime = now;
+    
+    try {
+        const res = await apiRequest('POST', '/api/game/sync-income', { 
+            timestamp: now,
+            clientIncomePerHour: state.incomePerHour 
+        });
+        
+        if (res?.success) {
+            state.user.balance = res.balance;
+            state.user.xp = res.xp;
+            state.user.level = res.level;
+            updateBalanceDisplay();
+            updateHeader();
+        }
+    } catch (e) {
+        console.warn('Income sync error:', e);
+    }
 }
 
 // ============================================================
@@ -287,10 +322,12 @@ async function initTelegramApp() {
         }
     }
 
+    currentDisplayBalance = state.user.balance;
     showLoadingScreen(false);
     renderAll();
 
     startOptimizedIntervals();
+    startIncomeSync(); // Новая функция для синхронизации дохода
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (loginRes.isNewUser) {
@@ -303,6 +340,7 @@ function clearAllIntervals() {
     if (intervals.specialQuests) clearInterval(intervals.specialQuests);
     if (intervals.leaderboard) clearInterval(intervals.leaderboard);
     if (intervals.marketplace) clearInterval(intervals.marketplace);
+    if (incomeSyncInterval) clearInterval(incomeSyncInterval);
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
     activeQuestTimers.clear();
 }
@@ -328,6 +366,17 @@ function startOptimizedIntervals() {
     intervals.adsTimer = setInterval(updateAdsTimer, 1000);
 }
 
+function startIncomeSync() {
+    if (incomeSyncInterval) clearInterval(incomeSyncInterval);
+    
+    // Синхронизация каждые 10 секунд (исправлено - без двойного начисления)
+    incomeSyncInterval = setInterval(() => {
+        if (!document.hidden && state.user) {
+            syncIncomeWithServer();
+        }
+    }, 10000);
+}
+
 function handleVisibilityChange() {
     if (document.hidden) {
         if (intervals.marketplace) clearInterval(intervals.marketplace);
@@ -341,6 +390,7 @@ function handleVisibilityChange() {
         }
         renderLeaderboard();
         renderSpecialQuests();
+        syncIncomeWithServer(); // Синхронизация при возвращении
         updateBalanceDisplay();
     }
 }
@@ -520,17 +570,85 @@ function renderTransactions() {
     }
     list.innerHTML = txs.slice(0, 10).map(tx => {
         const isPos = tx.amount > 0;
-        const icon = isPos ? '⬆️' : '⬇️';
-        const color = isPos ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)';
+        const isNeg = tx.amount < 0;
+        const icon = isPos ? '⬆️' : isNeg ? '⬇️' : '🔀';
+        const color = isPos ? 'rgba(34,197,94,0.15)' : isNeg ? 'rgba(239,68,68,0.15)' : 'rgba(124,58,237,0.15)';
+        const timeAgo = Math.floor((Date.now() - new Date(tx.time).getTime()) / 60000);
+        const timeStr = timeAgo < 1 ? 'just now' : `${timeAgo}m ago`;
         return `<div class="tx-item">
-            <div class="tx-icon" style="background:${color}"><span>${icon}</span></div>
+            <div class="tx-icon" style="background:${color}"><span style="font-size:16px">${icon}</span></div>
             <div class="tx-info">
                 <div class="tx-name">${escapeHtml(tx.name)}</div>
-                <div class="tx-time">${new Date(tx.time).toLocaleTimeString()}</div>
+                <div class="tx-time">${timeStr}</div>
             </div>
-            <div class="tx-amount ${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${tx.amount} MMO</div>
+            <div class="tx-amount ${isPos ? 'positive' : isNeg ? 'negative' : ''}" style="${!isPos && !isNeg ? 'color:#a855f7' : ''}">
+                ${isPos ? '+' : ''}${tx.amount !== 0 ? formatNum(tx.amount) + ' MMO' : 'MERGE'}
+            </div>
         </div>`;
     }).join('');
+}
+
+// ============================================================
+// ENCYCLOPEDIA (из v1)
+// ============================================================
+function showEncyclopedia() {
+    const discovered = new Set(state.user?.discovered || []);
+    const total = CREATURES.length;
+    const found = discovered.size;
+
+    const grouped = {};
+    RARITY_ORDER.forEach(r => grouped[r] = []);
+    CREATURES.forEach(c => { if (grouped[c.rarity]) grouped[c.rarity].push(c); });
+
+    const sections = RARITY_ORDER.map(rarity => {
+        if (!grouped[rarity].length) return '';
+        const color = RARITY_COLORS[rarity];
+        const items = grouped[rarity].map(c => {
+            const isFound = discovered.has(c.id);
+            return `<div class="coll-item ${isFound ? 'found' : 'not-found'}" style="${isFound ? `border-color:${color}44` : ''};cursor:pointer" onclick="showCreatureInfo('${c.id}')">
+                <span style="font-size:22px;${isFound ? `filter:drop-shadow(0 0 6px ${color})` : ''}">${c.icon}</span>
+                <div class="coll-item-name">${isFound ? escapeHtml(c.name) : '???'}</div>
+            </div>`;
+        }).join('');
+        return `<div style="margin-bottom:16px">
+            <div style="font-size:10px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${rarity}</div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">${items}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <div class="popup-title" style="margin-bottom:4px">Encyclopedia</div>
+        <div class="popup-subtitle">${found}/${total} creatures discovered</div>
+        <div style="height:6px;background:#1e2d4a;border-radius:3px;margin-bottom:16px;overflow:hidden">
+            <div style="height:100%;width:${(found/total*100).toFixed(0)}%;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:3px;transition:width 0.5s"></div>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto;padding:4px">${sections}</div>
+    `;
+    document.getElementById('overlay').classList.add('show');
+}
+
+function showCreatureInfo(creatureId) {
+    const c = getCreature(creatureId);
+    if (!c) return;
+    const discovered = new Set(state.user?.discovered || []);
+    const isFound = discovered.has(creatureId);
+    const color = RARITY_COLORS[c.rarity];
+
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="showEncyclopedia()"><i class="fa-solid fa-arrow-left"></i></div>
+        <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
+        <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
+        <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
+        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
+            ${c.rarity.toUpperCase()} ${isFound ? '✓ DISCOVERED' : '🔒 UNDISCOVERED'}
+        </div>
+        <div class="popup-stats">
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
+            <div class="popup-stat"><div class="popup-stat-val">${c.rarity === 'legendary' ? '★★★★★' : c.rarity === 'epic' ? '★★★★' : c.rarity === 'rare' ? '★★★' : c.rarity === 'uncommon' ? '★★' : '★'}</div><div class="popup-stat-label">Power</div></div>
+        </div>
+    `;
+    document.getElementById('overlay').classList.add('show');
 }
 
 // ============================================================
@@ -624,7 +742,7 @@ function showCapsulePopup(creature) {
 }
 
 // ============================================================
-// CARD CLICK & MERGE
+// CARD CLICK & MERGE (детальный из v1)
 // ============================================================
 let lastMergeTime = 0;
 
@@ -637,20 +755,28 @@ function onCardClick(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <span class="popup-icon">${c.icon}</span>
+        <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
+        <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
+        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
         <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val">${c.incomeBase}</div><div>MMO/hr</div></div>
-            <div class="popup-stat"><div class="popup-stat-val">${item?.count || 0}</div><div>Owned</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
+            <div class="popup-stat"><div class="popup-stat-val">${item ? item.count : 0}</div><div class="popup-stat-label">Owned</div></div>
         </div>
-        ${mergeAvailable ? `<button class="popup-btn" style="background:#22c55e" onclick="closeOverlay();showMergePreview('${creatureId}')">MERGE x3</button>` : `<button class="popup-btn" onclick="closeOverlay()">CLOSE</button>`}
+        ${mergeAvailable
+            ? `<button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="closeOverlay();showMergePreview('${creatureId}')">
+                <i class="fa-solid fa-code-merge"></i> MERGE x3
+            </button>`
+            : `<button class="popup-btn" onclick="closeOverlay()">CLOSE</button>`
+        }
     `;
     document.getElementById('overlay').classList.add('show');
 }
 
 function showMergePreview(creatureId) {
     const creature = getCreature(creatureId);
-    if (!creature || creature.rarity === 'legendary') return;
+    if (!creature) return;
+    if (creature.rarity === 'legendary') { showToast('Legendary is max!', '⭐'); return; }
 
     const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
     const nextRarity = currentRarityIdx < RARITY_ORDER.length - 2 ? RARITY_ORDER[currentRarityIdx + 1] : creature.rarity;
@@ -658,17 +784,50 @@ function showMergePreview(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">Merge 3x ${escapeHtml(creature.name)}</div>
-        <div style="display:flex;justify-content:center;gap:16px;margin:16px 0">
-            <span style="font-size:32px">${creature.icon}</span>
-            <span style="font-size:32px">${creature.icon}</span>
-            <span style="font-size:32px">${creature.icon}</span>
-            <span style="font-size:32px">→</span>
-            <span style="font-size:32px">${nextCreature.icon}</span>
+        <div class="popup-title" style="margin-bottom:4px">Merge Preview</div>
+        <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
+        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                <div style="text-align:center;flex:1">
+                    <div style="font-size:24px;margin-bottom:6px">${creature.icon}</div>
+                    <div style="font-size:10px;color:#94a3b8">Input</div>
+                    <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div>
+                </div>
+                <div style="color:#4a5568;font-size:18px">→</div>
+                <div style="text-align:center;flex:1">
+                    <div style="font-size:24px;margin-bottom:6px">?</div>
+                    <div style="font-size:10px;color:#94a3b8">Output</div>
+                    <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">Unknown</div>
+                </div>
+            </div>
+            <div style="border-top:1px solid #1e2d4a;padding-top:14px">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Possible Outcomes</div>
+                <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-size:18px">${nextCreature.icon}</span>
+                        <div style="flex:1">
+                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% Success</div>
+                            <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
+                        </div>
+                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ RANK UP</div>
+                    </div>
+                </div>
+                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span style="font-size:18px">${creature.icon}</span>
+                        <div style="flex:1">
+                            <div style="font-size:11px;font-weight:600;color:#f59e0b">70% Mutation</div>
+                            <div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
+                        </div>
+                        <div style="font-size:12px;font-weight:700;color:#f59e0b">= SAME</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div style="margin-bottom:16px">30% chance to evolve to ${nextCreature.name}</div>
-        <button class="popup-btn" style="background:#22c55e" onclick="closeOverlay();executeMerge('${creatureId}')">MERGE NOW</button>
-        <button class="popup-btn" style="background:#1a2540;margin-top:8px" onclick="closeOverlay()">CANCEL</button>
+        <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px" onclick="closeOverlay();executeMerge('${creatureId}')">
+            <i class="fa-solid fa-code-merge"></i> MERGE NOW
+        </button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">CANCEL</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -758,6 +917,7 @@ async function watchAd() {
         updateHeader();
         updateBalanceDisplay();
         showToast(`+${AD_REWARD} MMO!`, '🎉');
+        spawnFloatingMMO(AD_REWARD);
     } else {
         showToast(res?.message || 'Error', '❌');
     }
@@ -1018,12 +1178,22 @@ async function buyFromMarketplace(listingId, price) {
 }
 
 // ============================================================
-// FRIENDS & SPECIAL QUESTS
+// FRIENDS & SPECIAL QUESTS (полные из v1 с таймерами)
 // ============================================================
 async function inviteFriend() {
     const res = await apiRequest('GET', '/api/user/referrals');
     const link = res.referralLink || `https://t.me/your_bot?start=${state.user?.referralCode}`;
-    window.Telegram?.WebApp?.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=Join DNA MMO!`);
+
+    if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Join DNA MMO and get bonus MMO!')}`);
+    } else {
+        try {
+            await navigator.clipboard.writeText(link);
+            showToast('Invite link copied!', '🔗');
+        } catch {
+            showToast(link, '🔗');
+        }
+    }
 }
 
 function updateFriendRewardButtons() {
@@ -1087,6 +1257,83 @@ async function claimFriendReward(requiredFriends, creatureId, creatureName, crea
     }
 }
 
+function openChannelAndStartTimer(questId, channelLink) {
+    if (channelLink) {
+        if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
+            window.Telegram.WebApp.openTelegramLink(channelLink);
+        } else {
+            window.open(channelLink, '_blank');
+        }
+    }
+    
+    if (activeQuestTimers.has(questId)) {
+        clearTimeout(activeQuestTimers.get(questId));
+        activeQuestTimers.delete(questId);
+    }
+    
+    const timer = setTimeout(async () => {
+        if (state.user?.completedSpecialQuests?.includes(questId)) {
+            activeQuestTimers.delete(questId);
+            return;
+        }
+        await claimSpecialQuestSilent(questId);
+        activeQuestTimers.delete(questId);
+    }, 60000);
+    
+    activeQuestTimers.set(questId, timer);
+}
+
+async function claimSpecialQuestSilent(questId) {
+    if (state.isLoading) return;
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        console.log('Ошибка получения награды:', res.message);
+        return;
+    }
+    
+    state.user = res.user;
+    updateHeader();
+    await renderSpecialQuests();
+    showToast(`+${res.reward} MMO`, '✅');
+}
+
+async function claimSpecialQuest(questId) {
+    if (state.isLoading) return;
+    
+    if (state.user?.completedSpecialQuests?.includes(questId)) {
+        showToast('Вы уже получили награду за этот квест', 'ℹ️');
+        return;
+    }
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка', '❌');
+        return;
+    }
+    
+    state.user = res.user;
+    updateHeader();
+    await renderSpecialQuests();
+    showToast(`+${res.reward} MMO`, '✅');
+    spawnFloatingMMO(res.reward);
+}
+
+function openCustomLinkAndComplete(questId, link) {
+    if (link) {
+        window.open(link, '_blank');
+    }
+    setTimeout(() => {
+        claimSpecialQuest(questId);
+    }, 500);
+}
+
 async function renderSpecialQuests() {
     const container = document.getElementById('specialQuestsList');
     if (!container) return;
@@ -1112,6 +1359,10 @@ async function renderSpecialQuests() {
             } else {
                 actionHtml = `<button class="special-quest-btn locked" disabled>НУЖНО ${required} ДРУЗЕЙ (${current})</button>`;
             }
+        } else if (quest.type === 'telegram_channel') {
+            actionHtml = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')">ПЕРЕЙТИ</button>`;
+        } else if (quest.type === 'custom_link') {
+            actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')">ПЕРЕЙТИ</button>`;
         } else {
             actionHtml = `<button class="special-quest-btn" onclick="openQuestLink('${quest.id}', '${quest.link}')">ПЕРЕЙТИ</button>`;
         }
@@ -1137,22 +1388,6 @@ function openQuestLink(questId, link) {
         window.open(link, '_blank');
     }
     setTimeout(() => claimSpecialQuest(questId), 2000);
-}
-
-async function claimSpecialQuest(questId) {
-    if (state.isLoading) return;
-    
-    state.isLoading = true;
-    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
-    state.isLoading = false;
-    
-    if (res?.success) {
-        state.user = res.user;
-        updateHeader();
-        updateBalanceDisplay();
-        await renderSpecialQuests();
-        showToast(`+${res.reward} MMO`, '✅');
-    }
 }
 
 // ============================================================
@@ -1184,11 +1419,12 @@ function showToast(msg, icon = '') {
 
 function spawnStars(rarity) {
     const count = rarity === 'legendary' ? 8 : rarity === 'epic' ? 5 : 3;
+    const icons = ['✨', '⭐', '🌟', '💫', '✦'];
     for (let i = 0; i < count; i++) {
         setTimeout(() => {
             const el = document.createElement('div');
             el.className = 'star-burst';
-            el.textContent = '✨';
+            el.textContent = icons[Math.floor(Math.random() * icons.length)];
             el.style.left = (30 + Math.random() * 40) + '%';
             el.style.top = (20 + Math.random() * 40) + '%';
             document.body.appendChild(el);
