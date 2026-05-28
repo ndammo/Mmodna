@@ -59,7 +59,7 @@ body {
     z-index: 10;
     background: linear-gradient(180deg, rgba(8,11,20,0.98) 0%, rgba(8,11,20,0.9) 100%);
     border-bottom: 1px solid var(--border);
-    padding-top: 80px;  /* или любое другое значение, которое вам нравится */
+    padding-top: 120px;  /* или любое другое значение, которое вам нравится */
     flex-shrink: 0;
 }
 
