@@ -54,14 +54,15 @@ body {
         }
 
         /* HEADER */
-        .header {
-            position: relative;
-            z-index: 10;
-            background: linear-gradient(180deg, rgba(8,11,20,0.98) 0%, rgba(8,11,20,0.9) 100%);
-            border-bottom: 1px solid var(--border);
-            padding: 10px 16px 8px;
-            flex-shrink: 0;
-        }
+   .header {
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(8,11,20,0.98) 0%, rgba(8,11,20,0.9) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px 8px;
+    flex-shrink: 0;
+    padding-top: max(10px, env(safe-area-inset-top, 10px));
+}
 
         .header-top {
             display: flex;
