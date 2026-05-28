@@ -1695,31 +1695,35 @@ function updateFriendRewardButtons() {
 }
 
 // ============================================================
-// ДЕПОЗИТЫ И ВЫВОДЫ
+// ДЕПОЗИТЫ И ВЫВОДЫ (ОБНОВЛЕННАЯ ВЕРСИЯ ДЛЯ TON)
 // ============================================================
 
-const MIN_TRANSACTION_AMOUNT = 10000;
+const MIN_TRANSACTION_AMOUNT = 5000;
 const MAX_ACTIVE_REQUESTS = 2;
+
+let currentDepositRequest = null;
 
 async function showDepositModal() {
     if (state.isLoading) return;
     
+    const activeCount = await checkActiveRequests();
+    if (activeCount >= MAX_ACTIVE_REQUESTS) {
+        showToast(`У вас уже ${MAX_ACTIVE_REQUESTS} активных заявок. Дождитесь обработки.`, '⚠️');
+        return;
+    }
+    
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">💎 Депозит</div>
+        <div class="popup-title">💎 Депозит TON</div>
         <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
         <div class="price-input-modal">
             <div>
                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Сумма (MMO)</div>
                 <input type="number" class="price-input-field" id="depositAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
             </div>
-            <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Мемо (опционально)</div>
-                <input type="text" class="price-input-field" id="depositMemo" placeholder="Комментарий к переводу">
-            </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:16px" onclick="createDepositRequest()">
-            <i class="fa-solid fa-arrow-down"></i> ОТПРАВИТЬ ЗАЯВКУ
+            <i class="fa-solid fa-arrow-down"></i> СОЗДАТЬ ЗАЯВКУ
         </button>
         <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
     `;
@@ -1728,18 +1732,15 @@ async function showDepositModal() {
 
 async function createDepositRequest() {
     const amountInput = document.getElementById('depositAmount');
-    const memoInput = document.getElementById('depositMemo');
-    
     const amount = parseInt(amountInput?.value);
-    const memo = memoInput?.value || '';
     
     if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
-        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT} MMO`, '❌');
+        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO`, '❌');
         return;
     }
     
     state.isLoading = true;
-    const res = await apiRequest('POST', '/api/wallet/deposit-request', { amount, memo });
+    const res = await apiRequest('POST', '/api/wallet/deposit-request', { amount });
     state.isLoading = false;
     
     if (!res.success) {
@@ -1747,9 +1748,81 @@ async function createDepositRequest() {
         return;
     }
     
+    currentDepositRequest = res.request;
     closeOverlay();
-    showToast(`Заявка на депозит ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения.`, '✅');
     
+    // Показываем окно с реквизитами для оплаты
+    showPaymentDetails(currentDepositRequest);
+}
+
+function showPaymentDetails(request) {
+    const amountInTON = (request.amount / 1000).toFixed(2); // Примерный курс 1 MMO = 0.001 TON
+    
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <div class="popup-title">💎 Оплатите депозит</div>
+        <div class="popup-subtitle">Сумма к оплате: ${request.amount.toLocaleString()} MMO</div>
+        
+        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:16px;padding:16px;margin-bottom:16px">
+            <div style="margin-bottom:12px">
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💰 Сумма в TON (примерно)</div>
+                <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:#f59e0b">≈ ${amountInTON} TON</div>
+            </div>
+            
+            <div style="margin-bottom:12px">
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🏦 Кошелек TON</div>
+                <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;word-break:break-all;border:1px solid #1e2d4a">
+                    ${request.wallet}
+                </div>
+                <button onclick="copyToClipboard('${request.wallet}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
+                    <i class="fa-regular fa-copy"></i> Копировать кошелек
+                </button>
+            </div>
+            
+            <div style="margin-bottom:12px">
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📝 Мемо (ОБЯЗАТЕЛЬНО!)</div>
+                <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;border:1px solid #1e2d4a">
+                    ${request.memo}
+                </div>
+                <button onclick="copyToClipboard('${request.memo}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
+                    <i class="fa-regular fa-copy"></i> Копировать мемо
+                </button>
+            </div>
+            
+            <div style="font-size:10px;color:#ef4444;background:rgba(239,68,68,0.1);padding:8px;border-radius:8px;margin-top:8px">
+                ⚠️ <b>Важно!</b> Укажите мемо в комментарии к переводу, иначе платеж не будет зачислен!
+            </div>
+        </div>
+        
+        <div style="display:flex;gap:10px">
+            <button class="popup-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a)" onclick="confirmPayment('${request._id}')">
+                <i class="fa-solid fa-check"></i> Я ОПЛАТИЛ
+            </button>
+            <button class="popup-btn" style="flex:1;background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">
+                <i class="fa-solid fa-times"></i> ОТМЕНИТЬ
+            </button>
+        </div>
+    `;
+    document.getElementById('overlay').classList.add('show');
+}
+
+async function confirmPayment(requestId) {
+    const txHash = prompt('Введите хэш транзакции (опционально, для проверки):');
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/wallet/confirm-payment', { 
+        requestId, 
+        transactionHash: txHash || '' 
+    });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка', '❌');
+        return;
+    }
+    
+    closeOverlay();
+    showToast('Спасибо! Администратор проверит платеж и начислит средства.', '✅');
     await checkActiveRequests();
 }
 
@@ -1772,8 +1845,8 @@ async function showWithdrawModal() {
                 <input type="number" class="price-input-field" id="withdrawAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
             </div>
             <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Кошелёк (TRC20/USDT)</div>
-                <input type="text" class="price-input-field" id="withdrawWallet" placeholder="Введите адрес кошелька">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">TON Кошелек</div>
+                <input type="text" class="price-input-field" id="withdrawWallet" placeholder="Введите TON адрес кошелька">
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-top:16px" onclick="createWithdrawRequest()">
@@ -1792,12 +1865,12 @@ async function createWithdrawRequest() {
     const wallet = walletInput?.value.trim();
     
     if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
-        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT} MMO`, '❌');
+        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO`, '❌');
         return;
     }
     
-    if (!wallet || wallet.length < 10) {
-        showToast('Введите корректный адрес кошелька', '❌');
+    if (!wallet || wallet.length < 20) {
+        showToast('Введите корректный TON адрес кошелька (минимум 20 символов)', '❌');
         return;
     }
     
@@ -1816,7 +1889,7 @@ async function createWithdrawRequest() {
     }
     
     closeOverlay();
-    showToast(`Заявка на вывод ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения.`, '✅');
+    showToast(`Заявка на вывод ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения администратора.`, '✅');
     
     await refreshUserProfile();
     await checkActiveRequests();
@@ -1830,9 +1903,29 @@ async function checkActiveRequests() {
             const pendingDiv = document.getElementById('pendingRequests');
             if (pendingDiv) {
                 if (count > 0) {
-                    pendingDiv.innerHTML = `<div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:12px;padding:10px;margin-top:10px;text-align:center">
-                        <i class="fa-solid fa-clock"></i> Активных заявок: ${count}/${MAX_ACTIVE_REQUESTS}
-                    </div>`;
+                    const requestsHtml = res.requests.map(req => `
+                        <div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:12px;padding:12px;margin-top:8px">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:#f59e0b">
+                                        ${req.type === 'deposit' ? '📥 Депозит' : '📤 Вывод'}
+                                    </div>
+                                    <div style="font-size:11px;color:#94a3b8">${req.amount.toLocaleString()} MMO</div>
+                                    <div style="font-size:9px;color:#4a5568">${new Date(req.createdAt).toLocaleString()}</div>
+                                </div>
+                                <div style="background:#f59e0b;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700">⏳ ОЖИДАНИЕ</div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    pendingDiv.innerHTML = `
+                        <div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:12px;padding:10px;margin-top:10px">
+                            <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:8px">
+                                <i class="fa-solid fa-clock"></i> Активных заявок: ${count}/${MAX_ACTIVE_REQUESTS}
+                            </div>
+                            ${requestsHtml}
+                        </div>
+                    `;
                 } else {
                     pendingDiv.innerHTML = '';
                 }
@@ -1843,6 +1936,14 @@ async function checkActiveRequests() {
         console.error('checkActiveRequests error:', e);
     }
     return 0;
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Скопировано!', '📋');
+    }).catch(() => {
+        showToast('Не удалось скопировать', '❌');
+    });
 }
 
 // ============================================================
