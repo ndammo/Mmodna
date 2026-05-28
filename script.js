@@ -338,6 +338,28 @@ async function initTelegramApp() {
 
     let initData = tg?.initData || '';
     let tgUser = tg?.initDataUnsafe?.user;
+    
+    // ✅ ИСПРАВЛЕНО: правильное получение реферального кода
+    let referralCode = null;
+    
+    // Приоритет 1: start_param из Telegram WebApp
+    if (tg?.initDataUnsafe?.start_param) {
+        referralCode = tg.initDataUnsafe.start_param;
+        console.log('📎 Реферальный код из start_param:', referralCode);
+    }
+    
+    // Приоритет 2: параметр startapp из URL (fallback)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!referralCode && urlParams.get('startapp')) {
+        referralCode = urlParams.get('startapp');
+        console.log('📎 Реферальный код из startapp URL:', referralCode);
+    }
+    
+    // Приоритет 3: параметр ref из URL (старый формат)
+    if (!referralCode && urlParams.get('ref')) {
+        referralCode = urlParams.get('ref');
+        console.log('📎 Реферальный код из ref URL:', referralCode);
+    }
 
     if (!initData && window.location.hostname === 'localhost') {
         console.warn('⚠️ Dev mode: using mock Telegram user');
@@ -351,9 +373,6 @@ async function initTelegramApp() {
         showToast('Открой игру через Telegram!', '⚠️');
         return;
     }
-
-    const referralCode = new URLSearchParams(window.location.search).get('ref') ||
-                         tg?.initDataUnsafe?.start_param || null;
 
     const loginRes = await apiRequest('POST', '/api/auth/login', { initData, referralCode });
 
@@ -394,8 +413,18 @@ async function initTelegramApp() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if (loginRes.isNewUser) {
-        setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
+    if (loginRes.isNewUser && referralCode) {
+        setTimeout(() => showToast('🎉 +250 MMO за реферальный код!', '🎁'), 800);
+    } else if (loginRes.isNewUser) {
+        setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
+    }
+    
+    if (state.user) {
+        console.log('👥 Referral info:', {
+            code: state.user.referralCode,
+            count: state.user.referralCount,
+            referredBy: state.user.referredBy
+        });
     }
 }
 
