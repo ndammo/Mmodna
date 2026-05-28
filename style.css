@@ -54,14 +54,13 @@ body {
         }
 
         /* HEADER */
-   .header {
+.header {
     position: relative;
     z-index: 10;
     background: linear-gradient(180deg, rgba(8,11,20,0.98) 0%, rgba(8,11,20,0.9) 100%);
     border-bottom: 1px solid var(--border);
-    padding: 10px 16px 8px;
+    padding: 40px 16px 8px;  /* Было 10px, стало 40px */
     flex-shrink: 0;
-    padding-top: max(10px, env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
 }
 
         .header-top {
