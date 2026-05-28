@@ -15,7 +15,7 @@ const API_URL = 'https://serv-production-dbf3.up.railway.app';
     if (safeTop > 0) {
         document.addEventListener('DOMContentLoaded', function() {
             const header = document.querySelector('.header');
-            if (header) header.style.paddingTop = Math.max(10, safeTop + 10) + 'px';
+            if (header) header.style.paddingTop = Math.max(10, safeTop + 30) + 'px';
         });
     }
 })();
