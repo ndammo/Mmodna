@@ -322,31 +322,42 @@ async function initTelegramApp() {
     clearAllIntervals();
     showLoadingScreen(true);
 
-    // Получаем WebApp объект
     const tg = window.Telegram?.WebApp;
     
     if (tg) {
-        // ВАЖНО: expand() нужно вызвать ДО всего остального
         tg.ready();
+        
+        // Expand - базовое расширение
         tg.expand();
         
-        // Дополнительно: запрашиваем полноэкранный режим каждую секунду (для надежности)
-        let expandInterval = setInterval(() => {
+        // Новый API для fullscreen (если доступен)
+        if (tg.requestFullscreen) {
+            try {
+                await tg.requestFullscreen();
+                console.log('✅ Fullscreen requested');
+            } catch (e) {
+                console.log('Fullscreen request failed:', e);
+            }
+        }
+        
+        // Отключаем вертикальные свайпы (чтобы не схлопывалось)
+        if (tg.disableVerticalSwipes) {
+            tg.disableVerticalSwipes();
+        }
+        
+        // Повторный вызов expand для надежности
+        setTimeout(() => {
             if (tg && typeof tg.expand === 'function') {
                 tg.expand();
             }
         }, 500);
         
-        // Останавливаем интервал через 5 секунд
-        setTimeout(() => clearInterval(expandInterval), 5000);
-        
         tg.setHeaderColor('#080b14');
         tg.setBackgroundColor('#080b14');
         
-        // Отладочная информация
         console.log('✅ Telegram WebApp initialized');
         console.log('Viewport height:', window.innerHeight);
-        console.log('Screen height:', screen.height);
+        console.log('isExpanded:', tg.isExpanded);
     } else {
         console.warn('⚠️ Telegram WebApp not available');
     }
