@@ -61,77 +61,40 @@ const RARITY_COLORS = {
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 // ============================================================
-// ВИЗУАЛЬНЫЙ ТИКЕР — показывает рост баланса каждую секунду
+// ВИЗУАЛЬНЫЙ ТИКЕР — плавно обновляет баланс каждый кадр
 // Реальный доход начисляется только через /api/game/collect-income
 // ============================================================
-let lastTickBalance = 0;
-let tickFloatEl = null;
+let rafTickerId = null;
 
 function startVisualTicker() {
-    if (state.visualTicker) clearInterval(state.visualTicker);
+    if (rafTickerId) cancelAnimationFrame(rafTickerId);
 
-    state.visualTicker = setInterval(() => {
-        if (document.hidden || !state.user) return;
+    function tick() {
+        if (!document.hidden && state.user) {
+            const visualBalance = getVisualBalance();
 
-        const visualBalance = getVisualBalance();
+            const balanceEl = document.getElementById('balanceDisplay');
+            if (balanceEl) balanceEl.textContent = formatBalance(visualBalance);
 
-        // Обновляем отображение баланса
-        const balanceEl = document.getElementById('balanceDisplay');
-        if (balanceEl) balanceEl.textContent = formatNum(visualBalance);
-
-        const walletBalanceEl = document.getElementById('walletBalance');
-        if (walletBalanceEl) walletBalanceEl.textContent = formatNum(visualBalance);
-
-        // Анимация +N в секунду (если есть доход)
-        const incomePerSec = state.incomePerHour / 3600;
-        if (incomePerSec >= 0.01) {
-            showIncomeFloat(`+${formatNum(incomePerSec)}/s`);
+            const walletBalanceEl = document.getElementById('walletBalance');
+            if (walletBalanceEl) walletBalanceEl.textContent = formatBalance(visualBalance);
         }
+        rafTickerId = requestAnimationFrame(tick);
+    }
 
-        lastTickBalance = visualBalance;
-    }, 1000);
+    rafTickerId = requestAnimationFrame(tick);
+
+    // Сохраняем в state для clearAllIntervals
+    state.visualTicker = { cancel: () => cancelAnimationFrame(rafTickerId) };
 }
 
-function showIncomeFloat(text) {
-    const balanceEl = document.getElementById('balanceDisplay');
-    if (!balanceEl) return;
-
-    // Удаляем старый float если есть
-    if (tickFloatEl && tickFloatEl.parentNode) {
-        tickFloatEl.parentNode.removeChild(tickFloatEl);
-    }
-
-    const el = document.createElement('span');
-    el.textContent = text;
-    el.style.cssText = `
-        position:absolute;
-        font-size:10px;
-        font-weight:700;
-        color:#22c55e;
-        pointer-events:none;
-        white-space:nowrap;
-        animation:incomeFloat 1s ease-out forwards;
-        z-index:100;
-    `;
-
-    // Добавляем анимацию если её нет
-    if (!document.getElementById('incomeFloatStyle')) {
-        const style = document.createElement('style');
-        style.id = 'incomeFloatStyle';
-        style.textContent = `@keyframes incomeFloat {
-            0%   { opacity:1; transform:translateY(0); }
-            100% { opacity:0; transform:translateY(-18px); }
-        }`;
-        document.head.appendChild(style);
-    }
-
-    const parent = balanceEl.parentElement;
-    if (parent) {
-        parent.style.position = 'relative';
-        parent.appendChild(el);
-        tickFloatEl = el;
-        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 1000);
-    }
+// Форматирует баланс с 5 знаками после запятой: 123456.78901
+// Для больших чисел (≥1M) переходит на сокращение
+function formatBalance(n) {
+    const absN = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (absN >= 1000000) return sign + (absN / 1000000).toFixed(5) + 'M';
+    return sign + absN.toFixed(5);
 }
 
 function getVisualBalance() {
@@ -144,7 +107,6 @@ function getVisualBalance() {
 function updateServerSnapshot(newBalance, newIncomePerHour, newLastPassiveIncome) {
     state.serverBalance = newBalance;
     state.incomePerHour = newIncomePerHour;
-    // Привязываемся к lastPassiveIncome с сервера чтобы не накапливалось расхождение
     state.lastServerSync = newLastPassiveIncome ? new Date(newLastPassiveIncome).getTime() : Date.now();
     if (state.user) state.user.balance = newBalance;
 }
@@ -164,7 +126,7 @@ async function startCollectIncomeLoop() {
         } catch (e) {
             // тихо игнорируем ошибки сети — тикер продолжает работать
         }
-    }, 5 * 60 * 1000); // каждые 5 минут
+    }, 5 * 60 * 1000);
 }
 
 // ============================================================
@@ -290,7 +252,7 @@ function clearAllIntervals() {
     if (intervals.specialQuests) clearInterval(intervals.specialQuests);
     if (intervals.leaderboard) clearInterval(intervals.leaderboard);
     if (intervals.marketplace) clearInterval(intervals.marketplace);
-    if (state.visualTicker) clearInterval(state.visualTicker);
+    if (state.visualTicker) state.visualTicker.cancel();
     if (collectIncomeTimer) clearInterval(collectIncomeTimer);
     collectIncomeTimer = null;
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
@@ -547,7 +509,7 @@ function updateHeader() {
     }
 
     const visualBalance = getVisualBalance();
-    document.getElementById('balanceDisplay').textContent = formatNum(visualBalance);
+    document.getElementById('balanceDisplay').textContent = formatBalance(visualBalance);
     document.getElementById('incomeDisplay').textContent = `+${formatNum(state.incomePerHour)}/hr`;
 
     const needed = u.level * 100;
@@ -708,8 +670,6 @@ async function openCapsule(type) {
 
     setTimeout(() => showCapsulePopup(res.creature), 300);
 }
-
-function showCapsulePopup(creature) {
     const c = getCreature(creature.id) || creature;
     const color = RARITY_COLORS[c.rarity];
 
@@ -842,7 +802,11 @@ async function executeMerge(creatureId) {
 
     state.user = res.user;
     state.inventory = res.inventory;
-    state.incomePerHour = await getCurrentIncome();
+    if (res.incomePerHour !== undefined) {
+        state.incomePerHour = res.incomePerHour;
+    } else {
+        state.incomePerHour = await getCurrentIncome();
+    }
     
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
 
@@ -1306,7 +1270,11 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 
     state.user = res.user;
     state.inventory = res.inventory;
-    state.incomePerHour = await getCurrentIncome();
+    if (res.incomePerHour !== undefined) {
+        state.incomePerHour = res.incomePerHour;
+    } else {
+        state.incomePerHour = await getCurrentIncome();
+    }
     
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
 
@@ -1579,7 +1547,11 @@ async function claimFriendReward(requiredFriends, creatureId, creatureName, crea
     
     state.user = res.user;
     state.inventory = res.inventory;
-    state.incomePerHour = await getCurrentIncome();
+    if (res.incomePerHour !== undefined) {
+        state.incomePerHour = res.incomePerHour;
+    } else {
+        state.incomePerHour = await getCurrentIncome();
+    }
     
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
