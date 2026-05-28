@@ -341,6 +341,11 @@ async function initTelegramApp() {
             }
         }
         
+        setTimeout(() => {
+            const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tg-safe-area-inset-top')) || 50;
+            document.querySelector('.header').style.paddingTop = (top + 20) + 'px';
+        }, 400);
+        
         // Отключаем вертикальные свайпы (чтобы не схлопывалось)
         if (tg.disableVerticalSwipes) {
             tg.disableVerticalSwipes();
