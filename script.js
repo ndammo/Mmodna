@@ -62,7 +62,6 @@ const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic
 
 // ============================================================
 // ВИЗУАЛЬНЫЙ ТИКЕР — обновляет баланс 1 раз в секунду
-// Реальный доход начисляется только через /api/game/collect-income
 // ============================================================
 let visualTickerInterval = null;
 
@@ -84,7 +83,6 @@ function startVisualTicker() {
     state.visualTicker = { cancel: () => clearInterval(visualTickerInterval) };
 }
 
-// Форматирует баланс с 3 знаками после запятой
 function formatBalance(n) {
     const absN = Math.abs(n);
     const sign = n < 0 ? '-' : '';
@@ -105,7 +103,6 @@ function updateServerSnapshot(newBalance, newIncomePerHour, newLastPassiveIncome
     if (state.user) state.user.balance = newBalance;
 }
 
-// Вызывается раз в 5 минут — начисляет реальный доход на сервере
 let collectIncomeTimer = null;
 async function startCollectIncomeLoop() {
     if (collectIncomeTimer) clearInterval(collectIncomeTimer);
@@ -117,9 +114,7 @@ async function startCollectIncomeLoop() {
                 updateServerSnapshot(res.balance, res.incomePerHour, res.lastPassiveIncome);
                 if (state.user) state.user.balance = res.balance;
             }
-        } catch (e) {
-            // тихо игнорируем ошибки сети
-        }
+        } catch (e) {}
     }, 5 * 60 * 1000);
 }
 
@@ -339,23 +334,19 @@ async function initTelegramApp() {
     let initData = tg?.initData || '';
     let tgUser = tg?.initDataUnsafe?.user;
     
-    // ✅ ИСПРАВЛЕНО: правильное получение реферального кода
     let referralCode = null;
     
-    // Приоритет 1: start_param из Telegram WebApp
     if (tg?.initDataUnsafe?.start_param) {
         referralCode = tg.initDataUnsafe.start_param;
         console.log('📎 Реферальный код из start_param:', referralCode);
     }
     
-    // Приоритет 2: параметр startapp из URL (fallback)
     const urlParams = new URLSearchParams(window.location.search);
     if (!referralCode && urlParams.get('startapp')) {
         referralCode = urlParams.get('startapp');
         console.log('📎 Реферальный код из startapp URL:', referralCode);
     }
     
-    // Приоритет 3: параметр ref из URL (старый формат)
     if (!referralCode && urlParams.get('ref')) {
         referralCode = urlParams.get('ref');
         console.log('📎 Реферальный код из ref URL:', referralCode);
@@ -1391,6 +1382,53 @@ async function inviteFriend() {
 }
 
 // ============================================================
+// RENDER FRIENDS LIST
+// ============================================================
+async function renderFriendsList() {
+    const container = document.getElementById('friendsList');
+    if (!container) return;
+    
+    try {
+        const res = await apiRequest('GET', '/api/user/referrals');
+        if (!res || !res.success) {
+            container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">
+                <i class="fa-solid fa-circle-exclamation"></i> Error loading friends
+            </div>`;
+            return;
+        }
+        
+        const referrals = res.referrals || [];
+        
+        if (referrals.length === 0) {
+            container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">
+                <i class="fa-solid fa-user-plus" style="font-size:24px;margin-bottom:10px;display:block"></i>
+                No friends yet<br>Invite friends to get rewards!
+            </div>`;
+            return;
+        }
+        
+        container.innerHTML = referrals.map(friend => {
+            const date = new Date(friend.joinedAt);
+            const formattedDate = date.toLocaleDateString();
+            return `
+                <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                    <div style="width:40px;height:40px;background:linear-gradient(135deg,#1e2d4a,#0d1120);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid #a855f744">👤</div>
+                    <div style="flex:1">
+                        <div style="font-size:13px;font-weight:600;color:#e2e8f0">${escapeHtml(friend.username)}</div>
+                        <div style="font-size:10px;color:#4a5568">Joined ${formattedDate}</div>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;color:#22c55e">${formatNum(friend.balance)} MMO</div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (e) {
+        console.error('renderFriendsList error:', e);
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Error loading friends</div>`;
+    }
+}
+
+// ============================================================
 // SPECIAL QUESTS
 // ============================================================
 function openChannelAndStartTimer(questId, channelLink) {
@@ -1632,7 +1670,7 @@ function updateFriendRewardButtons() {
             if (card) card.style.opacity = '0.6';
         } else if (currentFriends >= reward.friends) {
             btn.textContent = '🎁 ЗАБРАТЬ';
-            btn.style.background = `linear-gradient(135deg, var(--${reward.rarity}), var(--${reward.rarity}))`;
+            btn.style.background = `linear-gradient(135deg, #f59e0b, #d97706)`;
             btn.style.color = '#fff';
             btn.style.cursor = 'pointer';
             btn.disabled = false;
@@ -1646,6 +1684,9 @@ function updateFriendRewardButtons() {
             btn.disabled = true;
         }
     });
+    
+    // Вызываем рендер списка друзей
+    renderFriendsList();
 }
 
 // ============================================================
@@ -1664,6 +1705,7 @@ function switchTab(tab) {
     if (tab === 'special') renderSpecialQuests();
     if (tab === 'wallet') updateHeader();
     if (tab === 'shop') renderMarketplaceBuy();
+    if (tab === 'friends') renderFriendsList();
 }
 
 // ============================================================
