@@ -7,6 +7,18 @@
 // ============================================================
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
+// Фикс safe area для Telegram fullscreen
+(function() {
+    const tg = window.Telegram?.WebApp;
+    if (!tg) return;
+    const safeTop = (tg.safeAreaInsets?.top ?? 0) || (tg.contentSafeAreaInsets?.top ?? 0);
+    if (safeTop > 0) {
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = document.querySelector('.header');
+            if (header) header.style.paddingTop = Math.max(10, safeTop + 10) + 'px';
+        });
+    }
+})();
 // ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 // ============================================================
