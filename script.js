@@ -4,7 +4,7 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
-// ЛОКАЛЬНЫЙ ТИКЕР ДОХОДА (0 ЗАПРОСОВ К СЕРВЕРУ!)
+// ЗАЩИЩЁННЫЙ ЛОКАЛЬНЫЙ ТИКЕР ДОХОДА (БЕЗ КОНФЛИКТОВ)
 // ============================================================
 let localPendingIncome = 0;
 let localLastIncomeTime = Date.now();
@@ -12,6 +12,149 @@ let localIncomePerHour = 0;
 let localTickerInterval = null;
 let syncInProgress = false;
 let pendingHintTimeout = null;
+let lastSyncTime = Date.now();
+let lastSyncedTimestamp = Date.now();
+let syncSequence = 0;
+
+// Уникальный идентификатор сессии
+const SESSION_ID = crypto.randomUUID ? crypto.randomUUID() : 
+    `${Date.now()}_${Math.random()}_${state?.user?.telegramId || 'anon'}`;
+
+const PENDING_STORAGE_KEY = 'pendingIncome_v2';
+const SYNC_CONFIG = {
+    MAX_PENDING_BEFORE_SYNC: 5,
+    MIN_INTERVAL_MS: 30000,
+    MAX_INTERVAL_MS: 120000,
+    MAX_PENDING_LIMIT: 100,
+    SERVER_INCOME_BUFFER_MS: 5000
+};
+
+// ============================================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================================
+let intervals = {
+    adsTimer: null,
+    specialQuests: null
+};
+
+let activeQuestTimers = new Map();
+let currentLeaderboardController = null;
+let isMarketplaceTabActive = false;
+
+// КЭШИ
+let leaderboardCache = {
+    data: null,
+    expiresAt: 0
+};
+
+let marketplaceCache = {
+    data: null,
+    hash: null,
+    expiresAt: 0
+};
+
+// ============================================================
+// СОХРАНЕНИЕ/ВОССТАНОВЛЕНИЕ С ЗАЩИТОЙ
+// ============================================================
+function savePendingState() {
+    if (localPendingIncome > 0.01) {
+        localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify({
+            amount: localPendingIncome,
+            timestamp: localLastIncomeTime,
+            sessionId: SESSION_ID,
+            lastSyncedAt: lastSyncedTimestamp
+        }));
+    } else {
+        localStorage.removeItem(PENDING_STORAGE_KEY);
+    }
+}
+
+function restorePendingIncomeSafe() {
+    const savedRaw = localStorage.getItem(PENDING_STORAGE_KEY);
+    if (!savedRaw) return;
+    
+    try {
+        const saved = JSON.parse(savedRaw);
+        
+        if (saved.sessionId === SESSION_ID) {
+            localStorage.removeItem(PENDING_STORAGE_KEY);
+            return;
+        }
+        
+        if (Date.now() - saved.timestamp > 5 * 60 * 1000) {
+            localStorage.removeItem(PENDING_STORAGE_KEY);
+            return;
+        }
+        
+        localPendingIncome = saved.amount;
+        localLastIncomeTime = saved.timestamp;
+        lastSyncedTimestamp = saved.lastSyncedAt || Date.now();
+        
+        localStorage.removeItem(PENDING_STORAGE_KEY);
+        console.log('💰 Восстановлен pending доход:', localPendingIncome.toFixed(2));
+    } catch (e) {
+        console.warn('Restore error:', e);
+    }
+}
+
+// ============================================================
+// ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
+// ============================================================
+async function syncPendingIncome(force = false) {
+    if (syncInProgress) return;
+    
+    const now = Date.now();
+    
+    if (!force && now - lastSyncTime < SYNC_CONFIG.MIN_INTERVAL_MS && 
+        localPendingIncome < SYNC_CONFIG.MAX_PENDING_BEFORE_SYNC) {
+        return;
+    }
+    
+    if (!force && now - lastSyncedTimestamp < SYNC_CONFIG.SERVER_INCOME_BUFFER_MS) {
+        return;
+    }
+    
+    const pendingToSync = Math.floor(localPendingIncome * 100) / 100;
+    const syncId = `${SESSION_ID}_${Date.now()}_${++syncSequence}`;
+    
+    if (pendingToSync < 0.01) return;
+    
+    syncInProgress = true;
+    
+    try {
+        const res = await apiRequest('POST', '/api/game/sync-income', { 
+            pendingAmount: pendingToSync,
+            syncId: syncId,
+            clientTimestamp: now,
+            sessionId: SESSION_ID,
+            lastSyncedAt: lastSyncedTimestamp
+        });
+        
+        if (res?.success) {
+            const syncedAmount = res.syncedAmount || pendingToSync;
+            
+            if (syncedAmount > 0) {
+                localPendingIncome = Math.max(0, localPendingIncome - syncedAmount);
+                lastSyncedTimestamp = now;
+                lastSyncTime = now;
+                
+                state.user.balance = res.balance;
+                updateLocalBalance();
+                updateHeader();
+                savePendingState();
+                
+                console.log(`✅ Синхронизировано: ${syncedAmount.toFixed(2)} MMO`);
+            }
+            
+            const hint = document.getElementById('pendingIncomeHint');
+            if (hint && localPendingIncome < 0.5) hint.style.opacity = '0';
+        }
+    } catch (e) {
+        console.warn('Sync error:', e);
+    } finally {
+        syncInProgress = false;
+    }
+}
 
 function startLocalIncomeTicker() {
     if (localTickerInterval) clearInterval(localTickerInterval);
@@ -21,17 +164,34 @@ function startLocalIncomeTicker() {
         if (localIncomePerHour <= 0) return;
         
         const now = Date.now();
+        
+        if (now - lastSyncedTimestamp < SYNC_CONFIG.SERVER_INCOME_BUFFER_MS) {
+            return;
+        }
+        
         const elapsedSeconds = (now - localLastIncomeTime) / 1000;
         
         if (elapsedSeconds >= 0.5) {
-            const earnedThisTick = (localIncomePerHour / 3600) * elapsedSeconds;
-            if (earnedThisTick > 0) {
+            let earnedThisTick = (localIncomePerHour / 3600) * elapsedSeconds;
+            
+            if (earnedThisTick > 0.001) {
+                const maxPending = Math.max(SYNC_CONFIG.MAX_PENDING_LIMIT, localIncomePerHour);
+                if (localPendingIncome + earnedThisTick > maxPending) {
+                    syncPendingIncome(true);
+                    return;
+                }
+                
                 localPendingIncome += earnedThisTick;
                 localLastIncomeTime = now;
                 updateLocalBalance();
+                savePendingState();
                 
                 if (localPendingIncome > 0.5 && !pendingHintTimeout) {
                     showPendingIncomeHint();
+                }
+                
+                if (localPendingIncome >= SYNC_CONFIG.MAX_PENDING_BEFORE_SYNC) {
+                    syncPendingIncome();
                 }
             }
         }
@@ -61,13 +221,22 @@ function showPendingIncomeHint() {
         `;
         document.body.appendChild(hint);
     }
-    hint.textContent = `💰 +${localPendingIncome.toFixed(2)} MMO`;
-    hint.style.opacity = '1';
+    
+    const updateHint = () => {
+        if (localPendingIncome > 0.01) {
+            hint.textContent = `💰 +${localPendingIncome.toFixed(2)} MMO`;
+            hint.style.opacity = '1';
+            requestAnimationFrame(updateHint);
+        } else {
+            hint.style.opacity = '0';
+        }
+    };
+    updateHint();
     
     if (pendingHintTimeout) clearTimeout(pendingHintTimeout);
     pendingHintTimeout = setTimeout(() => {
-        hint.style.opacity = '0';
-    }, 2000);
+        if (localPendingIncome < 0.5) hint.style.opacity = '0';
+    }, 3000);
 }
 
 function updateLocalBalance() {
@@ -76,9 +245,8 @@ function updateLocalBalance() {
     
     const balanceEl = document.getElementById('balanceDisplay');
     if (balanceEl) {
-        const oldText = balanceEl.textContent;
         balanceEl.textContent = formatNum(displayBalance);
-        if (localPendingIncome > 0.01 && oldText !== balanceEl.textContent) {
+        if (localPendingIncome > 0.01) {
             balanceEl.classList.add('pending');
             setTimeout(() => balanceEl.classList.remove('pending'), 500);
         }
@@ -88,75 +256,26 @@ function updateLocalBalance() {
     if (walletBalanceEl) walletBalanceEl.textContent = formatNum(displayBalance);
 }
 
-async function syncPendingIncome() {
-    if (syncInProgress) return;
-    if (localPendingIncome < 0.01) return;
-    
-    syncInProgress = true;
-    try {
-        const pendingToSync = Math.floor(localPendingIncome * 100) / 100;
-        const res = await apiRequest('POST', '/api/game/sync-income', { pendingAmount: pendingToSync });
-        
-        if (res?.success) {
-            state.user.balance = res.balance;
-            localPendingIncome = 0;
-            localLastIncomeTime = Date.now();
-            updateLocalBalance();
-            updateHeader();
-            const hint = document.getElementById('pendingIncomeHint');
-            if (hint) hint.style.opacity = '0';
+function setupBeforeUnloadSync() {
+    window.addEventListener('beforeunload', () => {
+        if (localPendingIncome > 0.01) {
+            const pending = Math.floor(localPendingIncome * 100) / 100;
+            const syncId = `${SESSION_ID}_final_${Date.now()}`;
+            
+            navigator.sendBeacon(`${API_URL}/api/game/sync-income`, 
+                JSON.stringify({ 
+                    pendingAmount: pending, 
+                    syncId: syncId,
+                    clientTimestamp: Date.now(),
+                    sessionId: SESSION_ID,
+                    isFinal: true
+                }));
         }
-    } catch (e) {
-        console.warn('Sync error:', e);
-    } finally {
-        syncInProgress = false;
-    }
-}
-
-// Сохраняем pending в localStorage
-setInterval(() => {
-    if (localPendingIncome > 0) {
-        localStorage.setItem('pendingIncome', localPendingIncome);
-        localStorage.setItem('pendingTime', localLastIncomeTime);
-    }
-}, 10000);
-
-function restorePendingIncome() {
-    const saved = localStorage.getItem('pendingIncome');
-    if (saved) {
-        localPendingIncome = parseFloat(saved);
-        localLastIncomeTime = parseInt(localStorage.getItem('pendingTime')) || Date.now();
-        localStorage.removeItem('pendingIncome');
-        localStorage.removeItem('pendingTime');
-    }
+    });
 }
 
 // ============================================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ============================================================
-let intervals = {
-    adsTimer: null,
-    specialQuests: null
-};
-
-let activeQuestTimers = new Map();
-let currentLeaderboardController = null;
-let isMarketplaceTabActive = false;
-
-// КЭШИ
-let leaderboardCache = {
-    data: null,
-    expiresAt: 0
-};
-
-let marketplaceCache = {
-    data: null,
-    hash: null,
-    expiresAt: 0
-};
-
-// ============================================================
-// ЗАЩИТА ОТ ДУБЛИРУЮЩИХСЯ ЗАПРОСОВ
+// API ЗАПРОСЫ С ЗАЩИТОЙ
 // ============================================================
 let pendingRequests = new Map();
 
@@ -200,7 +319,7 @@ async function apiRequest(method, path, body = null, signal = null) {
 }
 
 // ============================================================
-// GAME DATA - ЗАГРУЖАЕТСЯ С СЕРВЕРА
+// GAME DATA
 // ============================================================
 let CREATURES = [];
 let CAPSULE_COSTS = { basic: 50, premium: 200 };
@@ -298,10 +417,60 @@ function escapeHtml(str) {
 // ============================================================
 // TELEGRAM WEBAPP INIT
 // ============================================================
+function clearAllIntervals() {
+    if (intervals.adsTimer) clearInterval(intervals.adsTimer);
+    if (intervals.specialQuests) clearInterval(intervals.specialQuests);
+    if (intervals.leaderboard) clearInterval(intervals.leaderboard);
+    if (intervals.marketplace) clearInterval(intervals.marketplace);
+    if (localTickerInterval) clearInterval(localTickerInterval);
+    for (const timer of activeQuestTimers.values()) clearTimeout(timer);
+    activeQuestTimers.clear();
+}
+
+function startOptimizedIntervals() {
+    intervals.leaderboard = setInterval(() => {
+        if (!document.hidden) renderLeaderboard();
+    }, 5 * 60 * 1000);
+    
+    intervals.specialQuests = setInterval(() => {
+        if (!document.hidden) {
+            loadGameConfig();
+            renderSpecialQuests();
+        }
+    }, 5 * 60 * 1000);
+    
+    intervals.marketplace = setInterval(() => {
+        if (!document.hidden && isMarketplaceTabActive) {
+            renderMarketplaceBuy();
+        }
+    }, 10 * 1000);
+    
+    intervals.adsTimer = setInterval(updateAdsTimer, 1000);
+}
+
+function handleVisibilityChange() {
+    if (document.hidden) {
+        if (intervals.marketplace) clearInterval(intervals.marketplace);
+        intervals.marketplace = null;
+    } else {
+        syncPendingIncome(true);
+        if (isMarketplaceTabActive) {
+            renderMarketplaceBuy();
+            intervals.marketplace = setInterval(() => {
+                if (!document.hidden && isMarketplaceTabActive) {
+                    renderMarketplaceBuy();
+                }
+            }, 10 * 1000);
+        }
+        renderLeaderboard();
+        renderSpecialQuests();
+    }
+}
+
 async function initTelegramApp() {
     clearAllIntervals();
     showLoadingScreen(true);
-    restorePendingIncome();
+    restorePendingIncomeSafe();
 
     const tg = window.Telegram?.WebApp;
     if (tg) {
@@ -362,73 +531,14 @@ async function initTelegramApp() {
     showLoadingScreen(false);
     renderAll();
 
-    // НОВЫЙ ЛОКАЛЬНЫЙ ТИКЕР (0 запросов к серверу!)
     startLocalIncomeTicker();
-    
-    // ОПТИМИЗИРОВАННЫЕ ИНТЕРВАЛЫ
     startOptimizedIntervals();
     
-    // ОБРАБОТКА ВИДИМОСТИ ВКЛАДКИ
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    setupBeforeUnloadSync();
 
     if (loginRes.isNewUser) {
         setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
-    }
-}
-
-function clearAllIntervals() {
-    if (intervals.adsTimer) clearInterval(intervals.adsTimer);
-    if (intervals.specialQuests) clearInterval(intervals.specialQuests);
-    if (intervals.leaderboard) clearInterval(intervals.leaderboard);
-    if (intervals.marketplace) clearInterval(intervals.marketplace);
-    if (localTickerInterval) clearInterval(localTickerInterval);
-    for (const timer of activeQuestTimers.values()) clearTimeout(timer);
-    activeQuestTimers.clear();
-}
-
-function startOptimizedIntervals() {
-    // Лидерборд раз в 5 минут
-    intervals.leaderboard = setInterval(() => {
-        if (!document.hidden) renderLeaderboard();
-    }, 5 * 60 * 1000);
-    
-    // Спец-квесты раз в 5 минут
-    intervals.specialQuests = setInterval(() => {
-        if (!document.hidden) {
-            loadGameConfig();
-            renderSpecialQuests();
-        }
-    }, 5 * 60 * 1000);
-    
-    // Маркетплейс (будет запускаться только при активной вкладке)
-    intervals.marketplace = setInterval(() => {
-        if (!document.hidden && isMarketplaceTabActive) {
-            renderMarketplaceBuy();
-        }
-    }, 10 * 1000);
-    
-    // Таймер рекламы
-    intervals.adsTimer = setInterval(updateAdsTimer, 1000);
-}
-
-function handleVisibilityChange() {
-    if (document.hidden) {
-        // Вкладка в фоне - останавливаем обновления маркета
-        if (intervals.marketplace) clearInterval(intervals.marketplace);
-        intervals.marketplace = null;
-    } else {
-        // Вернулись - обновляем данные и запускаем маркет снова
-        if (isMarketplaceTabActive) {
-            renderMarketplaceBuy();
-            intervals.marketplace = setInterval(() => {
-                if (!document.hidden && isMarketplaceTabActive) {
-                    renderMarketplaceBuy();
-                }
-            }, 10 * 1000);
-        }
-        renderLeaderboard();
-        renderSpecialQuests();
-        syncPendingIncome();
     }
 }
 
@@ -1052,7 +1162,7 @@ function showCreatureInfo(creatureId) {
 }
 
 // ============================================================
-// MARKETPLACE (ОПТИМИЗИРОВАННЫЙ)
+// MARKETPLACE
 // ============================================================
 function switchMarketplaceTab(tab, event) {
     document.querySelectorAll('.marketplace-subtab').forEach(t => t.classList.remove('active'));
@@ -1304,7 +1414,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 }
 
 // ============================================================
-// LEADERBOARD (ОПТИМИЗИРОВАННЫЙ - РАЗ В 5 МИНУТ)
+// LEADERBOARD
 // ============================================================
 async function renderLeaderboard() {
     const list = document.getElementById('leaderboardList');
@@ -1701,7 +1811,7 @@ function spawnFloatingMMO(amount) {
 }
 
 // ============================================================
-// ДОБАВЛЯЕМ СТИЛЬ ДЛЯ PENDING АНИМАЦИИ
+// СТИЛИ ДЛЯ PENDING АНИМАЦИИ
 // ============================================================
 const animationStyle = document.createElement('style');
 animationStyle.textContent = `
@@ -1718,7 +1828,7 @@ animationStyle.textContent = `
 document.head.appendChild(animationStyle);
 
 // ============================================================
-// INIT - ЗАПУСК
+// INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramApp();
