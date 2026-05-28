@@ -1,6 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (ЧИСТАЯ ВИЗУАЛИЗАЦИЯ)
-// Сервер = единственный источник истины для баланса
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ)
 // ============================================================
 
 // ============================================================
@@ -61,7 +60,7 @@ const RARITY_COLORS = {
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 // ============================================================
-// ВИЗУАЛЬНЫЙ ТИКЕР — обновляет баланс 1 раз в секунду
+// ВИЗУАЛЬНЫЙ ТИКЕР
 // ============================================================
 let visualTickerInterval = null;
 
@@ -417,6 +416,9 @@ async function initTelegramApp() {
             referredBy: state.user.referredBy
         });
     }
+    
+    // Проверяем активные заявки после загрузки
+    setTimeout(() => checkActiveRequests(), 1000);
 }
 
 // ============================================================
@@ -1689,8 +1691,158 @@ function updateFriendRewardButtons() {
         }
     });
     
-    // Вызываем рендер списка друзей
     renderFriendsList();
+}
+
+// ============================================================
+// ДЕПОЗИТЫ И ВЫВОДЫ
+// ============================================================
+
+const MIN_TRANSACTION_AMOUNT = 10000;
+const MAX_ACTIVE_REQUESTS = 2;
+
+async function showDepositModal() {
+    if (state.isLoading) return;
+    
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <div class="popup-title">💎 Депозит</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
+        <div class="price-input-modal">
+            <div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Сумма (MMO)</div>
+                <input type="number" class="price-input-field" id="depositAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
+            </div>
+            <div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Мемо (опционально)</div>
+                <input type="text" class="price-input-field" id="depositMemo" placeholder="Комментарий к переводу">
+            </div>
+        </div>
+        <button class="popup-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:16px" onclick="createDepositRequest()">
+            <i class="fa-solid fa-arrow-down"></i> ОТПРАВИТЬ ЗАЯВКУ
+        </button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
+    `;
+    document.getElementById('overlay').classList.add('show');
+}
+
+async function createDepositRequest() {
+    const amountInput = document.getElementById('depositAmount');
+    const memoInput = document.getElementById('depositMemo');
+    
+    const amount = parseInt(amountInput?.value);
+    const memo = memoInput?.value || '';
+    
+    if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
+        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT} MMO`, '❌');
+        return;
+    }
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/wallet/deposit-request', { amount, memo });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка создания заявки', '❌');
+        return;
+    }
+    
+    closeOverlay();
+    showToast(`Заявка на депозит ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения.`, '✅');
+    
+    await checkActiveRequests();
+}
+
+async function showWithdrawModal() {
+    if (state.isLoading) return;
+    
+    const activeCount = await checkActiveRequests();
+    if (activeCount >= MAX_ACTIVE_REQUESTS) {
+        showToast(`У вас уже ${MAX_ACTIVE_REQUESTS} активных заявок. Дождитесь обработки.`, '⚠️');
+        return;
+    }
+    
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <div class="popup-title">💸 Вывод средств</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
+        <div class="price-input-modal">
+            <div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Сумма (MMO)</div>
+                <input type="number" class="price-input-field" id="withdrawAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
+            </div>
+            <div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Кошелёк (TRC20/USDT)</div>
+                <input type="text" class="price-input-field" id="withdrawWallet" placeholder="Введите адрес кошелька">
+            </div>
+        </div>
+        <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-top:16px" onclick="createWithdrawRequest()">
+            <i class="fa-solid fa-arrow-up"></i> ОТПРАВИТЬ ЗАЯВКУ
+        </button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
+    `;
+    document.getElementById('overlay').classList.add('show');
+}
+
+async function createWithdrawRequest() {
+    const amountInput = document.getElementById('withdrawAmount');
+    const walletInput = document.getElementById('withdrawWallet');
+    
+    const amount = parseInt(amountInput?.value);
+    const wallet = walletInput?.value.trim();
+    
+    if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
+        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT} MMO`, '❌');
+        return;
+    }
+    
+    if (!wallet || wallet.length < 10) {
+        showToast('Введите корректный адрес кошелька', '❌');
+        return;
+    }
+    
+    if (state.user?.balance < amount) {
+        showToast(`Недостаточно средств. Ваш баланс: ${state.user.balance.toLocaleString()} MMO`, '❌');
+        return;
+    }
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/wallet/withdraw-request', { amount, wallet });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка создания заявки', '❌');
+        return;
+    }
+    
+    closeOverlay();
+    showToast(`Заявка на вывод ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения.`, '✅');
+    
+    await refreshUserProfile();
+    await checkActiveRequests();
+}
+
+async function checkActiveRequests() {
+    try {
+        const res = await apiRequest('GET', '/api/wallet/requests');
+        if (res?.success) {
+            const count = res.requests.length;
+            const pendingDiv = document.getElementById('pendingRequests');
+            if (pendingDiv) {
+                if (count > 0) {
+                    pendingDiv.innerHTML = `<div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:12px;padding:10px;margin-top:10px;text-align:center">
+                        <i class="fa-solid fa-clock"></i> Активных заявок: ${count}/${MAX_ACTIVE_REQUESTS}
+                    </div>`;
+                } else {
+                    pendingDiv.innerHTML = '';
+                }
+            }
+            return count;
+        }
+    } catch (e) {
+        console.error('checkActiveRequests error:', e);
+    }
+    return 0;
 }
 
 // ============================================================
@@ -1707,7 +1859,10 @@ function switchTab(tab) {
 
     if (tab === 'leaderboard') renderLeaderboard();
     if (tab === 'special') renderSpecialQuests();
-    if (tab === 'wallet') updateHeader();
+    if (tab === 'wallet') {
+        updateHeader();
+        checkActiveRequests();
+    }
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
 }
