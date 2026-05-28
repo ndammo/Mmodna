@@ -342,7 +342,7 @@ async function initTelegramApp() {
         }
         
         setTimeout(() => {
-            const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tg-safe-area-inset-top')) || 75;
+            const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tg-safe-area-inset-top')) || 45;
             document.querySelector('.header').style.paddingTop = (top + 30) + 'px';
         }, 400);
         
