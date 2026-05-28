@@ -1,40 +1,33 @@
 // ============================================================
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (ЧИСТАЯ ВИЗУАЛИЗАЦИЯ)
+// Сервер = единственный источник истины для баланса
+// ============================================================
+
+// ============================================================
 // CONFIG
 // ============================================================
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
-// ЗАЩИЩЁННЫЙ ЛОКАЛЬНЫЙ ТИКЕР ДОХОДА (БЕЗ КОНФЛИКТОВ)
-// ============================================================
-let localPendingIncome = 0;
-let localLastIncomeTime = Date.now();
-let localIncomePerHour = 0;
-let localTickerInterval = null;
-let syncInProgress = false;
-let pendingHintTimeout = null;
-let lastSyncTime = Date.now();
-let lastSyncedTimestamp = Date.now();
-let syncSequence = 0;
-
-// Уникальный идентификатор сессии
-const SESSION_ID = crypto.randomUUID ? crypto.randomUUID() : 
-    `${Date.now()}_${Math.random()}_${state?.user?.telegramId || 'anon'}`;
-
-const PENDING_STORAGE_KEY = 'pendingIncome_v2';
-const SYNC_CONFIG = {
-    MAX_PENDING_BEFORE_SYNC: 5,
-    MIN_INTERVAL_MS: 30000,
-    MAX_INTERVAL_MS: 120000,
-    MAX_PENDING_LIMIT: 100,
-    SERVER_INCOME_BUFFER_MS: 5000
-};
-
-// ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 // ============================================================
+let state = {
+    token: null,
+    user: null,
+    inventory: [],
+    incomePerHour: 0,
+    adsCooldown: 0,
+    isLoading: false,
+    serverBalance: 0,
+    lastServerSync: 0,
+    visualTicker: null
+};
+
 let intervals = {
     adsTimer: null,
-    specialQuests: null
+    specialQuests: null,
+    leaderboard: null,
+    marketplace: null
 };
 
 let activeQuestTimers = new Map();
@@ -42,240 +35,74 @@ let currentLeaderboardController = null;
 let isMarketplaceTabActive = false;
 
 // КЭШИ
-let leaderboardCache = {
-    data: null,
-    expiresAt: 0
+let leaderboardCache = { data: null, expiresAt: 0 };
+let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
+
+// ============================================================
+// GAME DATA
+// ============================================================
+let CREATURES = [];
+let CAPSULE_COSTS = { basic: 50, premium: 200 };
+let RARITY_WEIGHTS = {
+    basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
+    premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
 };
+let AD_REWARD = 50;
+let AD_COOLDOWN = 60;
+let UPGRADE_BASE_COST = 100;
+let UPGRADE_MULTIPLIER = 1.5;
+let MAX_INVENTORY_SLOTS = 50;
+let SPECIAL_QUESTS = [];
 
-let marketplaceCache = {
-    data: null,
-    hash: null,
-    expiresAt: 0
+const RARITY_COLORS = {
+    common: '#94a3b8', uncommon: '#22c55e', rare: '#3b82f6',
+    epic: '#a855f7', legendary: '#f59e0b', mythic: '#ef4444'
 };
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 // ============================================================
-// СОХРАНЕНИЕ/ВОССТАНОВЛЕНИЕ С ЗАЩИТОЙ
+// ВИЗУАЛЬНЫЙ ТИКЕР (НЕ НАЧИСЛЯЕТ РЕАЛЬНЫЙ БАЛАНС!)
 // ============================================================
-function savePendingState() {
-    if (localPendingIncome > 0.01) {
-        localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify({
-            amount: localPendingIncome,
-            timestamp: localLastIncomeTime,
-            sessionId: SESSION_ID,
-            lastSyncedAt: lastSyncedTimestamp
-        }));
-    } else {
-        localStorage.removeItem(PENDING_STORAGE_KEY);
-    }
-}
-
-function restorePendingIncomeSafe() {
-    const savedRaw = localStorage.getItem(PENDING_STORAGE_KEY);
-    if (!savedRaw) return;
+function startVisualTicker() {
+    if (state.visualTicker) clearInterval(state.visualTicker);
     
-    try {
-        const saved = JSON.parse(savedRaw);
-        
-        if (saved.sessionId === SESSION_ID) {
-            localStorage.removeItem(PENDING_STORAGE_KEY);
-            return;
-        }
-        
-        if (Date.now() - saved.timestamp > 5 * 60 * 1000) {
-            localStorage.removeItem(PENDING_STORAGE_KEY);
-            return;
-        }
-        
-        localPendingIncome = saved.amount;
-        localLastIncomeTime = saved.timestamp;
-        lastSyncedTimestamp = saved.lastSyncedAt || Date.now();
-        
-        localStorage.removeItem(PENDING_STORAGE_KEY);
-        console.log('💰 Восстановлен pending доход:', localPendingIncome.toFixed(2));
-    } catch (e) {
-        console.warn('Restore error:', e);
-    }
-}
-
-// ============================================================
-// ОСНОВНАЯ ФУНКЦИЯ СИНХРОНИЗАЦИИ
-// ============================================================
-async function syncPendingIncome(force = false) {
-    if (syncInProgress) return;
-    
-    const now = Date.now();
-    
-    if (!force && now - lastSyncTime < SYNC_CONFIG.MIN_INTERVAL_MS && 
-        localPendingIncome < SYNC_CONFIG.MAX_PENDING_BEFORE_SYNC) {
-        return;
-    }
-    
-    if (!force && now - lastSyncedTimestamp < SYNC_CONFIG.SERVER_INCOME_BUFFER_MS) {
-        return;
-    }
-    
-    const pendingToSync = Math.floor(localPendingIncome * 100) / 100;
-    const syncId = `${SESSION_ID}_${Date.now()}_${++syncSequence}`;
-    
-    if (pendingToSync < 0.01) return;
-    
-    syncInProgress = true;
-    
-    try {
-        const res = await apiRequest('POST', '/api/game/sync-income', { 
-            pendingAmount: pendingToSync,
-            syncId: syncId,
-            clientTimestamp: now,
-            sessionId: SESSION_ID,
-            lastSyncedAt: lastSyncedTimestamp
-        });
-        
-        if (res?.success) {
-            const syncedAmount = res.syncedAmount || pendingToSync;
-            
-            if (syncedAmount > 0) {
-                localPendingIncome = Math.max(0, localPendingIncome - syncedAmount);
-                lastSyncedTimestamp = now;
-                lastSyncTime = now;
-                
-                state.user.balance = res.balance;
-                updateLocalBalance();
-                updateHeader();
-                savePendingState();
-                
-                console.log(`✅ Синхронизировано: ${syncedAmount.toFixed(2)} MMO`);
-            }
-            
-            const hint = document.getElementById('pendingIncomeHint');
-            if (hint && localPendingIncome < 0.5) hint.style.opacity = '0';
-        }
-    } catch (e) {
-        console.warn('Sync error:', e);
-    } finally {
-        syncInProgress = false;
-    }
-}
-
-function startLocalIncomeTicker() {
-    if (localTickerInterval) clearInterval(localTickerInterval);
-    
-    localTickerInterval = setInterval(() => {
+    state.visualTicker = setInterval(() => {
         if (document.hidden) return;
-        if (localIncomePerHour <= 0) return;
         
-        const now = Date.now();
-        
-        if (now - lastSyncedTimestamp < SYNC_CONFIG.SERVER_INCOME_BUFFER_MS) {
-            return;
+        const visualBalance = getVisualBalance();
+        const balanceEl = document.getElementById('balanceDisplay');
+        if (balanceEl) {
+            balanceEl.textContent = formatNum(visualBalance);
         }
         
-        const elapsedSeconds = (now - localLastIncomeTime) / 1000;
-        
-        if (elapsedSeconds >= 0.5) {
-            let earnedThisTick = (localIncomePerHour / 3600) * elapsedSeconds;
-            
-            if (earnedThisTick > 0.001) {
-                const maxPending = Math.max(SYNC_CONFIG.MAX_PENDING_LIMIT, localIncomePerHour);
-                if (localPendingIncome + earnedThisTick > maxPending) {
-                    syncPendingIncome(true);
-                    return;
-                }
-                
-                localPendingIncome += earnedThisTick;
-                localLastIncomeTime = now;
-                updateLocalBalance();
-                savePendingState();
-                
-                if (localPendingIncome > 0.5 && !pendingHintTimeout) {
-                    showPendingIncomeHint();
-                }
-                
-                if (localPendingIncome >= SYNC_CONFIG.MAX_PENDING_BEFORE_SYNC) {
-                    syncPendingIncome();
-                }
-            }
+        const walletBalanceEl = document.getElementById('walletBalance');
+        if (walletBalanceEl) {
+            walletBalanceEl.textContent = formatNum(visualBalance);
         }
-    }, 1000);
+    }, 500);
 }
 
-function showPendingIncomeHint() {
-    let hint = document.getElementById('pendingIncomeHint');
-    if (!hint) {
-        hint = document.createElement('div');
-        hint.id = 'pendingIncomeHint';
-        hint.style.cssText = `
-            position: fixed; bottom: 80px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(34,197,94,0.2);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(34,197,94,0.3);
-            border-radius: 20px;
-            padding: 6px 12px;
-            font-size: 10px;
-            color: #22c55e;
-            z-index: 50;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            white-space: nowrap;
-            font-family: 'Orbitron', monospace;
-        `;
-        document.body.appendChild(hint);
+function getVisualBalance() {
+    if (!state.user || !state.lastServerSync) return state.serverBalance;
+    
+    const elapsedSeconds = (Date.now() - state.lastServerSync) / 1000;
+    const earned = (state.incomePerHour / 3600) * elapsedSeconds;
+    
+    return state.serverBalance + earned;
+}
+
+function updateServerSnapshot(newBalance, newIncomePerHour) {
+    state.serverBalance = newBalance;
+    state.incomePerHour = newIncomePerHour;
+    state.lastServerSync = Date.now();
+    
+    if (state.user) {
+        state.user.balance = newBalance;
     }
-    
-    const updateHint = () => {
-        if (localPendingIncome > 0.01) {
-            hint.textContent = `💰 +${localPendingIncome.toFixed(2)} MMO`;
-            hint.style.opacity = '1';
-            requestAnimationFrame(updateHint);
-        } else {
-            hint.style.opacity = '0';
-        }
-    };
-    updateHint();
-    
-    if (pendingHintTimeout) clearTimeout(pendingHintTimeout);
-    pendingHintTimeout = setTimeout(() => {
-        if (localPendingIncome < 0.5) hint.style.opacity = '0';
-    }, 3000);
-}
-
-function updateLocalBalance() {
-    if (!state.user) return;
-    const displayBalance = state.user.balance + localPendingIncome;
-    
-    const balanceEl = document.getElementById('balanceDisplay');
-    if (balanceEl) {
-        balanceEl.textContent = formatNum(displayBalance);
-        if (localPendingIncome > 0.01) {
-            balanceEl.classList.add('pending');
-            setTimeout(() => balanceEl.classList.remove('pending'), 500);
-        }
-    }
-    
-    const walletBalanceEl = document.getElementById('walletBalance');
-    if (walletBalanceEl) walletBalanceEl.textContent = formatNum(displayBalance);
-}
-
-function setupBeforeUnloadSync() {
-    window.addEventListener('beforeunload', () => {
-        if (localPendingIncome > 0.01) {
-            const pending = Math.floor(localPendingIncome * 100) / 100;
-            const syncId = `${SESSION_ID}_final_${Date.now()}`;
-            
-            navigator.sendBeacon(`${API_URL}/api/game/sync-income`, 
-                JSON.stringify({ 
-                    pendingAmount: pending, 
-                    syncId: syncId,
-                    clientTimestamp: Date.now(),
-                    sessionId: SESSION_ID,
-                    isFinal: true
-                }));
-        }
-    });
 }
 
 // ============================================================
-// API ЗАПРОСЫ С ЗАЩИТОЙ
+// API ЗАПРОСЫ
 // ============================================================
 let pendingRequests = new Map();
 
@@ -319,67 +146,6 @@ async function apiRequest(method, path, body = null, signal = null) {
 }
 
 // ============================================================
-// GAME DATA
-// ============================================================
-let CREATURES = [];
-let CAPSULE_COSTS = { basic: 50, premium: 200 };
-let RARITY_WEIGHTS = {
-    basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
-    premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
-};
-let AD_REWARD = 50;
-let AD_COOLDOWN = 60;
-let UPGRADE_BASE_COST = 100;
-let UPGRADE_MULTIPLIER = 1.5;
-let MAX_INVENTORY_SLOTS = 50;
-let SPECIAL_QUESTS = [];
-
-const RARITY_COLORS = {
-    common: '#94a3b8', uncommon: '#22c55e', rare: '#3b82f6',
-    epic: '#a855f7', legendary: '#f59e0b', mythic: '#ef4444'
-};
-const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
-
-async function loadGameConfig() {
-    const res = await apiRequest('GET', '/api/game/config');
-    if (res && res.success) {
-        const cfg = res.config;
-        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 50, premium: 200 };
-        RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
-        AD_REWARD = cfg.adReward || 50;
-        AD_COOLDOWN = cfg.adCooldown || 60;
-        UPGRADE_BASE_COST = cfg.upgradeBaseCost || 100;
-        UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
-        MAX_INVENTORY_SLOTS = cfg.limits?.maxInventorySlots || 50;
-        SPECIAL_QUESTS = cfg.specialQuests || [];
-        return true;
-    }
-    return false;
-}
-
-async function loadCreaturesFromServer() {
-    const res = await apiRequest('GET', '/api/game/creatures');
-    if (res && res.success && res.creatures) {
-        CREATURES = res.creatures;
-        console.log(`✅ Загружено ${CREATURES.length} существ`);
-        return true;
-    }
-    return false;
-}
-
-// ============================================================
-// STATE
-// ============================================================
-let state = {
-    token: null,
-    user: null,
-    inventory: [],
-    incomePerHour: 0,
-    adsCooldown: 0,
-    isLoading: false,
-};
-
-// ============================================================
 // HELPER FUNCTIONS
 // ============================================================
 function getCreature(id) { return CREATURES.find(c => c.id === id); }
@@ -414,6 +180,42 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+async function loadGameConfig() {
+    const res = await apiRequest('GET', '/api/game/config');
+    if (res && res.success) {
+        const cfg = res.config;
+        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 50, premium: 200 };
+        RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
+        AD_REWARD = cfg.adReward || 50;
+        AD_COOLDOWN = cfg.adCooldown || 60;
+        UPGRADE_BASE_COST = cfg.upgradeBaseCost || 100;
+        UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
+        MAX_INVENTORY_SLOTS = cfg.limits?.maxInventorySlots || 50;
+        SPECIAL_QUESTS = cfg.specialQuests || [];
+        return true;
+    }
+    return false;
+}
+
+async function loadCreaturesFromServer() {
+    const res = await apiRequest('GET', '/api/game/creatures');
+    if (res && res.success && res.creatures) {
+        CREATURES = res.creatures;
+        console.log(`✅ Загружено ${CREATURES.length} существ`);
+        return true;
+    }
+    return false;
+}
+
+async function getCurrentIncome() {
+    let income = 0;
+    for (const item of state.inventory) {
+        const c = getCreature(item.creatureId);
+        if (c) income += c.incomeBase * item.count;
+    }
+    return income;
+}
+
 // ============================================================
 // TELEGRAM WEBAPP INIT
 // ============================================================
@@ -422,7 +224,7 @@ function clearAllIntervals() {
     if (intervals.specialQuests) clearInterval(intervals.specialQuests);
     if (intervals.leaderboard) clearInterval(intervals.leaderboard);
     if (intervals.marketplace) clearInterval(intervals.marketplace);
-    if (localTickerInterval) clearInterval(localTickerInterval);
+    if (state.visualTicker) clearInterval(state.visualTicker);
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
     activeQuestTimers.clear();
 }
@@ -453,7 +255,7 @@ function handleVisibilityChange() {
         if (intervals.marketplace) clearInterval(intervals.marketplace);
         intervals.marketplace = null;
     } else {
-        syncPendingIncome(true);
+        refreshUserProfile();
         if (isMarketplaceTabActive) {
             renderMarketplaceBuy();
             intervals.marketplace = setInterval(() => {
@@ -467,10 +269,28 @@ function handleVisibilityChange() {
     }
 }
 
+async function refreshUserProfile() {
+    const res = await apiRequest('GET', '/api/user/profile');
+    if (res && res.success) {
+        state.user = res.user;
+        state.inventory = res.inventory || [];
+        state.incomePerHour = res.incomePerHour || 0;
+        
+        updateServerSnapshot(state.user.balance, state.incomePerHour);
+        
+        updateHeader();
+        renderCards();
+        updateFriendRewardButtons();
+        
+        if (res.offlineEarned > 10) {
+            setTimeout(() => showToast(`+${formatNum(res.offlineEarned)} MMO offline!`, '💤'), 1000);
+        }
+    }
+}
+
 async function initTelegramApp() {
     clearAllIntervals();
     showLoadingScreen(true);
-    restorePendingIncomeSafe();
 
     const tg = window.Telegram?.WebApp;
     if (tg) {
@@ -521,7 +341,8 @@ async function initTelegramApp() {
         state.user = profileRes.user;
         state.inventory = profileRes.inventory || [];
         state.incomePerHour = profileRes.incomePerHour || 0;
-        localIncomePerHour = state.incomePerHour;
+        
+        updateServerSnapshot(state.user.balance, state.incomePerHour);
 
         if (profileRes.offlineEarned > 10) {
             setTimeout(() => showToast(`+${formatNum(profileRes.offlineEarned)} MMO offline!`, '💤'), 1000);
@@ -531,11 +352,10 @@ async function initTelegramApp() {
     showLoadingScreen(false);
     renderAll();
 
-    startLocalIncomeTicker();
+    startVisualTicker();
     startOptimizedIntervals();
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    setupBeforeUnloadSync();
 
     if (loginRes.isNewUser) {
         setTimeout(() => showToast('Welcome! Open a DNA Capsule to start!', '🧬'), 800);
@@ -641,10 +461,9 @@ function updateHeader() {
         if (c) income += c.incomeBase * item.count;
     });
     state.incomePerHour = income;
-    localIncomePerHour = income;
 
-    const displayBalance = u.balance + localPendingIncome;
-    document.getElementById('balanceDisplay').textContent = formatNum(displayBalance);
+    const visualBalance = getVisualBalance();
+    document.getElementById('balanceDisplay').textContent = formatNum(visualBalance);
     document.getElementById('incomeDisplay').textContent = `+${formatNum(income)}/hr`;
 
     const needed = u.level * 100;
@@ -652,8 +471,7 @@ function updateHeader() {
     document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
     document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
 
-    document.getElementById('walletBalance').textContent = formatNum(displayBalance);
-    document.getElementById('walletSub').textContent = `≈ ${(u.balance * 0.001).toFixed(3)} USD`;
+    document.getElementById('walletSub').textContent = `≈ ${(visualBalance * 0.001).toFixed(3)} USD`;
     document.getElementById('walletIncome').textContent = formatNum(income);
     document.getElementById('walletCards').textContent = state.inventory.reduce((s, i) => s + i.count, 0);
     document.getElementById('walletMerges').textContent = u.mergeCount || 0;
@@ -675,7 +493,7 @@ function updateUpgradeButton() {
     const costEl = document.getElementById('upgradeSlotCost');
     if (btn && costEl) {
         costEl.textContent = cost;
-        const canAfford = state.user.balance >= cost;
+        const canAfford = state.serverBalance >= cost;
         btn.style.opacity = canAfford ? '1' : '0.5';
         btn.disabled = !canAfford;
     }
@@ -728,7 +546,7 @@ function showCapsuleModal(type) {
     const odds = RARITY_WEIGHTS[type];
     const cost = CAPSULE_COSTS[type];
     const title = type === 'premium' ? 'Premium DNA Capsule' : 'DNA Capsule';
-    const canAfford = (state.user?.balance + localPendingIncome) >= cost;
+    const canAfford = state.serverBalance >= cost;
     const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
     const oddsHtml = rarities.map(r => {
@@ -766,7 +584,6 @@ function showCapsuleModal(type) {
 
 async function openCapsule(type) {
     if (state.isLoading) return;
-    await syncPendingIncome();
     
     if (Date.now() - lastCapsuleOpen < 2000) {
         showToast('Слишком быстро! Подождите 2 секунды.', '⏳');
@@ -775,7 +592,7 @@ async function openCapsule(type) {
     lastCapsuleOpen = Date.now();
 
     const cost = CAPSULE_COSTS[type];
-    if ((state.user?.balance || 0) < cost) {
+    if (state.serverBalance < cost) {
         showToast('Not enough MMO!', '❌'); return;
     }
     if (getUsedSlots() >= (state.user?.inventorySlots || 10)) {
@@ -798,7 +615,9 @@ async function openCapsule(type) {
 
     state.user = res.user;
     state.inventory = res.inventory;
-    localIncomePerHour = state.incomePerHour;
+    state.incomePerHour = await getCurrentIncome();
+    
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
 
     updateHeader();
     renderCards();
@@ -922,7 +741,6 @@ function showMergePreview(creatureId) {
 async function executeMerge(creatureId) {
     if (state.isLoading) return;
     if (!canMerge(creatureId)) return;
-    await syncPendingIncome();
     
     if (Date.now() - lastMergeTime < 1000) {
         showToast('Слишком быстро! Подождите.', '⏳');
@@ -940,7 +758,9 @@ async function executeMerge(creatureId) {
 
     state.user = res.user;
     state.inventory = res.inventory;
-    localIncomePerHour = state.incomePerHour;
+    state.incomePerHour = await getCurrentIncome();
+    
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
 
     updateHeader();
     renderCards();
@@ -983,10 +803,9 @@ function showMergeResultPopup(from, to, success) {
 // ============================================================
 async function upgradeInventory() {
     if (state.isLoading) return;
-    await syncPendingIncome();
     
     const cost = getUpgradeCost();
-    if ((state.user?.balance || 0) < cost) {
+    if (state.serverBalance < cost) {
         showToast(`Need ${cost} MMO to upgrade!`, '❌'); return;
     }
 
@@ -999,6 +818,7 @@ async function upgradeInventory() {
     }
 
     state.user = res.user;
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
     updateHeader();
     renderCards();
     showToast(`+1 slot! Now ${state.user.inventorySlots} total`, '📦');
@@ -1009,7 +829,6 @@ async function upgradeInventory() {
 // ============================================================
 async function watchAd() {
     if (state.isLoading) return;
-    await syncPendingIncome();
 
     if (state.adsCooldown > 0) {
         showToast(`Ad available in ${state.adsCooldown}s`, '⏳'); return;
@@ -1040,6 +859,8 @@ async function watchAd() {
 
     state.user = res.user;
     state.adsCooldown = AD_COOLDOWN;
+    
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
     updateHeader();
     showToast(`+${AD_REWARD} MMO from ad!`, '🎉');
     spawnFloatingMMO(AD_REWARD);
@@ -1314,7 +1135,6 @@ async function confirmSellListing(creatureId) {
     const price = Math.max(10, Math.min(100000, parseInt(input?.value) || 0));
 
     if (price < 10) { showToast('Price must be at least 10 MMO', '❌'); return; }
-    await syncPendingIncome();
 
     state.isLoading = true;
     const res = await apiRequest('POST', '/api/marketplace/list', { creatureId, price });
@@ -1388,10 +1208,9 @@ async function cancelMarketplaceListing(listingId) {
 
 async function buyFromMarketplace(listingId, price, creatureId) {
     if (state.isLoading) return;
-    if ((state.user?.balance || 0) < price) {
+    if (state.serverBalance < price) {
         showToast(`Need ${price} MMO`, '❌'); return;
     }
-    await syncPendingIncome();
 
     state.isLoading = true;
     const res = await apiRequest('POST', '/api/marketplace/buy', { listingId });
@@ -1403,6 +1222,9 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 
     state.user = res.user;
     state.inventory = res.inventory;
+    state.incomePerHour = await getCurrentIncome();
+    
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
 
     const c = getCreature(creatureId);
     updateHeader();
@@ -1534,6 +1356,7 @@ async function claimSpecialQuestSilent(questId) {
     }
     
     state.user = res.user;
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
     updateHeader();
     await renderSpecialQuests();
     showToast(`+${res.reward} MMO`, '✅');
@@ -1541,7 +1364,6 @@ async function claimSpecialQuestSilent(questId) {
 
 async function claimSpecialQuest(questId) {
     if (state.isLoading) return;
-    await syncPendingIncome();
     
     if (state.user?.completedSpecialQuests?.includes(questId)) {
         showToast('Вы уже получили награду за этот квест', 'ℹ️');
@@ -1558,6 +1380,7 @@ async function claimSpecialQuest(questId) {
     }
     
     state.user = res.user;
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
     updateHeader();
     await renderSpecialQuests();
     showToast(`+${res.reward} MMO`, '✅');
@@ -1644,7 +1467,6 @@ async function updateSpecialQuests() {
 // ============================================================
 async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
     if (state.isLoading) return;
-    await syncPendingIncome();
     
     const currentFriends = state.user?.referralCount || 0;
     
@@ -1673,7 +1495,9 @@ async function claimFriendReward(requiredFriends, creatureId, creatureName, crea
     
     state.user = res.user;
     state.inventory = res.inventory;
+    state.incomePerHour = await getCurrentIncome();
     
+    updateServerSnapshot(state.user.balance, state.incomePerHour);
     updateHeader();
     renderCards();
     updateFriendRewardButtons();
@@ -1809,23 +1633,6 @@ function spawnFloatingMMO(amount) {
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1600);
 }
-
-// ============================================================
-// СТИЛИ ДЛЯ PENDING АНИМАЦИИ
-// ============================================================
-const animationStyle = document.createElement('style');
-animationStyle.textContent = `
-    .balance-amount.pending {
-        animation: incomePulse 0.5s ease;
-        color: #22c55e;
-    }
-    @keyframes incomePulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); text-shadow: 0 0 8px #22c55e; }
-        100% { transform: scale(1); }
-    }
-`;
-document.head.appendChild(animationStyle);
 
 // ============================================================
 // INIT
