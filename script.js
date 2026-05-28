@@ -669,24 +669,9 @@ async function openCapsule(type) {
     renderCards();
 
     setTimeout(() => showCapsulePopup(res.creature), 300);
-}
-    const c = getCreature(creature.id) || creature;
-    const color = RARITY_COLORS[c.rarity];
+}
 
-    document.getElementById('popup').innerHTML = `
-        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${c.icon}</span>
-        <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
-        <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
-        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
-        <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
-        </div>
-        <button class="popup-btn" onclick="closeOverlay()">AWESOME!</button>
-    `;
-    document.getElementById('overlay').classList.add('show');
-    spawnStars(c.rarity);
-}
+
 
 // ============================================================
 // CARD CLICK
