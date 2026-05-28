@@ -1827,3 +1827,27 @@
     transform: scale(1.02);
     color: #22c55e;
 }
+
+/* Leaderboard XP text */
+.lb-xp {
+    font-size: 9px;
+    color: #4a5568;
+    margin-top: 2px;
+}
+
+.lb-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.lb-score span:first-child {
+    color: var(--legendary);
+    font-size: 14px;
+}
+
+.lb-score span:last-child {
+    color: var(--uncommon);
+    font-size: 10px;
+}

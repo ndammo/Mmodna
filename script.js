@@ -1356,8 +1356,12 @@ function renderLeaderboardData(data) {
             <div class="lb-info">
                 <div class="lb-name">${escapeHtml(l.username)} ${l.isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
                 <div class="lb-level">LVL ${l.level} · ${getLevelTitle(l.level)}</div>
+                <div class="lb-xp" style="font-size:9px;color:#4a5568">XP: ${l.xp}/${l.level * 100}</div>
             </div>
-            <div class="lb-score">${formatNum(l.balance)}</div>
+            <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
+                <span style="font-size:12px;font-weight:700;color:#f59e0b">LVL ${l.level}</span>
+                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} MMO</span>
+            </div>
         </div>`;
     }).join('');
 }
