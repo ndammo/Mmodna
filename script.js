@@ -7,6 +7,453 @@
 // ============================================================
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
+// ============================================================
+// ЛОКАЛИЗАЦИЯ
+// ============================================================
+let currentLocale = localStorage.getItem('locale') || 'ru';
+
+const translations = {
+    ru: {
+        // Navigation
+        'nav.game': 'Игра',
+        'nav.market': 'Маркет',
+        'nav.rank': 'Рейтинг',
+        'nav.friends': 'Друзья',
+        'nav.special': 'Квесты',
+        'nav.wallet': 'Кошелек',
+        
+        // Game tab
+        'game.capsules': 'DNA Капсулы',
+        'game.dnaCapsule': 'DNA КАПСУЛА',
+        'game.premiumCapsule': 'ПРЕМИУМ DNA',
+        'game.open': 'ОТКРЫТЬ',
+        'game.watchAd': 'Смотреть Рекламу',
+        'game.mmo': 'MMO',
+        'game.ready': 'Готово',
+        'game.adReward': '+{amount}',
+        
+        // Inventory
+        'inventory.myCreatures': 'Мои Существа',
+        'inventory.empty': 'Откройте капсулу, чтобы получить первое существо!',
+        'inventory.slots': '{used}/{total}',
+        
+        // Encyclopedia
+        'encyclopedia.title': 'Коллекция Существ',
+        'encyclopedia.subtitle': 'Откройте всех существ',
+        
+        // Marketplace
+        'marketplace.title': 'Торговая Площадка',
+        'marketplace.buy': 'Купить',
+        'marketplace.sell': 'Продать',
+        'marketplace.myListings': 'Мои',
+        'marketplace.yourCreatures': 'Ваши Существа',
+        'marketplace.yourListings': 'Ваши Лоты',
+        'marketplace.loading': 'Загрузка...',
+        'marketplace.noListings': 'Нет активных лотов',
+        'marketplace.noCreatures': 'У вас нет существ для продажи',
+        'marketplace.noMyListings': 'У вас нет активных лотов',
+        'marketplace.error': 'Ошибка загрузки',
+        'marketplace.price': 'Цена',
+        'marketplace.setPrice': 'УСТАНОВИТЬ ЦЕНУ',
+        'marketplace.listForSale': 'ВЫСТАВИТЬ НА ПРОДАЖУ',
+        'marketplace.cancel': 'ОТМЕНИТЬ',
+        'marketplace.buyNow': 'КУПИТЬ',
+        'marketplace.platformFee': 'Комиссия платформы (10%)',
+        'marketplace.youReceive': 'Вы получите',
+        'marketplace.yourPrice': 'Ваша цена',
+        
+        // Leaderboard
+        'leaderboard.title': 'Глобальный Рейтинг',
+        'leaderboard.lvl': 'УР',
+        'leaderboard.xp': 'ОП',
+        'leaderboard.you': '(Вы)',
+        
+        // Friends
+        'friends.inviteTitle': 'ПРИГЛАСИТЕ ДРУЗЕЙ',
+        'friends.inviteBtn': 'ПРИГЛАСИТЬ ДРУГА',
+        'friends.milestones': 'Награды за друзей',
+        'friends.myFriends': 'Мои Друзья',
+        'friends.noFriends': 'Нет друзей\nПригласите друзей, чтобы получить награды!',
+        'friends.friendsCount': '{count} друзей приглашено',
+        'friends.joined': 'Присоединился',
+        
+        // Special Quests
+        'specialQuests.title': 'Особые Квесты',
+        'specialQuests.noQuests': 'Нет активных спец-квестов',
+        'specialQuests.comingSoon': 'Скоро появятся новые квесты!',
+        'specialQuests.go': 'ПЕРЕЙТИ',
+        'specialQuests.claim': 'ЗАБРАТЬ',
+        'specialQuests.completed': 'ВЫПОЛНЕНО',
+        'specialQuests.locked': 'НУЖНО {required} ДРУЗЕЙ ({current})',
+        'specialQuests.needFriends': 'Нужно {required} друзей (у вас {current})',
+        
+        // Wallet
+        'wallet.totalBalance': 'Общий Баланс',
+        'wallet.mmoPerHour': 'MMO / Час',
+        'wallet.creatures': 'Существа',
+        'wallet.totalMerges': 'Всего Слияний',
+        'wallet.storage': 'Склад',
+        'wallet.deposit': 'ПОПОЛНИТЬ',
+        'wallet.withdraw': 'ВЫВЕСТИ',
+        'wallet.activeRequests': 'Активных заявок: {count}/{max}',
+        'wallet.pending': 'ОЖИДАНИЕ',
+        'wallet.depositAmount': 'Сумма (MMO)',
+        'wallet.withdrawAmount': 'Сумма (MMO)',
+        'wallet.tonWallet': 'TON Кошелек',
+        'wallet.minAmount': 'Минимальная сумма {min} MMO',
+        'wallet.insufficientFunds': 'Недостаточно средств. Ваш баланс: {balance} MMO',
+        'wallet.validWallet': 'Введите корректный TON адрес кошелька (минимум 20 символов)',
+        'wallet.requestCreated': 'Заявка на {amount} MMO создана! Ожидайте подтверждения администратора.',
+        'wallet.requestDepositCreated': 'Заявка создана! Отправьте точную сумму на указанный кошелек TON с указанием мемо.',
+        'wallet.paymentConfirmed': 'Спасибо! Администратор проверит платеж и начислит средства.',
+        'wallet.copied': 'Скопировано!',
+        
+        // Capsule Modal
+        'capsule.premiumTitle': 'Премиум DNA Капсула',
+        'capsule.basicTitle': 'DNA Капсула',
+        'capsule.cost': 'Стоимость: {cost} MMO',
+        'capsule.dropRates': 'Шансы выпадения',
+        'capsule.notEnough': 'НЕДОСТАТОЧНО MMO',
+        'capsule.openNow': 'ОТКРЫТЬ СЕЙЧАС',
+        
+        // Merge
+        'merge.preview': 'Предпросмотр Слияния',
+        'merge.input': 'Исходные',
+        'merge.output': 'Результат',
+        'merge.possibleOutcomes': 'Возможные результаты',
+        'merge.success': '30% Успех',
+        'merge.mutation': '70% Мутация',
+        'merge.rankUp': '▲ ПОВЫШЕНИЕ',
+        'merge.same': '= БЕЗ ИЗМЕНЕНИЙ',
+        'merge.mergeNow': 'СЛИТЬ СЕЙЧАС',
+        'merge.cancel': 'ОТМЕНА',
+        'merge.evolutionSuccess': '🎉 Эволюция успешна!',
+        'merge.mutationComplete': '⚗️ Мутация завершена!',
+        'merge.evolution': 'ЭВОЛЮЦИЯ!',
+        'merge.continue': 'ПРОДОЛЖИТЬ',
+        'merge.successResult': '+РЕДКОСТЬ',
+        'merge.sameResult': '=РЕДКОСТЬ',
+        
+        // Popups
+        'popup.close': 'ЗАКРЫТЬ',
+        'popup.awesome': 'ОТЛИЧНО!',
+        'popup.owned': 'Владелец',
+        
+        // Transactions
+        'transactions.none': 'Нет транзакций',
+        'transactions.justNow': 'только что',
+        'transactions.minAgo': '{minutes} мин назад',
+        'transactions.deposit': 'Депозит (Подтвержден)',
+        'transactions.withdraw': 'Вывод средств',
+        
+        // Toast Messages
+        'toast.tooFast': 'Слишком быстро! Подождите {seconds} секунд.',
+        'toast.tooFast2': 'Слишком быстро! Подождите.',
+        'toast.notEnoughMMO': 'Недостаточно MMO!',
+        'toast.inventoryFull': 'Инвентарь полон! Улучшите хранилище',
+        'toast.errorOpening': 'Ошибка открытия капсулы',
+        'toast.mergeFailed': 'Ошибка слияния',
+        'toast.needMore': 'Нужно {count} друзей (у вас {current})',
+        'toast.alreadyClaimed': 'Вы уже получили эту награду',
+        'toast.watchingAd': 'Просмотр рекламы...',
+        'toast.adReward': '+{amount} MMO за рекламу!',
+        'toast.upgraded': '+1 слот! Теперь {slots} всего',
+        'toast.creatureListed': '{name} выставлен на продажу за {price} MMO!',
+        'toast.listingCancelled': 'Лот отменён, существо возвращено',
+        'toast.bought': 'Куплен {name} за {price} MMO!',
+        'toast.needPrice': 'Необходимо {price} MMO',
+        'toast.errorListing': 'Ошибка при выставлении',
+        'toast.errorBuying': 'Ошибка при покупке',
+        'toast.copied': 'Ссылка скопирована!',
+        
+        // Errors
+        'error.connection': 'Ошибка соединения',
+        'error.server': 'Ошибка сервера',
+        'error.sessionExpired': 'Сессия истекла',
+        'error.unknown': 'Неизвестная ошибка',
+        
+        // Other
+        'common.lvl': 'УР',
+        'common.xp': 'ОП',
+        'common.mmo': 'MMO',
+        'common.hour': 'час',
+        'common.friends': 'друзей',
+        
+        // Friend Rewards
+        'friendReward.claimed': 'ПОЛУЧЕНО',
+        'friendReward.claim': 'ЗАБРАТЬ',
+        'friendReward.locked': '{friends} ДРУЗЕЙ',
+        
+        // Encyclopedia
+        'encyclopedia.discovered': 'обнаружено',
+        'encyclopedia.undiscovered': '🔒 НЕ ОБНАРУЖЕНО',
+        'encyclopedia.discoveredYes': '✓ ОБНАРУЖЕНО',
+        
+        // Ads Timer
+        'ads.ready': 'Готово',
+        'ads.wait': '{seconds}с'
+    },
+    en: {
+        // Navigation
+        'nav.game': 'Game',
+        'nav.market': 'Market',
+        'nav.rank': 'Rank',
+        'nav.friends': 'Friends',
+        'nav.special': 'Quests',
+        'nav.wallet': 'Wallet',
+        
+        // Game tab
+        'game.capsules': 'DNA Capsules',
+        'game.dnaCapsule': 'DNA CAPSULE',
+        'game.premiumCapsule': 'PREMIUM DNA',
+        'game.open': 'OPEN',
+        'game.watchAd': 'Watch Ad',
+        'game.mmo': 'MMO',
+        'game.ready': 'Ready',
+        'game.adReward': '+{amount}',
+        
+        // Inventory
+        'inventory.myCreatures': 'My Creatures',
+        'inventory.empty': 'Open a capsule to get your first creature!',
+        'inventory.slots': '{used}/{total}',
+        
+        // Encyclopedia
+        'encyclopedia.title': 'Collection Encyclopedia',
+        'encyclopedia.subtitle': 'Discover all creatures',
+        
+        // Marketplace
+        'marketplace.title': 'Marketplace',
+        'marketplace.buy': 'Buy',
+        'marketplace.sell': 'Sell',
+        'marketplace.myListings': 'My',
+        'marketplace.yourCreatures': 'Your Creatures',
+        'marketplace.yourListings': 'Your Listings',
+        'marketplace.loading': 'Loading...',
+        'marketplace.noListings': 'No active listings',
+        'marketplace.noCreatures': 'You have no creatures to sell',
+        'marketplace.noMyListings': 'You have no active listings',
+        'marketplace.error': 'Error loading',
+        'marketplace.price': 'Price',
+        'marketplace.setPrice': 'SET PRICE',
+        'marketplace.listForSale': 'LIST FOR SALE',
+        'marketplace.cancel': 'CANCEL',
+        'marketplace.buyNow': 'BUY',
+        'marketplace.platformFee': 'Platform Fee (10%)',
+        'marketplace.youReceive': 'You Receive',
+        'marketplace.yourPrice': 'Your Price',
+        
+        // Leaderboard
+        'leaderboard.title': 'Global Leaderboard',
+        'leaderboard.lvl': 'LVL',
+        'leaderboard.xp': 'XP',
+        'leaderboard.you': '(You)',
+        
+        // Friends
+        'friends.inviteTitle': 'INVITE FRIENDS',
+        'friends.inviteBtn': 'INVITE FRIEND',
+        'friends.milestones': 'Friend Milestones',
+        'friends.myFriends': 'My Friends',
+        'friends.noFriends': 'No friends yet\nInvite friends to get rewards!',
+        'friends.friendsCount': '{count} friends invited',
+        'friends.joined': 'Joined',
+        
+        // Special Quests
+        'specialQuests.title': 'Special Quests',
+        'specialQuests.noQuests': 'No active special quests',
+        'specialQuests.comingSoon': 'New quests coming soon!',
+        'specialQuests.go': 'GO',
+        'specialQuests.claim': 'CLAIM',
+        'specialQuests.completed': 'COMPLETED',
+        'specialQuests.locked': 'NEED {required} FRIENDS ({current})',
+        'specialQuests.needFriends': 'Need {required} friends (you have {current})',
+        
+        // Wallet
+        'wallet.totalBalance': 'Total Balance',
+        'wallet.mmoPerHour': 'MMO / Hour',
+        'wallet.creatures': 'Creatures',
+        'wallet.totalMerges': 'Total Merges',
+        'wallet.storage': 'Storage',
+        'wallet.deposit': 'DEPOSIT',
+        'wallet.withdraw': 'WITHDRAW',
+        'wallet.activeRequests': 'Active requests: {count}/{max}',
+        'wallet.pending': 'PENDING',
+        'wallet.depositAmount': 'Amount (MMO)',
+        'wallet.withdrawAmount': 'Amount (MMO)',
+        'wallet.tonWallet': 'TON Wallet',
+        'wallet.minAmount': 'Minimum amount {min} MMO',
+        'wallet.insufficientFunds': 'Insufficient funds. Your balance: {balance} MMO',
+        'wallet.validWallet': 'Enter a valid TON wallet address (min 20 characters)',
+        'wallet.requestCreated': 'Withdraw request for {amount} MMO created! Wait for admin approval.',
+        'wallet.requestDepositCreated': 'Request created! Send exact amount to the TON wallet with memo.',
+        'wallet.paymentConfirmed': 'Thank you! Admin will check payment and add funds.',
+        'wallet.copied': 'Copied!',
+        
+        // Capsule Modal
+        'capsule.premiumTitle': 'Premium DNA Capsule',
+        'capsule.basicTitle': 'DNA Capsule',
+        'capsule.cost': 'Cost: {cost} MMO',
+        'capsule.dropRates': 'Drop Rates',
+        'capsule.notEnough': 'NOT ENOUGH MMO',
+        'capsule.openNow': 'OPEN NOW',
+        
+        // Merge
+        'merge.preview': 'Merge Preview',
+        'merge.input': 'Input',
+        'merge.output': 'Output',
+        'merge.possibleOutcomes': 'Possible Outcomes',
+        'merge.success': '30% Success',
+        'merge.mutation': '70% Mutation',
+        'merge.rankUp': '▲ RANK UP',
+        'merge.same': '= SAME',
+        'merge.mergeNow': 'MERGE NOW',
+        'merge.cancel': 'CANCEL',
+        'merge.evolutionSuccess': '🎉 Evolution successful!',
+        'merge.mutationComplete': '⚗️ Mutation complete!',
+        'merge.evolution': 'EVOLUTION!',
+        'merge.continue': 'CONTINUE',
+        'merge.successResult': '+RARITY',
+        'merge.sameResult': '=RARITY',
+        
+        // Popups
+        'popup.close': 'CLOSE',
+        'popup.awesome': 'AWESOME!',
+        'popup.owned': 'Owned',
+        
+        // Transactions
+        'transactions.none': 'No transactions yet',
+        'transactions.justNow': 'just now',
+        'transactions.minAgo': '{minutes}m ago',
+        'transactions.deposit': 'Deposit (Approved)',
+        'transactions.withdraw': 'Withdraw',
+        
+        // Toast Messages
+        'toast.tooFast': 'Too fast! Wait {seconds} seconds.',
+        'toast.tooFast2': 'Too fast! Please wait.',
+        'toast.notEnoughMMO': 'Not enough MMO!',
+        'toast.inventoryFull': 'Inventory full! Upgrade storage',
+        'toast.errorOpening': 'Error opening capsule',
+        'toast.mergeFailed': 'Merge failed',
+        'toast.needMore': 'Need {count} friends (you have {current})',
+        'toast.alreadyClaimed': 'You already claimed this reward',
+        'toast.watchingAd': 'Watching ad...',
+        'toast.adReward': '+{amount} MMO from ad!',
+        'toast.upgraded': '+1 slot! Now {slots} total',
+        'toast.creatureListed': '{name} listed for {price} MMO!',
+        'toast.listingCancelled': 'Listing cancelled, card returned',
+        'toast.bought': 'Bought {name} for {price} MMO!',
+        'toast.needPrice': 'Need {price} MMO',
+        'toast.errorListing': 'Error listing',
+        'toast.errorBuying': 'Error buying',
+        'toast.copied': 'Link copied!',
+        
+        // Errors
+        'error.connection': 'Connection error',
+        'error.server': 'Server error',
+        'error.sessionExpired': 'Session expired',
+        'error.unknown': 'Unknown error',
+        
+        // Other
+        'common.lvl': 'LVL',
+        'common.xp': 'XP',
+        'common.mmo': 'MMO',
+        'common.hour': 'hr',
+        'common.friends': 'friends',
+        
+        // Friend Rewards
+        'friendReward.claimed': 'CLAIMED',
+        'friendReward.claim': 'CLAIM',
+        'friendReward.locked': '{friends} FRIENDS',
+        
+        // Encyclopedia
+        'encyclopedia.discovered': 'discovered',
+        'encyclopedia.undiscovered': '🔒 UNDISCOVERED',
+        'encyclopedia.discoveredYes': '✓ DISCOVERED',
+        
+        // Ads Timer
+        'ads.ready': 'Ready',
+        'ads.wait': '{seconds}s'
+    }
+};
+
+function t(key, params = {}) {
+    let text = translations[currentLocale]?.[key] || translations['en'][key] || key;
+    Object.keys(params).forEach(p => {
+        text = text.replace(`{${p}}`, params[p]);
+    });
+    return text;
+}
+
+function applyLocale() {
+    // Переводим статические тексты с атрибутом data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key) {
+            el.textContent = t(key);
+        }
+    });
+    
+    // Обновляем динамический текст в табах навигации (уже имеют data-i18n)
+    
+    // Обновляем плейсхолдеры
+    const priceInputs = document.querySelectorAll('.price-input-field');
+    priceInputs.forEach(input => {
+        if (input.id === 'sellPriceInput') {
+            input.placeholder = t('marketplace.price');
+        } else if (input.id === 'depositAmount') {
+            input.placeholder = t('wallet.depositAmount');
+        } else if (input.id === 'withdrawAmount') {
+            input.placeholder = t('wallet.withdrawAmount');
+        } else if (input.id === 'withdrawWallet') {
+            input.placeholder = t('wallet.tonWallet');
+        }
+    });
+    
+    // Обновляем текст на кнопках friend rewards
+    updateFriendRewardButtons();
+    
+    // Обновляем специальные квесты
+    renderSpecialQuests();
+    
+    // Обновляем лидерборд
+    renderLeaderboard();
+    
+    // Обновляем список друзей
+    renderFriendsList();
+    
+    // Обновляем маркетплейс
+    if (isMarketplaceTabActive) {
+        const activeTab = document.querySelector('.marketplace-subtab.active')?.id;
+        if (activeTab === 'marketplace-buy') renderMarketplaceBuy();
+        else if (activeTab === 'marketplace-sell') renderMarketplaceSell();
+        else if (activeTab === 'marketplace-mylistings') renderMarketplaceMyListings();
+    }
+}
+
+function setLanguage(lang) {
+    currentLocale = lang;
+    localStorage.setItem('locale', lang);
+    
+    // Обновляем активный класс на кнопках переключателя
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.getAttribute('data-lang') === lang) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Применяем перевод ко всем текстам
+    applyLocale();
+    
+    // Перерисовываем основные компоненты
+    renderCards();
+    updateHeader();
+    
+    // Если открыт попап - закрываем его
+    closeOverlay();
+    
+    showToast(t('toast.copied').replace('!', ' Language changed!'), '🌐');
+}
 
 // ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -144,15 +591,15 @@ async function apiRequest(method, path, body = null, signal = null) {
                 if (res.status === 401 || res.status === 403) {
                     localStorage.removeItem('token');
                     state.token = null;
-                    showToast('Сессия истекла', '❌');
+                    showToast(t('error.sessionExpired'), '❌');
                 }
             }
             return data;
         } catch (e) {
             if (e.name === 'AbortError') return null;
             console.error(`API ${path} fetch error:`, e);
-            showToast('Ошибка соединения', '❌');
-            return { success: false, message: 'Нет соединения' };
+            showToast(t('error.connection'), '❌');
+            return { success: false, message: t('error.connection') };
         } finally {
             setTimeout(() => pendingRequests.delete(key), 100);
         }
@@ -218,7 +665,7 @@ async function loadCreaturesFromServer() {
     const res = await apiRequest('GET', '/api/game/creatures');
     if (res && res.success && res.creatures) {
         CREATURES = res.creatures;
-        console.log(`✅ Загружено ${CREATURES.length} существ`);
+        console.log(`✅ Loaded ${CREATURES.length} creatures`);
         return true;
     }
     return false;
@@ -282,7 +729,7 @@ function handleVisibilityChange() {
                     updateHeader();
                 }
                 if (res.earned > 1) {
-                    showToast(`+${formatNum(res.earned)} MMO получено`, '💰');
+                    showToast(`+${formatNum(res.earned)} MMO ${t('common.mmo')}`, '💰');
                 }
             }
         }).catch(err => {
@@ -314,7 +761,7 @@ async function refreshUserProfile() {
         updateFriendRewardButtons();
         
         if (res.offlineEarned > 10) {
-            setTimeout(() => showToast(`+${formatNum(res.offlineEarned)} MMO offline!`, '💤'), 1000);
+            setTimeout(() => showToast(`+${formatNum(res.offlineEarned)} MMO ${t('common.mmo')}!`, '💤'), 1000);
         }
     }
 }
@@ -327,11 +774,8 @@ async function initTelegramApp() {
     
     if (tg) {
         tg.ready();
-        
-        // Expand - базовое расширение
         tg.expand();
         
-        // Новый API для fullscreen (если доступен)
         if (tg.requestFullscreen) {
             try {
                 await tg.requestFullscreen();
@@ -341,17 +785,10 @@ async function initTelegramApp() {
             }
         }
         
-        setTimeout(() => {
-            const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tg-safe-area-inset-top')) || 50;
-            document.querySelector('.header').style.paddingTop = (top + 35) + 'px';
-        }, 400);
-        
-        // Отключаем вертикальные свайпы (чтобы не схлопывалось)
         if (tg.disableVerticalSwipes) {
             tg.disableVerticalSwipes();
         }
         
-        // Повторный вызов expand для надежности
         setTimeout(() => {
             if (tg && typeof tg.expand === 'function') {
                 tg.expand();
@@ -375,18 +812,18 @@ async function initTelegramApp() {
     
     if (tg?.initDataUnsafe?.start_param) {
         referralCode = tg.initDataUnsafe.start_param;
-        console.log('📎 Реферальный код из start_param:', referralCode);
+        console.log('📎 Referral code from start_param:', referralCode);
     }
     
     const urlParams = new URLSearchParams(window.location.search);
     if (!referralCode && urlParams.get('startapp')) {
         referralCode = urlParams.get('startapp');
-        console.log('📎 Реферальный код из startapp URL:', referralCode);
+        console.log('📎 Referral code from startapp URL:', referralCode);
     }
     
     if (!referralCode && urlParams.get('ref')) {
         referralCode = urlParams.get('ref');
-        console.log('📎 Реферальный код из ref URL:', referralCode);
+        console.log('📎 Referral code from ref URL:', referralCode);
     }
 
     if (!initData && window.location.hostname === 'localhost') {
@@ -398,7 +835,7 @@ async function initTelegramApp() {
 
     if (!initData) {
         showLoadingScreen(false);
-        showToast('Открой игру через Telegram!', '⚠️');
+        showToast(t('error.unknown'), '⚠️');
         return;
     }
 
@@ -406,7 +843,7 @@ async function initTelegramApp() {
 
     if (!loginRes.success) {
         showLoadingScreen(false);
-        showToast(loginRes.message || 'Ошибка авторизации', '❌');
+        showToast(loginRes.message || t('error.unknown'), '❌');
         return;
     }
 
@@ -428,7 +865,7 @@ async function initTelegramApp() {
         updateServerSnapshot(state.user.balance, state.incomePerHour, profileRes.lastPassiveIncome);
 
         if (profileRes.offlineEarned > 10) {
-            setTimeout(() => showToast(`+${formatNum(profileRes.offlineEarned)} MMO offline!`, '💤'), 1000);
+            setTimeout(() => showToast(`+${formatNum(profileRes.offlineEarned)} MMO ${t('common.mmo'}!`, '💤'), 1000);
         }
     }
 
@@ -442,9 +879,9 @@ async function initTelegramApp() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (loginRes.isNewUser && referralCode) {
-        setTimeout(() => showToast('🎉 +250 MMO за реферальный код!', '🎁'), 800);
+        setTimeout(() => showToast('🎉 +250 MMO!', '🎁'), 800);
     } else if (loginRes.isNewUser) {
-        setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
+        setTimeout(() => showToast(t('inventory.empty'), '🧬'), 800);
     }
     
     if (state.user) {
@@ -473,7 +910,7 @@ function showLoadingScreen(show) {
         el.innerHTML = `
             <div style="font-size:48px;animation:float 1.5s ease-in-out infinite">🧬</div>
             <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:#a855f7">DNA MMO</div>
-            <div style="font-size:12px;color:#94a3b8">Loading...</div>
+            <div style="font-size:12px;color:#94a3b8">${t('marketplace.loading')}</div>
             <div style="width:120px;height:3px;background:#1e2d4a;border-radius:2px;overflow:hidden">
                 <div style="height:100%;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:2px;animation:loadBar 1.5s ease-in-out infinite"></div>
             </div>
@@ -545,6 +982,7 @@ function renderAll() {
     renderLeaderboard();
     renderSpecialQuests();
     updateFriendRewardButtons();
+    applyLocale();
 }
 
 function updateHeader() {
@@ -562,12 +1000,12 @@ function updateHeader() {
 
     const visualBalance = getVisualBalance();
     document.getElementById('balanceDisplay').textContent = formatBalance(visualBalance);
-    document.getElementById('incomeDisplay').textContent = `+${formatNum(state.incomePerHour)}/hr`;
+    document.getElementById('incomeDisplay').textContent = `+${formatNum(state.incomePerHour)}/${t('common.hour')}`;
 
     const needed = u.level * 100;
-    document.getElementById('xpLabel').textContent = `XP ${u.xp}/${needed}`;
+    document.getElementById('xpLabel').textContent = `${t('common.xp')} ${u.xp}/${needed}`;
     document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
-    document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
+    document.getElementById('playerLevelLabel').textContent = `${t('common.lvl')} ${u.level} · ${getLevelTitle(u.level)}`;
 
     document.getElementById('walletSub').textContent = `≈ ${(visualBalance * 0.001).toFixed(3)} USD`;
     document.getElementById('walletIncome').textContent = formatNum(state.incomePerHour);
@@ -580,7 +1018,7 @@ function updateHeader() {
 
     const friendCountDisplay = document.getElementById('friendCountDisplay');
     if (friendCountDisplay && state.user) {
-        friendCountDisplay.textContent = `${state.user.referralCount || 0} friends invited`;
+        friendCountDisplay.textContent = t('friends.friendsCount', { count: state.user.referralCount || 0 });
     }
 }
 
@@ -605,7 +1043,7 @@ function renderCards() {
     if (!grid) return;
 
     if (!state.inventory.length) {
-        grid.innerHTML = `<div class="empty-grid"><i class="fa-solid fa-dna"></i>Open a capsule to get your first creature!</div>`;
+        grid.innerHTML = `<div class="empty-grid"><i class="fa-solid fa-dna"></i>${t('inventory.empty')}</div>`;
         document.getElementById('inventorySlots').textContent = `0/${state.user?.inventorySlots || 10}`;
         document.getElementById('encyclopediaProgress').textContent = `${state.user?.discovered?.length || 0}/${CREATURES.length}`;
         return;
@@ -622,12 +1060,12 @@ function renderCards() {
         if (!c) return '';
         const merge = canMerge(item.creatureId);
         return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
-            ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
+            ${merge ? `<div class="merge-ready-badge">${t('merge.mergeNow').replace('NOW', '')}!</div>` : ''}
             ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
             <div class="card-icon">${c.icon}</div>
             <div class="card-name">${escapeHtml(c.name)}</div>
             <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
-            <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/hr</div>
+            <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/${t('common.hour')}</div>
         </div>`;
     }).join('');
 
@@ -643,7 +1081,7 @@ let lastCapsuleOpen = 0;
 function showCapsuleModal(type) {
     const odds = RARITY_WEIGHTS[type];
     const cost = CAPSULE_COSTS[type];
-    const title = type === 'premium' ? 'Premium DNA Capsule' : 'DNA Capsule';
+    const title = type === 'premium' ? t('capsule.premiumTitle') : t('capsule.basicTitle');
     const canAfford = state.serverBalance >= cost;
     const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
@@ -665,16 +1103,16 @@ function showCapsuleModal(type) {
         <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${type === 'premium' ? 'rgba(245,158,11,0.8)' : 'rgba(124,58,237,0.8)'})">${type === 'premium' ? '💎' : '🧬'}</span>
         <div class="popup-title">${title}</div>
         <div class="popup-subtitle" style="margin-bottom:16px">
-            Cost: <span style="color:${type === 'premium' ? '#f59e0b' : '#a855f7'};font-weight:700">${cost} MMO</span>
+            ${t('capsule.cost', { cost })}
         </div>
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:12px;padding:14px;margin-bottom:16px">
-            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Drop Rates</div>
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${t('capsule.dropRates')}</div>
             ${oddsHtml}
         </div>
         <button class="popup-btn" ${!canAfford ? 'disabled' : ''} 
             style="${!canAfford ? 'opacity:0.5;cursor:not-allowed;background:#1a2540' : type === 'premium' ? 'background:linear-gradient(135deg,#b45309,#f59e0b)' : ''}" 
             onclick="closeOverlay();openCapsule('${type}')">
-            <i class="fa-solid fa-flask-vial"></i> ${canAfford ? 'OPEN NOW' : 'NOT ENOUGH MMO'}
+            <i class="fa-solid fa-flask-vial"></i> ${canAfford ? t('capsule.openNow') : t('capsule.notEnough')}
         </button>
     `;
     document.getElementById('overlay').classList.add('show');
@@ -684,17 +1122,17 @@ async function openCapsule(type) {
     if (state.isLoading) return;
     
     if (Date.now() - lastCapsuleOpen < 2000) {
-        showToast('Слишком быстро! Подождите 2 секунды.', '⏳');
+        showToast(t('toast.tooFast', { seconds: 2 }), '⏳');
         return;
     }
     lastCapsuleOpen = Date.now();
 
     const cost = CAPSULE_COSTS[type];
     if (state.serverBalance < cost) {
-        showToast('Not enough MMO!', '❌'); return;
+        showToast(t('toast.notEnoughMMO'), '❌'); return;
     }
     if (getUsedSlots() >= (state.user?.inventorySlots || 10)) {
-        showToast('Inventory full! Upgrade storage', '📦'); return;
+        showToast(t('toast.inventoryFull'), '📦'); return;
     }
 
     state.isLoading = true;
@@ -708,7 +1146,7 @@ async function openCapsule(type) {
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Error opening capsule', '❌'); return;
+        showToast(res.message || t('toast.errorOpening'), '❌'); return;
     }
 
     state.user = res.user;
@@ -734,9 +1172,9 @@ function showCapsulePopup(creature) {
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
         <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/${t('common.hour')}</div></div>
         </div>
-        <button class="popup-btn" onclick="closeOverlay()">AWESOME!</button>
+        <button class="popup-btn" onclick="closeOverlay()">${t('popup.awesome')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
     spawnStars(c.rarity);
@@ -758,14 +1196,14 @@ function onCardClick(creatureId) {
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
         <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
-            <div class="popup-stat"><div class="popup-stat-val">${item ? item.count : 0}</div><div class="popup-stat-label">Owned</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/${t('common.hour')}</div></div>
+            <div class="popup-stat"><div class="popup-stat-val">${item ? item.count : 0}</div><div class="popup-stat-label">${t('popup.owned')}</div></div>
         </div>
         ${canMerge(creatureId)
             ? `<button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="closeOverlay();showMergePreview('${creatureId}')">
-                <i class="fa-solid fa-code-merge"></i> MERGE x3
+                <i class="fa-solid fa-code-merge"></i> ${t('merge.mergeNow')}
             </button>`
-            : `<button class="popup-btn" onclick="closeOverlay()">CLOSE</button>`
+            : `<button class="popup-btn" onclick="closeOverlay()">${t('popup.close')}</button>`
         }
     `;
     document.getElementById('overlay').classList.add('show');
@@ -779,7 +1217,7 @@ let lastMergeTime = 0;
 function showMergePreview(creatureId) {
     const creature = getCreature(creatureId);
     if (!creature) return;
-    if (creature.rarity === 'legendary') { showToast('Legendary is max!', '⭐'); return; }
+    if (creature.rarity === 'legendary') { showToast(t('toast.mergeFailed'), '⭐'); return; }
 
     const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
     const nextRarity = currentRarityIdx < RARITY_ORDER.length - 2 ? RARITY_ORDER[currentRarityIdx + 1] : creature.rarity;
@@ -788,50 +1226,50 @@ function showMergePreview(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title" style="margin-bottom:4px">Merge Preview</div>
+        <div class="popup-title" style="margin-bottom:4px">${t('merge.preview')}</div>
         <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">${creature.icon}</div>
-                    <div style="font-size:10px;color:#94a3b8">Input</div>
+                    <div style="font-size:10px;color:#94a3b8">${t('merge.input')}</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div>
                 </div>
                 <div style="color:#4a5568;font-size:18px">→</div>
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">?</div>
-                    <div style="font-size:10px;color:#94a3b8">Output</div>
+                    <div style="font-size:10px;color:#94a3b8">${t('merge.output')}</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">Unknown</div>
                 </div>
             </div>
             <div style="border-top:1px solid #1e2d4a;padding-top:14px">
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Possible Outcomes</div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">${t('merge.possibleOutcomes')}</div>
                 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${nextCreature.icon}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% Success</div>
+                            <div style="font-size:11px;font-weight:600;color:#22c55e">${t('merge.success')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ RANK UP</div>
+                        <div style="font-size:12px;font-weight:700;color:#22c55e">${t('merge.rankUp')}</div>
                     </div>
                 </div>
                 <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${creature.icon}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#f59e0b">70% Mutation</div>
+                            <div style="font-size:11px;font-weight:600;color:#f59e0b">${t('merge.mutation')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#f59e0b">= SAME</div>
+                        <div style="font-size:12px;font-weight:700;color:#f59e0b">${t('merge.same')}</div>
                     </div>
                 </div>
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px" onclick="closeOverlay();executeMerge('${creatureId}')">
-            <i class="fa-solid fa-code-merge"></i> MERGE NOW
+            <i class="fa-solid fa-code-merge"></i> ${t('merge.mergeNow')}
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">CANCEL</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">${t('merge.cancel')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -841,7 +1279,7 @@ async function executeMerge(creatureId) {
     if (!canMerge(creatureId)) return;
     
     if (Date.now() - lastMergeTime < 1000) {
-        showToast('Слишком быстро! Подождите.', '⏳');
+        showToast(t('toast.tooFast2'), '⏳');
         return;
     }
     lastMergeTime = Date.now();
@@ -851,7 +1289,7 @@ async function executeMerge(creatureId) {
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Merge failed', '❌'); return;
+        showToast(res.message || t('toast.mergeFailed'), '❌'); return;
     }
 
     state.user = res.user;
@@ -884,16 +1322,16 @@ function showMergeResultPopup(from, to, success) {
             <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;font-size:32px">${toC.icon}</div>
         </div>
         <div class="popup-title" style="color:${color}">${escapeHtml(toC.name)}</div>
-        <div class="popup-subtitle">${success ? '🎉 Evolution successful!' : '⚗️ Mutation complete!'}</div>
+        <div class="popup-subtitle">${success ? t('merge.evolutionSuccess') : t('merge.mutationComplete')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
-            ${toC.rarity.toUpperCase()} ${success ? '▲ UPGRADED' : ''}
+            ${toC.rarity.toUpperCase()} ${success ? t('merge.rankUp') : ''}
         </div>
         <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${toC.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${success ? '#22c55e' : '#94a3b8'}">${success ? '+RARITY' : '=RARITY'}</div><div class="popup-stat-label">Result</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${toC.incomeBase}</div><div class="popup-stat-label">MMO/${t('common.hour')}</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${success ? '#22c55e' : '#94a3b8'}">${success ? t('merge.successResult') : t('merge.sameResult')}</div><div class="popup-stat-label">Result</div></div>
         </div>
         <button class="popup-btn" onclick="closeOverlay()" style="${success ? 'background:linear-gradient(135deg,#16a34a,#22c55e)' : ''}">
-            ${success ? 'EVOLUTION!' : 'CONTINUE'}
+            ${success ? t('merge.evolution') : t('merge.continue')}
         </button>
     `;
     document.getElementById('overlay').classList.add('show');
@@ -908,7 +1346,7 @@ async function upgradeInventory() {
     
     const cost = getUpgradeCost();
     if (state.serverBalance < cost) {
-        showToast(`Need ${cost} MMO to upgrade!`, '❌'); return;
+        showToast(t('toast.needPrice', { price: cost }), '❌'); return;
     }
 
     state.isLoading = true;
@@ -916,14 +1354,14 @@ async function upgradeInventory() {
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Error', '❌'); return;
+        showToast(res.message || t('error.unknown'), '❌'); return;
     }
 
     state.user = res.user;
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
     renderCards();
-    showToast(`+1 slot! Now ${state.user.inventorySlots} total`, '📦');
+    showToast(t('toast.upgraded', { slots: state.user.inventorySlots }), '📦');
 }
 
 // ============================================================
@@ -933,7 +1371,7 @@ async function watchAd() {
     if (state.isLoading) return;
 
     if (state.adsCooldown > 0) {
-        showToast(`Ad available in ${state.adsCooldown}s`, '⏳'); return;
+        showToast(t('toast.tooFast', { seconds: state.adsCooldown }), '⏳'); return;
     }
 
     const btn = document.getElementById('adsBtn');
@@ -943,7 +1381,7 @@ async function watchAd() {
     if (timer) timer.textContent = '...';
     if (reward) reward.textContent = '';
 
-    showToast('Watching ad...', '📺');
+    showToast(t('toast.watchingAd'), '📺');
 
     await new Promise(r => setTimeout(r, 2000));
 
@@ -953,9 +1391,9 @@ async function watchAd() {
 
     if (!res.success) {
         if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-        if (timer) timer.textContent = 'Ready';
+        if (timer) timer.textContent = t('ads.ready');
         if (reward) reward.textContent = `+${AD_REWARD}`;
-        showToast(res.message || 'Error', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
 
@@ -964,7 +1402,7 @@ async function watchAd() {
     
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
-    showToast(`+${AD_REWARD} MMO from ad!`, '🎉');
+    showToast(t('toast.adReward', { amount: AD_REWARD }), '🎉');
     spawnFloatingMMO(AD_REWARD);
 }
 
@@ -981,11 +1419,11 @@ function updateAdsTimer() {
     if (state.adsCooldown > 0) {
         state.adsCooldown--;
         if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
-        if (timer) timer.textContent = `${state.adsCooldown}s`;
+        if (timer) timer.textContent = t('ads.wait', { seconds: state.adsCooldown });
         if (reward) reward.textContent = '';
     } else {
         if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-        if (timer) timer.textContent = 'Ready';
+        if (timer) timer.textContent = t('ads.ready');
         if (reward) reward.textContent = `+${AD_REWARD}`;
     }
 }
@@ -998,7 +1436,7 @@ function renderTransactions() {
     if (!list) return;
     const txs = state.user?.transactions || [];
     if (!txs.length) {
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">No transactions yet</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('transactions.none')}</div>`;
         return;
     }
     list.innerHTML = txs.slice(0, 10).map(tx => {
@@ -1007,7 +1445,7 @@ function renderTransactions() {
         const icon = isPos ? '⬆️' : isNeg ? '⬇️' : '🔀';
         const color = isPos ? 'rgba(34,197,94,0.15)' : isNeg ? 'rgba(239,68,68,0.15)' : 'rgba(124,58,237,0.15)';
         const timeAgo = Math.floor((Date.now() - new Date(tx.time).getTime()) / 60000);
-        const timeStr = timeAgo < 1 ? 'just now' : `${timeAgo}m ago`;
+        const timeStr = timeAgo < 1 ? t('transactions.justNow') : t('transactions.minAgo', { minutes: timeAgo });
         return `<div class="tx-item">
             <div class="tx-icon" style="background:${color}"><span style="font-size:16px">${icon}</span></div>
             <div class="tx-info">
@@ -1051,8 +1489,8 @@ function showEncyclopedia() {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title" style="margin-bottom:4px">Encyclopedia</div>
-        <div class="popup-subtitle">${found}/${total} creatures discovered</div>
+        <div class="popup-title" style="margin-bottom:4px">${t('encyclopedia.title')}</div>
+        <div class="popup-subtitle">${found}/${total} ${t('encyclopedia.discovered')}</div>
         <div style="height:6px;background:#1e2d4a;border-radius:3px;margin-bottom:16px;overflow:hidden">
             <div style="height:100%;width:${(found/total*100).toFixed(0)}%;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:3px;transition:width 0.5s"></div>
         </div>
@@ -1074,10 +1512,10 @@ function showCreatureInfo(creatureId) {
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
-            ${c.rarity.toUpperCase()} ${isFound ? '✓ DISCOVERED' : '🔒 UNDISCOVERED'}
+            ${c.rarity.toUpperCase()} ${isFound ? t('encyclopedia.discoveredYes') : t('encyclopedia.undiscovered')}
         </div>
         <div class="popup-stats">
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/${t('common.hour')}</div></div>
             <div class="popup-stat"><div class="popup-stat-val">${c.rarity === 'legendary' ? '★★★★★' : c.rarity === 'epic' ? '★★★★' : c.rarity === 'rare' ? '★★★' : c.rarity === 'uncommon' ? '★★' : '★'}</div><div class="popup-stat-label">Power</div></div>
         </div>
     `;
@@ -1117,11 +1555,11 @@ async function renderMarketplaceBuy() {
         return;
     }
     
-    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">Loading...</div>`;
+    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">${t('marketplace.loading')}</div>`;
 
     const res = await apiRequest('GET', '/api/marketplace/listings');
     if (!res || !res.success) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">Error loading listings</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">${t('marketplace.error')}</div>`;
         return;
     }
 
@@ -1148,7 +1586,7 @@ function renderMarketplaceListings(listings) {
     if (!container) return;
     
     if (!listings.length) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">No listings available</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">${t('marketplace.noListings')}</div>`;
         return;
     }
 
@@ -1168,8 +1606,8 @@ function renderMarketplaceListings(listings) {
             <div class="marketplace-listing-price">
                 <div class="marketplace-listing-amount">${l.price}</div>
                 ${isOwn
-                    ? `<button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">CANCEL</button>`
-                    : `<button class="marketplace-buy-btn" onclick="buyFromMarketplace('${l._id}', ${l.price}, '${l.creatureId}')">BUY</button>`
+                    ? `<button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">${t('marketplace.cancel')}</button>`
+                    : `<button class="marketplace-buy-btn" onclick="buyFromMarketplace('${l._id}', ${l.price}, '${l.creatureId}')">${t('marketplace.buyNow')}</button>`
                 }
             </div>
         </div>`;
@@ -1181,7 +1619,7 @@ function renderMarketplaceSell() {
     if (!cards) return;
 
     if (!state.inventory.length) {
-        cards.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">You have no creatures to sell</div>`;
+        cards.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">${t('marketplace.noCreatures')}</div>`;
         return;
     }
 
@@ -1192,7 +1630,7 @@ function renderMarketplaceSell() {
             <div class="marketplace-sell-card-icon">${c.icon}</div>
             <div class="marketplace-sell-card-name">${escapeHtml(c.name)}</div>
             <div style="font-size:9px;color:#4a5568">x${item.count}</div>
-            <div style="font-size:10px;color:#06b6d4;font-weight:600;margin-top:4px">SET PRICE</div>
+            <div style="font-size:10px;color:#06b6d4;font-weight:600;margin-top:4px">${t('marketplace.setPrice')}</div>
         </div>`;
     }).filter(Boolean).join('');
 }
@@ -1200,23 +1638,23 @@ function renderMarketplaceSell() {
 function openSellModal(creatureId, creatureName, count) {
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">Sell ${escapeHtml(creatureName)}</div>
-        <div class="popup-subtitle" style="margin-bottom:16px">Set your listing price</div>
+        <div class="popup-title">${t('marketplace.sell')} ${escapeHtml(creatureName)}</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">${t('marketplace.setPrice')}</div>
         <div class="price-input-modal">
             <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Price (MMO)</div>
-                <input type="number" class="price-input-field" id="sellPriceInput" placeholder="Enter price" min="10" max="100000" value="100" oninput="updateFeeCalculator()">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${t('marketplace.price')} (MMO)</div>
+                <input type="number" class="price-input-field" id="sellPriceInput" placeholder="${t('marketplace.price')}" min="10" max="100000" value="100" oninput="updateFeeCalculator()">
             </div>
             <div class="fee-calculator">
-                <div class="fee-row"><span class="fee-label">Your Price</span><span class="fee-value" id="priceDisplay">100</span></div>
-                <div class="fee-row" style="color:#ef4444"><span class="fee-label">Platform Fee (10%)</span><span class="fee-value fee" id="feeDisplay">-10</span></div>
-                <div class="fee-row total"><span>You Receive</span><span class="fee-value final" id="finalDisplay">90</span></div>
+                <div class="fee-row"><span class="fee-label">${t('marketplace.yourPrice')}</span><span class="fee-value" id="priceDisplay">100</span></div>
+                <div class="fee-row" style="color:#ef4444"><span class="fee-label">${t('marketplace.platformFee')}</span><span class="fee-value fee" id="feeDisplay">-10</span></div>
+                <div class="fee-row total"><span>${t('marketplace.youReceive')}</span><span class="fee-value final" id="finalDisplay">90</span></div>
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);margin-top:16px" onclick="confirmSellListing('${creatureId}')">
-            <i class="fa-solid fa-check"></i> LIST FOR SALE
+            <i class="fa-solid fa-check"></i> ${t('marketplace.listForSale')}
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">CANCEL</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">${t('marketplace.cancel')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
     updateFeeCalculator();
@@ -1236,20 +1674,20 @@ async function confirmSellListing(creatureId) {
     const input = document.getElementById('sellPriceInput');
     const price = Math.max(10, Math.min(100000, parseInt(input?.value) || 0));
 
-    if (price < 10) { showToast('Price must be at least 10 MMO', '❌'); return; }
+    if (price < 10) { showToast(t('toast.needPrice', { price: 10 }), '❌'); return; }
 
     state.isLoading = true;
     const res = await apiRequest('POST', '/api/marketplace/list', { creatureId, price });
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Error listing', '❌'); return;
+        showToast(res.message || t('toast.errorListing'), '❌'); return;
     }
 
     state.inventory = res.inventory;
     closeOverlay();
     const c = getCreature(creatureId);
-    showToast(`${c?.name || 'Creature'} listed for ${price} MMO!`, '✅');
+    showToast(t('toast.creatureListed', { name: c?.name, price }), '✅');
     renderCards();
     renderMarketplaceSell();
     marketplaceCache.expiresAt = 0;
@@ -1259,17 +1697,17 @@ async function confirmSellListing(creatureId) {
 async function renderMarketplaceMyListings() {
     const container = document.getElementById('marketplaceMyListings');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">Loading...</div>`;
+    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">${t('marketplace.loading')}</div>`;
 
     const res = await apiRequest('GET', '/api/marketplace/my-listings');
     if (!res || !res.success) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">Error</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">${t('marketplace.error')}</div>`;
         return;
     }
 
     const listings = Array.isArray(res.listings) ? res.listings : [];
     if (!listings.length) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">You have no active listings</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">${t('marketplace.noMyListings')}</div>`;
         return;
     }
 
@@ -1286,7 +1724,7 @@ async function renderMarketplaceMyListings() {
             </div>
             <div class="marketplace-my-listing-price">
                 <div class="marketplace-my-listing-amount">${l.price}</div>
-                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">CANCEL</button>
+                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">${t('marketplace.cancel')}</button>
             </div>
         </div>`;
     }).join('');
@@ -1298,20 +1736,20 @@ async function cancelMarketplaceListing(listingId) {
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Error', '❌'); return;
+        showToast(res.message || t('error.unknown'), '❌'); return;
     }
 
     state.inventory = res.inventory;
     renderCards();
     marketplaceCache.expiresAt = 0;
     renderMarketplaceMyListings();
-    showToast('Listing cancelled, card returned', '✅');
+    showToast(t('toast.listingCancelled'), '✅');
 }
 
 async function buyFromMarketplace(listingId, price, creatureId) {
     if (state.isLoading) return;
     if (state.serverBalance < price) {
-        showToast(`Need ${price} MMO`, '❌'); return;
+        showToast(t('toast.needPrice', { price }), '❌'); return;
     }
 
     state.isLoading = true;
@@ -1319,7 +1757,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
     state.isLoading = false;
 
     if (!res.success) {
-        showToast(res.message || 'Error buying', '❌'); return;
+        showToast(res.message || t('toast.errorBuying'), '❌'); return;
     }
 
     state.user = res.user;
@@ -1337,7 +1775,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
     renderCards();
     marketplaceCache.expiresAt = 0;
     renderMarketplaceBuy();
-    showToast(`Bought ${c?.name || 'creature'} for ${price} MMO!`, '✅');
+    showToast(t('toast.bought', { name: c?.name, price }), '✅');
     spawnFloatingMMO(-price);
 }
 
@@ -1349,7 +1787,7 @@ async function renderLeaderboard() {
     if (!list) return;
 
     if (!state.token) {
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Loading...</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('marketplace.loading')}</div>`;
         return;
     }
     
@@ -1366,7 +1804,7 @@ async function renderLeaderboard() {
     const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
     if (!res || !res.success) {
         if (res === null) return;
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Error loading leaderboard</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('marketplace.error')}</div>`;
         return;
     }
     
@@ -1393,12 +1831,12 @@ function renderLeaderboardData(data) {
             <div class="lb-rank ${rankClass}">${rankIcon}</div>
             <div class="lb-avatar" style="background:${color}33;border:1px solid ${color}44;color:${color}">${l.username[0]?.toUpperCase() || '?'}</div>
             <div class="lb-info">
-                <div class="lb-name">${escapeHtml(l.username)} ${l.isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
-                <div class="lb-level">LVL ${l.level} · ${getLevelTitle(l.level)}</div>
-                <div class="lb-xp" style="font-size:9px;color:#4a5568">XP: ${l.xp}/${l.level * 100}</div>
+                <div class="lb-name">${escapeHtml(l.username)} ${l.isMe ? `<span style="font-size:9px;color:#a855f7">${t('leaderboard.you')}</span>` : ''}</div>
+                <div class="lb-level">${t('leaderboard.lvl')} ${l.level} · ${getLevelTitle(l.level)}</div>
+                <div class="lb-xp" style="font-size:9px;color:#4a5568">${t('leaderboard.xp')}: ${l.xp}/${l.level * 100}</div>
             </div>
             <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
-                <span style="font-size:12px;font-weight:700;color:#f59e0b">LVL ${l.level}</span>
+                <span style="font-size:12px;font-weight:700;color:#f59e0b">${t('leaderboard.lvl')} ${l.level}</span>
                 <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} MMO</span>
             </div>
         </div>`;
@@ -1417,7 +1855,7 @@ async function inviteFriend() {
     } else {
         try {
             await navigator.clipboard.writeText(link);
-            showToast('Invite link copied!', '🔗');
+            showToast(t('toast.copied'), '🔗');
         } catch {
             showToast(link, '🔗');
         }
@@ -1435,7 +1873,7 @@ async function renderFriendsList() {
         const res = await apiRequest('GET', '/api/user/referrals');
         if (!res || !res.success) {
             container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">
-                <i class="fa-solid fa-circle-exclamation"></i> Error loading friends
+                <i class="fa-solid fa-circle-exclamation"></i> ${t('marketplace.error')}
             </div>`;
             return;
         }
@@ -1445,7 +1883,7 @@ async function renderFriendsList() {
         if (referrals.length === 0) {
             container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">
                 <i class="fa-solid fa-user-plus" style="font-size:24px;margin-bottom:10px;display:block"></i>
-                No friends yet<br>Invite friends to get rewards!
+                ${t('friends.noFriends').replace('\n', '<br>')}
             </div>`;
             return;
         }
@@ -1458,7 +1896,7 @@ async function renderFriendsList() {
                     <div style="width:40px;height:40px;background:linear-gradient(135deg,#1e2d4a,#0d1120);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid #a855f744">👤</div>
                     <div style="flex:1">
                         <div style="font-size:13px;font-weight:600;color:#e2e8f0">${escapeHtml(friend.username)}</div>
-                        <div style="font-size:10px;color:#4a5568">Joined ${formattedDate}</div>
+                        <div style="font-size:10px;color:#4a5568">${t('friends.joined')} ${formattedDate}</div>
                     </div>
                     <div style="font-size:12px;font-weight:700;color:#22c55e">${formatNum(friend.balance)} MMO</div>
                 </div>
@@ -1467,7 +1905,7 @@ async function renderFriendsList() {
         
     } catch (e) {
         console.error('renderFriendsList error:', e);
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Error loading friends</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('marketplace.error')}</div>`;
     }
 }
 
@@ -1508,7 +1946,7 @@ async function claimSpecialQuestSilent(questId) {
     state.isLoading = false;
     
     if (!res.success) {
-        console.log('Ошибка получения награды:', res.message);
+        console.log('Error claiming reward:', res.message);
         return;
     }
     
@@ -1523,7 +1961,7 @@ async function claimSpecialQuest(questId) {
     if (state.isLoading) return;
     
     if (state.user?.completedSpecialQuests?.includes(questId)) {
-        showToast('Вы уже получили награду за этот квест', 'ℹ️');
+        showToast(t('toast.alreadyClaimed'), 'ℹ️');
         return;
     }
     
@@ -1532,7 +1970,7 @@ async function claimSpecialQuest(questId) {
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
     
@@ -1558,7 +1996,7 @@ async function renderSpecialQuests() {
     if (!container) return;
 
     if (!SPECIAL_QUESTS.length) {
-        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 Нет активных спец-квестов</div>`;
+        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 ${t('specialQuests.noQuests')}</div>`;
         return;
     }
 
@@ -1569,7 +2007,7 @@ async function renderSpecialQuests() {
     );
     
     if (filteredQuests.length === 0) {
-        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 Скоро появятся новые квесты!</div>`;
+        container.innerHTML = `<div class="empty-grid" style="padding:40px;text-align:center">📢 ${t('specialQuests.comingSoon')}</div>`;
         return;
     }
     
@@ -1579,22 +2017,22 @@ async function renderSpecialQuests() {
         let actionHtml = '';
         
         if (isCompleted) {
-            actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ВЫПОЛНЕНО</button>`;
+            actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ${t('specialQuests.completed')}</button>`;
         } else {
             switch (quest.type) {
                 case 'telegram_channel':
-                    actionHtml = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')"><i class="fa-brands fa-telegram"></i> ПЕРЕЙТИ</button>`;
+                    actionHtml = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')"><i class="fa-brands fa-telegram"></i> ${t('specialQuests.go')}</button>`;
                     break;
                 case 'custom_link':
-                    actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> ПЕРЕЙТИ</button>`;
+                    actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> ${t('specialQuests.go')}</button>`;
                     break;
                 case 'referral_count':
                     const currentFriends = state.user?.referralCount || 0;
                     const required = quest.required_count || 1;
                     if (currentFriends >= required) {
-                        actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})</button>`;
+                        actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> ${t('specialQuests.claim')} (${currentFriends}/${required})</button>`;
                     } else {
-                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ (${currentFriends})</button>`;
+                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> ${t('specialQuests.locked', { required, current: currentFriends })}</button>`;
                     }
                     break;
             }
@@ -1628,25 +2066,25 @@ async function claimFriendReward(requiredFriends, creatureId, creatureName, crea
     const currentFriends = state.user?.referralCount || 0;
     
     if (currentFriends < requiredFriends) {
-        showToast(`Нужно ${requiredFriends} друзей (у вас ${currentFriends})`, '❌');
+        showToast(t('toast.needMore', { count: requiredFriends, current: currentFriends }), '❌');
         return;
     }
     
     const rewardKey = `friend_reward_${requiredFriends}`;
     if (state.user?.completedSpecialQuests?.includes(rewardKey)) {
-        showToast('Вы уже получили эту награду', 'ℹ️');
+        showToast(t('toast.alreadyClaimed'), 'ℹ️');
         return;
     }
     
     state.isLoading = true;
-    showToast('🔄 Получение награды...', '');
+    showToast('🔄 Getting reward...', '');
     
     const res = await apiRequest('POST', '/api/game/claim-friend-reward', { requiredFriends, creatureId });
     
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
     
@@ -1679,9 +2117,9 @@ function showFriendRewardPopup(creatureName, creatureIcon) {
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${creatureIcon || '🐺'}</span>
         <div class="popup-title" style="color:${color}">${escapeHtml(creatureName)}</div>
-        <div class="popup-subtitle">Получен за приглашение друзей!</div>
-        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">🎁 НАГРАДА</div>
-        <button class="popup-btn" onclick="closeOverlay()">ОТЛИЧНО!</button>
+        <div class="popup-subtitle">${t('friendReward.claim')}!</div>
+        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">🎁 REWARD</div>
+        <button class="popup-btn" onclick="closeOverlay()">${t('popup.awesome')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
     spawnStars('epic');
@@ -1705,14 +2143,14 @@ function updateFriendRewardButtons() {
         const alreadyClaimed = completedQuests.has(`friend_reward_${reward.friends}`);
         
         if (alreadyClaimed) {
-            btn.textContent = '✅ ПОЛУЧЕНО';
+            btn.textContent = `✅ ${t('friendReward.claimed')}`;
             btn.style.background = 'rgba(34,197,94,0.2)';
             btn.style.color = '#22c55e';
             btn.style.cursor = 'default';
             btn.disabled = true;
             if (card) card.style.opacity = '0.6';
         } else if (currentFriends >= reward.friends) {
-            btn.textContent = '🎁 ЗАБРАТЬ';
+            btn.textContent = `🎁 ${t('friendReward.claim')}`;
             btn.style.background = `linear-gradient(135deg, #f59e0b, #d97706)`;
             btn.style.color = '#fff';
             btn.style.cursor = 'pointer';
@@ -1720,7 +2158,7 @@ function updateFriendRewardButtons() {
             btn.onclick = () => claimFriendReward(reward.friends, reward.creatureId, reward.creatureName, reward.creatureIcon);
             if (card) card.style.borderColor = `var(--${reward.rarity})`;
         } else {
-            btn.textContent = `🔒 ${reward.friends} ДРУЗЕЙ`;
+            btn.textContent = `🔒 ${t('friendReward.locked', { friends: reward.friends })}`;
             btn.style.background = '#1a2540';
             btn.style.color = '#94a3b8';
             btn.style.cursor = 'not-allowed';
@@ -1732,9 +2170,8 @@ function updateFriendRewardButtons() {
 }
 
 // ============================================================
-// ДЕПОЗИТЫ И ВЫВОДЫ (ОБНОВЛЕННАЯ ВЕРСИЯ ДЛЯ TON)
+// ДЕПОЗИТЫ И ВЫВОДЫ
 // ============================================================
-
 const MIN_TRANSACTION_AMOUNT = 5000;
 const MAX_ACTIVE_REQUESTS = 2;
 
@@ -1745,24 +2182,24 @@ async function showDepositModal() {
     
     const activeCount = await checkActiveRequests();
     if (activeCount >= MAX_ACTIVE_REQUESTS) {
-        showToast(`У вас уже ${MAX_ACTIVE_REQUESTS} активных заявок. Дождитесь обработки.`, '⚠️');
+        showToast(t('wallet.activeRequests', { count: activeCount, max: MAX_ACTIVE_REQUESTS }), '⚠️');
         return;
     }
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">💎 Депозит TON</div>
-        <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
+        <div class="popup-title">💎 ${t('wallet.deposit')} TON</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">${t('wallet.minAmount', { min: MIN_TRANSACTION_AMOUNT.toLocaleString() })}</div>
         <div class="price-input-modal">
             <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Сумма (MMO)</div>
-                <input type="number" class="price-input-field" id="depositAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${t('wallet.depositAmount')}</div>
+                <input type="number" class="price-input-field" id="depositAmount" placeholder="${t('wallet.depositAmount')}" min="${MIN_TRANSACTION_AMOUNT}">
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:16px" onclick="createDepositRequest()">
-            <i class="fa-solid fa-arrow-down"></i> СОЗДАТЬ ЗАЯВКУ
+            <i class="fa-solid fa-arrow-down"></i> ${t('wallet.deposit')}
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">${t('marketplace.cancel')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -1772,7 +2209,7 @@ async function createDepositRequest() {
     const amount = parseInt(amountInput?.value);
     
     if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
-        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO`, '❌');
+        showToast(t('wallet.minAmount', { min: MIN_TRANSACTION_AMOUNT.toLocaleString() }), '❌');
         return;
     }
     
@@ -1781,62 +2218,61 @@ async function createDepositRequest() {
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка создания заявки', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
     
     currentDepositRequest = res.request;
     closeOverlay();
     
-    // Показываем окно с реквизитами для оплаты
     showPaymentDetails(currentDepositRequest);
 }
 
 function showPaymentDetails(request) {
-    const amountInTON = (request.amount / 1000).toFixed(2); // Примерный курс 1 MMO = 0.001 TON
+    const amountInTON = (request.amount / 1000).toFixed(2);
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">💎 Оплатите депозит</div>
-        <div class="popup-subtitle">Сумма к оплате: ${request.amount.toLocaleString()} MMO</div>
+        <div class="popup-title">💎 ${t('wallet.deposit')}</div>
+        <div class="popup-subtitle">${t('wallet.depositAmount')}: ${request.amount.toLocaleString()} MMO</div>
         
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:16px;padding:16px;margin-bottom:16px">
             <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💰 Сумма в TON (примерно)</div>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💰 TON Amount (approx)</div>
                 <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:#f59e0b">≈ ${amountInTON} TON</div>
             </div>
             
             <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🏦 Кошелек TON</div>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🏦 TON Wallet</div>
                 <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;word-break:break-all;border:1px solid #1e2d4a">
                     ${request.wallet}
                 </div>
                 <button onclick="copyToClipboard('${request.wallet}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
-                    <i class="fa-regular fa-copy"></i> Копировать кошелек
+                    <i class="fa-regular fa-copy"></i> ${t('wallet.copied')}
                 </button>
             </div>
             
             <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📝 Мемо (ОБЯЗАТЕЛЬНО!)</div>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📝 Memo (REQUIRED!)</div>
                 <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;border:1px solid #1e2d4a">
                     ${request.memo}
                 </div>
                 <button onclick="copyToClipboard('${request.memo}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
-                    <i class="fa-regular fa-copy"></i> Копировать мемо
+                    <i class="fa-regular fa-copy"></i> ${t('wallet.copied')}
                 </button>
             </div>
             
             <div style="font-size:10px;color:#ef4444;background:rgba(239,68,68,0.1);padding:8px;border-radius:8px;margin-top:8px">
-                ⚠️ <b>Важно!</b> Укажите мемо в комментарии к переводу, иначе платеж не будет зачислен!
+                ⚠️ <b>Important!</b> Include memo in transfer comment, otherwise payment won't be credited!
             </div>
         </div>
         
         <div style="display:flex;gap:10px">
             <button class="popup-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a)" onclick="confirmPayment('${request._id}')">
-                <i class="fa-solid fa-check"></i> Я ОПЛАТИЛ
+                <i class="fa-solid fa-check"></i> ${t('wallet.deposit')}
             </button>
             <button class="popup-btn" style="flex:1;background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">
-                <i class="fa-solid fa-times"></i> ОТМЕНИТЬ
+                <i class="fa-solid fa-times"></i> ${t('marketplace.cancel')}
             </button>
         </div>
     `;
@@ -1844,7 +2280,7 @@ function showPaymentDetails(request) {
 }
 
 async function confirmPayment(requestId) {
-    const txHash = prompt('Введите хэш транзакции (опционально, для проверки):');
+    const txHash = prompt('Enter transaction hash (optional):');
     
     state.isLoading = true;
     const res = await apiRequest('POST', '/api/wallet/confirm-payment', { 
@@ -1854,12 +2290,12 @@ async function confirmPayment(requestId) {
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
     
     closeOverlay();
-    showToast('Спасибо! Администратор проверит платеж и начислит средства.', '✅');
+    showToast(t('wallet.paymentConfirmed'), '✅');
     await checkActiveRequests();
 }
 
@@ -1868,28 +2304,28 @@ async function showWithdrawModal() {
     
     const activeCount = await checkActiveRequests();
     if (activeCount >= MAX_ACTIVE_REQUESTS) {
-        showToast(`У вас уже ${MAX_ACTIVE_REQUESTS} активных заявок. Дождитесь обработки.`, '⚠️');
+        showToast(t('wallet.activeRequests', { count: activeCount, max: MAX_ACTIVE_REQUESTS }), '⚠️');
         return;
     }
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">💸 Вывод средств</div>
-        <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
+        <div class="popup-title">💸 ${t('wallet.withdraw')}</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">${t('wallet.minAmount', { min: MIN_TRANSACTION_AMOUNT.toLocaleString() })}</div>
         <div class="price-input-modal">
             <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Сумма (MMO)</div>
-                <input type="number" class="price-input-field" id="withdrawAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${t('wallet.withdrawAmount')}</div>
+                <input type="number" class="price-input-field" id="withdrawAmount" placeholder="${t('wallet.withdrawAmount')}" min="${MIN_TRANSACTION_AMOUNT}">
             </div>
             <div>
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">TON Кошелек</div>
-                <input type="text" class="price-input-field" id="withdrawWallet" placeholder="Введите TON адрес кошелька">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${t('wallet.tonWallet')}</div>
+                <input type="text" class="price-input-field" id="withdrawWallet" placeholder="${t('wallet.tonWallet')}">
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-top:16px" onclick="createWithdrawRequest()">
-            <i class="fa-solid fa-arrow-up"></i> ОТПРАВИТЬ ЗАЯВКУ
+            <i class="fa-solid fa-arrow-up"></i> ${t('wallet.withdraw')}
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">${t('marketplace.cancel')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -1902,17 +2338,17 @@ async function createWithdrawRequest() {
     const wallet = walletInput?.value.trim();
     
     if (!amount || amount < MIN_TRANSACTION_AMOUNT) {
-        showToast(`Минимальная сумма ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO`, '❌');
+        showToast(t('wallet.minAmount', { min: MIN_TRANSACTION_AMOUNT.toLocaleString() }), '❌');
         return;
     }
     
     if (!wallet || wallet.length < 20) {
-        showToast('Введите корректный TON адрес кошелька (минимум 20 символов)', '❌');
+        showToast(t('wallet.validWallet'), '❌');
         return;
     }
     
     if (state.user?.balance < amount) {
-        showToast(`Недостаточно средств. Ваш баланс: ${state.user.balance.toLocaleString()} MMO`, '❌');
+        showToast(t('wallet.insufficientFunds', { balance: state.user.balance.toLocaleString() }), '❌');
         return;
     }
     
@@ -1921,12 +2357,12 @@ async function createWithdrawRequest() {
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка создания заявки', '❌');
+        showToast(res.message || t('error.unknown'), '❌');
         return;
     }
     
     closeOverlay();
-    showToast(`Заявка на вывод ${amount.toLocaleString()} MMO создана! Ожидайте подтверждения администратора.`, '✅');
+    showToast(t('wallet.requestCreated', { amount: amount.toLocaleString() }), '✅');
     
     await refreshUserProfile();
     await checkActiveRequests();
@@ -1945,12 +2381,12 @@ async function checkActiveRequests() {
                             <div style="display:flex;justify-content:space-between;align-items:center">
                                 <div>
                                     <div style="font-size:12px;font-weight:600;color:#f59e0b">
-                                        ${req.type === 'deposit' ? '📥 Депозит' : '📤 Вывод'}
+                                        ${req.type === 'deposit' ? '📥 Deposit' : '📤 Withdraw'}
                                     </div>
                                     <div style="font-size:11px;color:#94a3b8">${req.amount.toLocaleString()} MMO</div>
                                     <div style="font-size:9px;color:#4a5568">${new Date(req.createdAt).toLocaleString()}</div>
                                 </div>
-                                <div style="background:#f59e0b;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700">⏳ ОЖИДАНИЕ</div>
+                                <div style="background:#f59e0b;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700">⏳ ${t('wallet.pending')}</div>
                             </div>
                         </div>
                     `).join('');
@@ -1958,7 +2394,7 @@ async function checkActiveRequests() {
                     pendingDiv.innerHTML = `
                         <div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:12px;padding:10px;margin-top:10px">
                             <div style="font-size:11px;font-weight:600;color:#f59e0b;margin-bottom:8px">
-                                <i class="fa-solid fa-clock"></i> Активных заявок: ${count}/${MAX_ACTIVE_REQUESTS}
+                                <i class="fa-solid fa-clock"></i> ${t('wallet.activeRequests', { count, max: MAX_ACTIVE_REQUESTS })}
                             </div>
                             ${requestsHtml}
                         </div>
@@ -1977,9 +2413,9 @@ async function checkActiveRequests() {
 
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        showToast('Скопировано!', '📋');
+        showToast(t('wallet.copied'), '📋');
     }).catch(() => {
-        showToast('Не удалось скопировать', '❌');
+        showToast(t('error.unknown'), '❌');
     });
 }
 
@@ -2017,10 +2453,10 @@ function closeOverlay(e) {
 // TOAST
 // ============================================================
 function showToast(msg, icon = '') {
-    const t = document.getElementById('toast');
-    t.textContent = (icon ? icon + ' ' : '') + msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
+    const tEl = document.getElementById('toast');
+    tEl.textContent = (icon ? icon + ' ' : '') + msg;
+    tEl.classList.add('show');
+    setTimeout(() => tEl.classList.remove('show'), 2500);
 }
 
 // ============================================================
@@ -2058,4 +2494,25 @@ function spawnFloatingMMO(amount) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramApp();
+    
+    // Инициализация переключателя языка
+    const langBtns = document.querySelectorAll('.lang-btn');
+    langBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const lang = btn.getAttribute('data-lang');
+            setLanguage(lang);
+        });
+    });
+    
+    // Установка активного языка при загрузке
+    setTimeout(() => {
+        const activeLangBtn = document.querySelector(`.lang-btn[data-lang="${currentLocale}"]`);
+        if (activeLangBtn) {
+            activeLangBtn.classList.add('active');
+        } else {
+            document.querySelector('.lang-btn[data-lang="ru"]')?.classList.add('active');
+        }
+        applyLocale();
+    }, 500);
 });

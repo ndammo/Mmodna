@@ -1860,3 +1860,66 @@ body {
     color: var(--uncommon);
     font-size: 10px;
 }
+/* ============================================
+   LANGUAGE SWITCHER STYLES
+   ============================================ */
+
+.lang-switcher {
+    display: flex;
+    gap: 4px;
+    background: rgba(13, 17, 32, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 3px;
+    margin-right: 8px;
+}
+
+.lang-btn {
+    background: transparent;
+    border: none;
+    border-radius: 30px;
+    padding: 4px 10px;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text3);
+    text-transform: uppercase;
+}
+
+.lang-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    color: #fff;
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.lang-btn:active {
+    transform: scale(0.95);
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 420px) {
+    .lang-btn {
+        padding: 3px 6px;
+        font-size: 9px;
+    }
+    
+    .lang-switcher {
+        margin-right: 6px;
+    }
+}
+
+@media (max-width: 360px) {
+    .lang-btn {
+        padding: 2px 5px;
+        font-size: 8px;
+    }
+    
+    .lang-switcher {
+        gap: 2px;
+        margin-right: 4px;
+    }
+}
