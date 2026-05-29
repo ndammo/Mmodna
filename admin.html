@@ -621,22 +621,11 @@
     let totalUsers = 0;
     let suspiciousEvents = [];
 
-    // ============================================================
-    // ESCAPE HTML
-    // ============================================================
     function escapeHtml(str) {
         if (!str) return '';
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    // ============================================================
-    // API REQUEST (с токеном сессии)
-    // ============================================================
     async function apiRequest(path, method = 'GET', body = null) {
         const opts = {
             method,
@@ -668,9 +657,6 @@
         }
     }
 
-    // ============================================================
-    // TOAST
-    // ============================================================
     function showToast(msg, type = 'success') {
         const toast = document.createElement('div');
         toast.className = 'toast ' + (type === 'error' ? 'error' : '');
@@ -679,11 +665,7 @@
         setTimeout(() => toast.remove(), 2500);
     }
 
-    // ============================================================
-    // LOGIN MODAL
-    // ============================================================
     function showLoginModal() {
-        // Закрываем старую модалку если есть
         const oldModal = document.getElementById('loginModal');
         if (oldModal) oldModal.remove();
         
@@ -730,7 +712,6 @@
                 adminToken = data.token;
                 localStorage.setItem('admin_session_token', adminToken);
                 document.getElementById('loginModal')?.remove();
-                await loadCurrentUser();
                 loadDashboard();
                 loadSuspiciousEvents();
                 startLiveMetrics();
@@ -756,16 +737,6 @@
         showToast('Вы вышли из системы', 'success');
     };
 
-    async function loadCurrentUser() {
-        const res = await apiRequest('/api/user/profile');
-        if (res?.success) {
-            currentUser = res.user;
-        }
-    }
-
-    // ============================================================
-    // UTILS
-    // ============================================================
     function formatNum(n) {
         if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n/1000).toFixed(1) + 'K';
@@ -776,18 +747,11 @@
         document.querySelectorAll('.modal').forEach(m => m.remove());
     };
 
-    window.showUserSearch = function() {
-        document.querySelector('[data-tab="users"]').click();
-    };
-
     function exportCSV() { showToast('Экспорт CSV (реализуется на бэке)'); }
     function showJsonState() { showToast('JSON state готов к просмотру'); }
     function importState() { showToast('Импорт state (выберите файл)'); }
     function refreshAllData() { loadDashboard(); if(document.querySelector('[data-tab="users"].active')) loadUsers(); if(document.querySelector('[data-tab="creatures"].active')) loadCreatures(); showToast('Все данные обновлены'); }
 
-    // ============================================================
-    // LIVE METRICS & ALERTS
-    // ============================================================
     function startLiveMetrics() {
         setInterval(() => {
             const reqSpan = document.getElementById('reqCount');
@@ -832,9 +796,6 @@
         showToast('История очищена');
     }
 
-    // ============================================================
-    // NAVIGATION
-    // ============================================================
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -848,9 +809,6 @@
         });
     });
 
-    // ============================================================
-    // DASHBOARD
-    // ============================================================
     async function loadDashboard() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
@@ -885,9 +843,7 @@
 
     async function refreshCache() {
         const res = await apiRequest('/api/admin/refresh-cache', 'POST');
-        if (res?.success) {
-            showToast('Кэш обновлён');
-        }
+        if (res?.success) showToast('Кэш обновлён');
     }
 
     function loadAlertsTab() {
@@ -912,9 +868,6 @@
         `;
     }
 
-    // ============================================================
-    // USERS
-    // ============================================================
     async function loadUsers(page = 1) {
         currentPage = page;
         const main = document.getElementById('mainContent');
@@ -934,9 +887,7 @@
             </div>
             <div class="data-table">
                 <table>
-                    <thead>
-                        <tr><th>Telegram ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th></th></tr>
-                    </thead>
+                    <thead><tr><th>Telegram ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th></th></tr></thead>
                     <tbody>
                         ${res.users.map(u => `
                             <tr>
@@ -966,19 +917,7 @@
     };
 
     window.showUserLogs = async function(userId, userName) {
-        let logs = [];
-        try {
-            const res = await apiRequest(`/api/admin/users/${userId}/logs`);
-            if (res && res.logs) logs = res.logs;
-            else logs = [
-                { timestamp: new Date().toISOString(), action: 'Вход в систему', details: 'IP: admin' },
-                { timestamp: new Date(Date.now() - 3600000).toISOString(), action: 'Открытие капсулы', details: 'Получено существо' },
-                { timestamp: new Date(Date.now() - 86400000).toISOString(), action: 'Выполнен квест', details: 'Награда 100 MMO' }
-            ];
-        } catch(e) {
-            logs = [{ timestamp: new Date().toISOString(), action: 'Логи готовы к интеграции', details: 'API эндпоинт /api/admin/users/:id/logs' }];
-        }
-        
+        let logs = [{ timestamp: new Date().toISOString(), action: 'Логи готовы к интеграции', details: 'API эндпоинт /api/admin/users/:id/logs' }];
         const modalHtml = `
             <div class="modal" id="logsModal">
                 <div class="modal-content">
@@ -986,9 +925,7 @@
                     <div style="max-height: 400px; overflow-y: auto;">
                         ${logs.map(l => `<div class="log-entry">[${new Date(l.timestamp).toLocaleString()}] <span style="color:#a855f7;">${escapeHtml(l.action)}</span> ${l.details ? `→ ${escapeHtml(l.details)}` : ''}</div>`).join('') || '<div>Нет записей</div>'}
                     </div>
-                    <div class="modal-buttons">
-                        <button onclick="closeModal()">Закрыть</button>
-                    </div>
+                    <div class="modal-buttons"><button onclick="closeModal()">Закрыть</button></div>
                 </div>
             </div>
         `;
@@ -1017,24 +954,232 @@
                         <div><strong>Последний вход:</strong> ${new Date(u.lastLogin).toLocaleDateString()}</div>
                         <div><strong>Статус:</strong> ${u.isBanned ? '🔴 Забанен' : '🟢 Активен'}</div>
                     </div>
-                    
                     <h4>📦 Инвентарь</h4>
-                    <div class="inventory-list">
-                        ${inv.map(i => `<div class="inventory-item">${escapeHtml(i.icon)} ${escapeHtml(i.name)} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}
-                    </div>
-                    
+                    <div class="inventory-list">${inv.map(i => `<div class="inventory-item">${escapeHtml(i.icon)} ${escapeHtml(i.name)} x${i.count} (${i.incomeBase}/hr)</div>`).join('') || 'Пусто'}</div>
                     <h4>👥 Рефералы (${referrals.length})</h4>
-                    <div class="inventory-list">
-                        ${referrals.map(r => `<div class="inventory-item">${escapeHtml(r.username || r.firstName || 'Аноним')} — ${formatNum(r.balance)} MMO</div>`).join('') || 'Нет рефералов'}
-                    </div>
-                    
-                    <h4>✅ Выполненные спец-квесты</h4>
-                    <div class="inventory-list">
-                        ${(u.completedSpecialQuests || []).map(q => `<div class="inventory-item">🎯 ${escapeHtml(q)}</div>`).join('') || 'Нет выполненных'}
-                    </div>
-                    
+                    <div class="inventory-list">${referrals.map(r => `<div class="inventory-item">${escapeHtml(r.username || r.firstName || 'Аноним')} — ${formatNum(r.balance)} MMO</div>`).join('') || 'Нет рефералов'}</div>
                     <h4>🚨 Антифрод</h4>
-                    <div class="form-group">
-                  </script>
+                    <div class="form-group"><label>Отметить подозрительное действие</label><div style="display:flex;gap:8px;"><input type="text" id="fraudReason" placeholder="Причина" style="flex:2"><button onclick="reportSuspicious('${userId}', '${escapeHtml(u.username || u.firstName)}')" class="danger">🚨 Отметить</button></div></div>
+                    <h4>⚙️ Действия</h4>
+                    <div class="form-group"><label>Изменить баланс</label><div style="display:flex;gap:8px;"><input type="number" id="balanceAmount" placeholder="Сумма" style="flex:1"><button onclick="changeBalance('${userId}')">Применить</button></div></div>
+                    <div class="form-group"><label>Выдать существо</label><div style="display:flex;gap:8px;flex-wrap:wrap;"><select id="giveCreatureId" style="flex:2"><option value="">Выберите...</option>${creaturesList.map(c => `<option value="${c.id}">${escapeHtml(c.icon)} ${escapeHtml(c.name)} (${c.rarity})</option>`).join('')}</select><input type="number" id="giveCount" placeholder="Кол-во" style="width:80px;"><button onclick="giveItem('${userId}')">Выдать</button></div></div>
+                    <div class="form-group"><label>Удалить существо</label><div style="display:flex;gap:8px;"><select id="removeCreatureId" style="flex:2"><option value="">Выберите...</option>${creaturesList.map(c => `<option value="${c.id}">${escapeHtml(c.icon)} ${escapeHtml(c.name)}</option>`).join('')}</select><input type="number" id="removeCount" placeholder="Кол-во" style="width:80px;"><button onclick="removeItem('${userId}')" class="danger">Удалить</button></div></div>
+                    <div class="modal-buttons">
+                        <button onclick="toggleBan('${userId}', ${!u.isBanned})" class="warning">${u.isBanned ? 'Разбанить' : 'Забанить'}</button>
+                        <button onclick="resetProgress('${userId}')" class="danger">Сброс прогресса</button>
+                        <button onclick="closeModal()">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.changeBalance = async function(userId) {
+        const amount = parseInt(document.getElementById('balanceAmount')?.value);
+        if (isNaN(amount)) { showToast('Введите сумму', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/balance`, 'PUT', { amount, reason: 'Админ' });
+        if (res?.success) { showToast(`Баланс изменён на ${amount > 0 ? '+' : ''}${amount}`); closeModal(); loadUsers(currentPage); }
+    };
+
+    window.giveItem = async function(userId) {
+        const creatureId = document.getElementById('giveCreatureId')?.value;
+        const count = parseInt(document.getElementById('giveCount')?.value || 1);
+        if (!creatureId) { showToast('Выберите существо', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/give-item`, 'POST', { creatureId, count });
+        if (res?.success) { showToast(`Выдано ${count} существ`); closeModal(); loadUsers(currentPage); }
+    };
+
+    window.removeItem = async function(userId) {
+        const creatureId = document.getElementById('removeCreatureId')?.value;
+        const count = parseInt(document.getElementById('removeCount')?.value || 1);
+        if (!creatureId) { showToast('Выберите существо', 'error'); return; }
+        const res = await apiRequest(`/api/admin/users/${userId}/item`, 'DELETE', { creatureId, count });
+        if (res?.success) { showToast(`Удалено ${count} существ`); closeModal(); loadUsers(currentPage); }
+    };
+
+    window.toggleBan = async function(userId, ban) {
+        const reason = ban ? prompt('Причина бана:') : '';
+        const res = await apiRequest(`/api/admin/users/${userId}/ban`, 'PUT', { isBanned: ban, reason });
+        if (res?.success) { showToast(ban ? 'Пользователь забанен' : 'Пользователь разбанен'); closeModal(); loadUsers(currentPage); }
+    };
+
+    window.resetProgress = async function(userId) {
+        if (!confirm('Сбросить прогресс пользователя? Это действие необратимо!')) return;
+        const res = await apiRequest(`/api/admin/users/${userId}/reset`, 'POST');
+        if (res?.success) { showToast('Прогресс сброшен'); closeModal(); loadUsers(currentPage); }
+    };
+
+    async function loadCreatures() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        const res = await apiRequest('/api/admin/creatures');
+        if (!res || !res.creatures) { main.innerHTML = '<div class="spinner">Ошибка загрузки существ</div>'; return; }
+        creaturesList = res.creatures;
+        const html = `<div style="margin-bottom:16px;"><button onclick="showAddCreatureModal()"><i class="fas fa-plus"></i> Добавить существо</button></div>
+            <div class="data-table"><table><thead><tr><th>Иконка</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr></thead>
+            <tbody>${res.creatures.map(c => `<tr><td style="font-size:24px;">${escapeHtml(c.icon)}</td><td><small>${escapeHtml(c.id)}</small></td><td>${escapeHtml(c.name)}</td><td class="rarity-${c.rarity}">${c.rarity}</td><td>${c.incomeBase}/hr</td><td>${c.isActive ? '✅' : '❌'}</td><td><button onclick="editCreature('${c.id}')">✏️</button> <button onclick="deleteCreature('${c.id}')" class="danger">🗑️</button></td></tr>`).join('')}</tbody></table></div>`;
+        main.innerHTML = html;
+    }
+
+    window.showAddCreatureModal = function() {
+        const modalHtml = `<div class="modal" id="creatureModal"><div class="modal-content"><h3>➕ Добавить существо</h3>
+            <div class="form-group"><label>ID</label><input type="text" id="cId" placeholder="уникальный"></div>
+            <div class="form-group"><label>Название</label><input type="text" id="cName"></div>
+            <div class="form-group"><label>Редкость</label><select id="cRarity"><option value="common">Common</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option><option value="mythic">Mythic</option></select></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="🧬" maxlength="2"></div>
+            <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
+            <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
+            <div class="modal-buttons"><button onclick="createCreature()">Создать</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.createCreature = async function() {
+        const data = { id: document.getElementById('cId').value, name: document.getElementById('cName').value, rarity: document.getElementById('cRarity').value, icon: document.getElementById('cIcon').value, incomeBase: parseInt(document.getElementById('cIncome').value), desc: document.getElementById('cDesc').value };
+        if (!data.id || !data.name || !data.incomeBase) { showToast('Заполните все поля', 'error'); return; }
+        const res = await apiRequest('/api/admin/creatures', 'POST', data);
+        if (res?.success) { showToast('Существо создано'); closeModal(); loadCreatures(); }
+    };
+
+    window.editCreature = async function(creatureId) {
+        const creature = creaturesList.find(c => c.id === creatureId);
+        if (!creature) return;
+        const modalHtml = `<div class="modal" id="creatureModal"><div class="modal-content"><h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
+            <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
+            <div class="form-group"><label>Редкость</label><select id="cRarity">${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}" maxlength="2"></div>
+            <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
+            <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
+            <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
+            <div class="modal-buttons"><button onclick="updateCreature('${creatureId}')">Сохранить</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.updateCreature = async function(creatureId) {
+        const data = { name: document.getElementById('cName').value, rarity: document.getElementById('cRarity').value, icon: document.getElementById('cIcon').value, incomeBase: parseInt(document.getElementById('cIncome').value), desc: document.getElementById('cDesc').value, isActive: document.getElementById('cActive').checked };
+        const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'PUT', data);
+        if (res?.success) { showToast('Существо обновлено'); closeModal(); loadCreatures(); }
+    };
+
+    window.deleteCreature = async function(creatureId) {
+        if (!confirm('Удалить существо? (нельзя удалить, если есть у игроков)')) return;
+        const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'DELETE');
+        if (res?.success) { showToast('Существо удалено'); loadCreatures(); }
+    };
+
+    async function loadSpecialQuests() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        const res = await apiRequest('/api/admin/special-quests');
+        if (!res) return;
+        const quests = res.specialQuests || [];
+        const html = `<div style="margin-bottom:16px;"><button onclick="showAddSpecialQuestModal()" class="success"><i class="fas fa-plus"></i> Добавить спец-квест</button></div>
+            ${quests.length === 0 ? '<div class="user-card" style="text-align:center">Нет спец-квестов. Создайте первый!</div>' : ''}
+            ${quests.map(q => `<div class="quest-card"><div class="quest-header"><div class="quest-icon">${escapeHtml(q.icon || '🎯')}</div><div class="quest-info"><div class="quest-title">${escapeHtml(q.title)}</div><div class="quest-desc">${escapeHtml(q.description || '')}</div></div><div class="${q.isActive ? 'badge-active' : 'badge-inactive'}">${q.isActive ? 'Активен' : 'Отключён'}</div></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12px;margin-bottom:12px;"><div><span style="color:#94a3b8">ID:</span> ${escapeHtml(q.id)}</div><div><span style="color:#94a3b8">Тип:</span> ${escapeHtml(q.type)}</div><div><span style="color:#94a3b8">Награда:</span> ${q.reward} MMO</div>${q.link ? `<div><span style="color:#94a3b8">Ссылка:</span> <small>${escapeHtml(q.link.substring(0, 30))}</small></div>` : ''}${q.required_count > 1 ? `<div><span style="color:#94a3b8">Требуется:</span> ${q.required_count}</div>` : ''}</div>
+            <div class="quest-actions"><button onclick="editSpecialQuest('${q.id}')" class="secondary"><i class="fas fa-edit"></i> Редактировать</button><button onclick="deleteSpecialQuest('${q.id}')" class="danger"><i class="fas fa-trash"></i> Удалить</button></div></div>`).join('')}`;
+        main.innerHTML = html;
+    }
+
+    window.showAddSpecialQuestModal = function() {
+        const modalHtml = `<div class="modal" id="specialQuestModal"><div class="modal-content"><h3>✨ Добавить спец-квест</h3>
+            <div class="form-group"><label>ID</label><input type="text" id="sqId" placeholder="уникальный"></div>
+            <div class="form-group"><label>Название</label><input type="text" id="sqTitle"></div>
+            <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2"></textarea></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="📢" maxlength="2"></div>
+            <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="100"></div>
+            <div class="form-group"><label>Тип</label><select id="sqType"><option value="telegram_channel">Telegram канал</option><option value="custom_link">Переход по ссылке</option><option value="referral_count">Привести друзей</option></select></div>
+            <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
+            <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="1"></div>
+            <div class="form-group"><label><input type="checkbox" id="sqIsActive" checked> Активен</label></div>
+            <div class="modal-buttons"><button onclick="createSpecialQuest()" class="success">Создать</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.createSpecialQuest = async function() {
+        const data = { id: document.getElementById('sqId').value, title: document.getElementById('sqTitle').value, description: document.getElementById('sqDesc').value, icon: document.getElementById('sqIcon').value, reward: parseInt(document.getElementById('sqReward').value), type: document.getElementById('sqType').value, link: document.getElementById('sqLink').value, required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1, isActive: document.getElementById('sqIsActive').checked };
+        if (!data.id || !data.title || !data.reward) { showToast('Заполните ID, название и награду', 'error'); return; }
+        const res = await apiRequest('/api/admin/special-quests', 'POST', data);
+        if (res?.success) { showToast('Спец-квест создан'); closeModal(); loadSpecialQuests(); }
+    };
+
+    window.editSpecialQuest = async function(questId) {
+        const res = await apiRequest('/api/admin/special-quests');
+        if (!res) return;
+        const quest = res.specialQuests.find(q => q.id === questId);
+        if (!quest) return;
+        const modalHtml = `<div class="modal" id="specialQuestModal"><div class="modal-content"><h3>✏️ Редактировать: ${escapeHtml(quest.title)}</h3>
+            <div class="form-group"><label>Название</label><input type="text" id="sqTitle" value="${escapeHtml(quest.title)}"></div>
+            <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2">${escapeHtml(quest.description || '')}</textarea></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${escapeHtml(quest.icon || '🎯')}" maxlength="2"></div>
+            <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="${quest.reward}"></div>
+            <div class="form-group"><label>Тип</label><select id="sqType"><option value="telegram_channel" ${quest.type === 'telegram_channel' ? 'selected' : ''}>Telegram канал</option><option value="custom_link" ${quest.type === 'custom_link' ? 'selected' : ''}>Переход по ссылке</option><option value="referral_count" ${quest.type === 'referral_count' ? 'selected' : ''}>Привести друзей</option></select></div>
+            <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" value="${escapeHtml(quest.link || '')}"></div>
+            <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="${quest.required_count || 1}"></div>
+            <div class="form-group"><label><input type="checkbox" id="sqIsActive" ${quest.isActive ? 'checked' : ''}> Активен</label></div>
+            <div class="modal-buttons"><button onclick="updateSpecialQuest('${quest.id}')" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.updateSpecialQuest = async function(questId) {
+        const data = { title: document.getElementById('sqTitle').value, description: document.getElementById('sqDesc').value, icon: document.getElementById('sqIcon').value, reward: parseInt(document.getElementById('sqReward').value), type: document.getElementById('sqType').value, link: document.getElementById('sqLink').value, required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1, isActive: document.getElementById('sqIsActive').checked };
+        const res = await apiRequest(`/api/admin/special-quests/${questId}`, 'PUT', data);
+        if (res?.success) { showToast('Спец-квест обновлён'); closeModal(); loadSpecialQuests(); }
+    };
+
+    window.deleteSpecialQuest = async function(questId) {
+        if (!confirm('Удалить спец-квест?')) return;
+        const res = await apiRequest(`/api/admin/special-quests/${questId}`, 'DELETE');
+        if (res?.success) { showToast('Спец-квест удалён'); loadSpecialQuests(); }
+    };
+
+    async function loadSuspiciousEvents() {
+        const res = await apiRequest('/api/admin/suspicious-events');
+        if (res && res.events) suspiciousEvents = res.events;
+        else suspiciousEvents = [{ id: '1', userId: 'user123', userName: 'Alice', reason: 'Слишком быстрый фарм капсул', timestamp: new Date().toISOString(), status: 'open' }];
+    }
+
+    window.reportSuspicious = async function(userId, userName) {
+        const reason = document.getElementById('fraudReason')?.value;
+        if (!reason) { showToast('Укажите причину', 'error'); return; }
+        const res = await apiRequest('/api/admin/suspicious-events', 'POST', { userId, userName, reason });
+        if (res?.success) { showToast('Подозрительное действие зафиксировано'); closeModal(); }
+        else { suspiciousEvents.unshift({ id: Date.now(), userId, userName, reason, timestamp: new Date().toISOString(), status: 'open' }); showToast('Отметка добавлена локально'); closeModal(); }
+    };
+
+    window.showGiveAllCoins = function() {
+        const amount = prompt('Введите количество MMO для выдачи всем игрокам:', '100');
+        if (!amount) return;
+        giveToAll('coins', parseInt(amount));
+    };
+
+    window.showGiveAllCreature = async function() {
+        const creatureId = prompt('Введите ID существа (например: duck_c):', 'duck_c');
+        if (!creatureId) return;
+        giveToAll('creature', null, creatureId);
+    };
+
+    async function giveToAll(type, amount, creatureId) {
+        const res = await apiRequest('/api/admin/give-to-all', 'POST', { type, amount, creatureId });
+        if (res?.success) showToast(res.message);
+    }
+
+    if (!adminToken) {
+        showLoginModal();
+    } else {
+        (async function checkAuth() {
+            const res = await apiRequest('/api/admin/stats');
+            if (!res) {
+                adminToken = null;
+                localStorage.removeItem('admin_session_token');
+                showLoginModal();
+            } else {
+                loadDashboard();
+                loadSuspiciousEvents();
+                startLiveMetrics();
+            }
+        })();
+    }
+</script>
 </body>
 </html>
