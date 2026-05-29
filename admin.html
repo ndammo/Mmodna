@@ -138,6 +138,10 @@
         .metric-value.zero {
             color: #22c55e;
         }
+        
+        .metric-value.error {
+            color: #ef4444;
+        }
 
         .alerts-panel {
             background: #0d1120;
@@ -166,22 +170,21 @@
         }
 
         .live-badge {
-            background: #ef4444;
+            background: #22c55e;
             color: white;
             font-size: 10px;
             padding: 2px 8px;
             border-radius: 20px;
-            animation: pulse 1.5s infinite;
         }
 
         .alerts-list {
             padding: 12px;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
         }
 
         .alert-item {
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-radius: 8px;
             margin-bottom: 8px;
             font-size: 12px;
@@ -192,7 +195,7 @@
             border-left: 3px solid;
         }
 
-        .alert-item.error { border-left-color: #ef4444; }
+        .alert-item.error { border-left-color: #ef4444; background: rgba(239,68,68,0.1); }
         .alert-item.warning { border-left-color: #f59e0b; }
         .alert-item.info { border-left-color: #3b82f6; }
 
@@ -581,19 +584,18 @@
 </div>
 
 <div class="metrics-bar">
-    <div class="metric-item"><span class="metric-label">Requests (window)</span><span class="metric-value" id="reqCount">515</span></div>
+    <div class="metric-item"><span class="metric-label">Requests (min)</span><span class="metric-value" id="reqCount">0</span></div>
     <div class="metric-item"><span class="metric-label">5xx error-rate</span><span class="metric-value zero" id="errorRate">0.000%</span></div>
-    <div class="metric-item"><span class="metric-label">Rel queue</span><span class="metric-value zero" id="relQueue">0</span></div>
-    <div class="metric-item"><span class="metric-label">XP queue</span><span class="metric-value zero" id="xpQueue">0</span></div>
+    <div class="metric-item"><span class="metric-label">Uptime</span><span class="metric-value" id="uptime">0</span><span style="font-size:12px">сек</span></div>
 </div>
 
 <div class="alerts-panel">
     <div class="alerts-header">
-        <h3><i class="fas fa-bell"></i> Операционные алерты (live) <span class="live-badge">LIVE</span></h3>
-        <span style="font-size: 11px; color: #94a3b8;">Смотри здесь текущие проблемы API, latency и очередей</span>
+        <h3><i class="fas fa-bell"></i> Реальные ошибки сервера (5xx) <span class="live-badge">LIVE</span></h3>
+        <button onclick="clearErrors()" class="secondary">Очистить ошибки</button>
     </div>
     <div class="alerts-list" id="alertsList">
-        <div class="alert-item info"><span>✅ Система работает стабильно</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>
+        <div class="alert-item info"><span>✅ Нет ошибок 5xx. Сервер работает стабильно</span></div>
     </div>
 </div>
 
@@ -620,6 +622,7 @@
     let currentPage = 1;
     let totalUsers = 0;
     let suspiciousEvents = [];
+    let metricsInterval = null;
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -645,6 +648,7 @@
                     adminToken = null;
                     showToast('Сессия истекла, войдите снова', 'error');
                     showLoginModal();
+                    if (metricsInterval) clearInterval(metricsInterval);
                 }
                 throw new Error(data.message || 'Ошибка');
             }
@@ -714,7 +718,7 @@
                 document.getElementById('loginModal')?.remove();
                 loadDashboard();
                 loadSuspiciousEvents();
-                startLiveMetrics();
+                startRealMetrics();
                 showToast('Добро пожаловать в админ-панель!', 'success');
             } else {
                 showToast(data.message || 'Ошибка входа', 'error');
@@ -733,8 +737,75 @@
         }
         localStorage.removeItem('admin_session_token');
         adminToken = null;
+        if (metricsInterval) clearInterval(metricsInterval);
         showLoginModal();
         showToast('Вы вышли из системы', 'success');
+    };
+
+    // ============================================================
+    // REAL METRICS (КАЖДЫЕ 10 СЕКУНД)
+    // ============================================================
+    async function fetchRealMetrics() {
+        const res = await apiRequest('/api/admin/metrics');
+        if (res && res.success) {
+            const reqSpan = document.getElementById('reqCount');
+            const errSpan = document.getElementById('errorRate');
+            const uptimeSpan = document.getElementById('uptime');
+            
+            if (reqSpan) reqSpan.innerText = res.requestsLastMinute || 0;
+            if (uptimeSpan) {
+                const hours = Math.floor(res.uptime / 3600);
+                const minutes = Math.floor((res.uptime % 3600) / 60);
+                const seconds = res.uptime % 60;
+                uptimeSpan.innerText = `${hours}ч ${minutes}м ${seconds}с`;
+            }
+            
+            if (errSpan) {
+                const errorRate = res.errorRate5xx || 0;
+                errSpan.innerText = errorRate.toFixed(3) + '%';
+                if (errorRate > 1) {
+                    errSpan.classList.add('error');
+                    errSpan.classList.remove('zero');
+                } else if (errorRate > 0) {
+                    errSpan.classList.remove('error', 'zero');
+                } else {
+                    errSpan.classList.add('zero');
+                    errSpan.classList.remove('error');
+                }
+            }
+            
+            // Обновляем алерты с реальными ошибками
+            const alertsDiv = document.getElementById('alertsList');
+            if (alertsDiv && res.recentErrors && res.recentErrors.length > 0) {
+                alertsDiv.innerHTML = res.recentErrors.map(err => `
+                    <div class="alert-item error">
+                        <span>🔴 <strong>${err.status}</strong> ${err.method} ${err.path}<br>
+                        <small style="color:#94a3b8">${new Date(err.timestamp).toLocaleString()}</small><br>
+                        <small>${err.message || 'Ошибка сервера'}</small></span>
+                        <button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button>
+                    </div>
+                `).join('');
+                if (res.recentErrors.length === 0) {
+                    alertsDiv.innerHTML = '<div class="alert-item info"><span>✅ Нет ошибок 5xx. Сервер работает стабильно</span></div>';
+                }
+            } else if (alertsDiv) {
+                alertsDiv.innerHTML = '<div class="alert-item info"><span>✅ Нет ошибок 5xx. Сервер работает стабильно</span></div>';
+            }
+        }
+    }
+
+    function startRealMetrics() {
+        if (metricsInterval) clearInterval(metricsInterval);
+        fetchRealMetrics(); // Сразу загружаем
+        metricsInterval = setInterval(fetchRealMetrics, 10000); // Каждые 10 секунд
+    }
+
+    window.clearErrors = async function() {
+        const res = await apiRequest('/api/admin/metrics/errors', 'DELETE');
+        if (res?.success) {
+            showToast('Ошибки очищены');
+            fetchRealMetrics();
+        }
     };
 
     function formatNum(n) {
@@ -751,41 +822,6 @@
     function showJsonState() { showToast('JSON state готов к просмотру'); }
     function importState() { showToast('Импорт state (выберите файл)'); }
     function refreshAllData() { loadDashboard(); if(document.querySelector('[data-tab="users"].active')) loadUsers(); if(document.querySelector('[data-tab="creatures"].active')) loadCreatures(); showToast('Все данные обновлены'); }
-
-    function startLiveMetrics() {
-    // Обновление счётчика запросов
-    setInterval(() => {
-        const reqSpan = document.getElementById('reqCount');
-        if (reqSpan) {
-            let val = parseInt(reqSpan.innerText) || 515;
-            val = Math.max(0, val + Math.floor(Math.random() * 10) - 3);
-            reqSpan.innerText = val;
-        }
-        const errSpan = document.getElementById('errorRate');
-        if (errSpan) {
-            let err = parseFloat(errSpan.innerText) || 0;
-            err = Math.max(0, Math.min(0.5, err + (Math.random() - 0.5) * 0.05));
-            errSpan.innerText = err.toFixed(3) + '%';
-            if (err > 0.1) errSpan.style.color = '#ef4444';
-            else errSpan.style.color = '#22c55e';
-        }
-    }, 5000);
-}
-
-    function simulateTestAlert() {
-        document.getElementById('alertsList').insertAdjacentHTML('afterbegin', '<div class="alert-item error"><span>🔴 Тестовый критический алерт</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>');
-        showToast('Тестовый алерт создан');
-    }
-
-    function fixAllIssues() {
-        document.getElementById('alertsList').innerHTML = '<div class="alert-item info"><span>✅ Все системы работают штатно</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>';
-        showToast('Все проблемы исправлены');
-    }
-
-    function clearAllAlerts() {
-        document.getElementById('alertsList').innerHTML = '<div class="alert-item info"><span>✅ Нет активных алертов</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>';
-        showToast('История очищена');
-    }
 
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -842,18 +878,11 @@
         main.innerHTML = `
             <div class="alerts-panel" style="margin: 0 0 20px 0">
                 <div class="alerts-header">
-                    <h3><i class="fas fa-history"></i> История алертов</h3>
-                    <button onclick="clearAllAlerts()" class="secondary">Очистить все</button>
+                    <h3><i class="fas fa-history"></i> История ошибок</h3>
+                    <button onclick="clearErrors()" class="secondary">Очистить все</button>
                 </div>
                 <div class="alerts-list" id="historyAlertsList">
-                    ${document.getElementById('alertsList')?.innerHTML || '<div>Нет алертов</div>'}
-                </div>
-            </div>
-            <div class="user-card">
-                <h3>🛠 Управление алертами</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
-                    <button onclick="simulateTestAlert()" class="warning">Создать тестовый алерт</button>
-                    <button onclick="fixAllIssues()" class="success">Фикс всех проблем</button>
+                    ${document.getElementById('alertsList')?.innerHTML || '<div>Нет ошибок</div>'}
                 </div>
             </div>
         `;
@@ -1155,6 +1184,7 @@
         if (res?.success) showToast(res.message);
     }
 
+    // INIT
     if (!adminToken) {
         showLoginModal();
     } else {
@@ -1167,7 +1197,7 @@
             } else {
                 loadDashboard();
                 loadSuspiciousEvents();
-                startLiveMetrics();
+                startRealMetrics();
             }
         })();
     }
