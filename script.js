@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + ЛИМИТ РЕКЛАМЫ 10/ДЕНЬ)
 // ============================================================
 
 // ============================================================
@@ -449,6 +449,9 @@ async function initTelegramApp() {
     }
     
     setTimeout(() => checkActiveRequests(), 1000);
+    
+    // Получаем статус рекламы
+    updateAdsStatus();
 }
 
 // ============================================================
@@ -925,6 +928,31 @@ async function upgradeInventory() {
 // ============================================================
 // ADS
 // ============================================================
+async function updateAdsStatus() {
+    try {
+        const res = await apiRequest('GET', '/api/game/ads-status');
+        if (res && res.success) {
+            const adsRemainingEl = document.getElementById('adsRemaining');
+            if (adsRemainingEl) {
+                adsRemainingEl.textContent = `${res.adsRemaining}/${res.maxAdsPerDay}`;
+            }
+            if (res.adsRemaining === 0) {
+                const adsBtn = document.getElementById('adsBtn');
+                if (adsBtn) {
+                    adsBtn.style.opacity = '0.5';
+                    adsBtn.disabled = true;
+                }
+            }
+            if (res.cooldownSeconds > 0 && res.cooldownSeconds < 100) {
+                const timerEl = document.getElementById('adsTimer');
+                if (timerEl) timerEl.textContent = `${res.cooldownSeconds}s`;
+            }
+        }
+    } catch (e) {
+        console.error('updateAdsStatus error:', e);
+    }
+}
+
 async function watchAd() {
     if (state.isLoading) return;
 
@@ -959,16 +987,36 @@ async function watchAd() {
         const res = await apiRequest('POST', '/api/game/watch-ad');
 
         if (!res.success) {
+            if (res.dailyLimitReached) {
+                showToast(res.message, '⚠️');
+                if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
+                if (timer) timer.textContent = 'Limit';
+                state.isLoading = false;
+                return;
+            }
             throw new Error(res.message || 'Failed');
         }
 
         state.user = res.user;
         state.adsCooldown = AD_COOLDOWN;
         
+        const adsRemainingEl = document.getElementById('adsRemaining');
+        if (adsRemainingEl && res.adsRemaining !== undefined) {
+            adsRemainingEl.textContent = `${res.adsRemaining}/${res.maxAdsPerDay}`;
+        }
+        
         updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
         updateHeader();
-        showToast(`+${AD_REWARD} MMO!`, '🎉');
+        showToast(`+${AD_REWARD} MMO! (${res.adsToday}/${res.maxAdsPerDay} today)`, '🎉');
         spawnFloatingMMO(AD_REWARD);
+        
+        if (res.adsRemaining === 0) {
+            if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
+            if (timer) timer.textContent = 'Limit';
+        } else {
+            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+            if (timer) timer.textContent = 'Ready';
+        }
         
     } catch (e) {
         console.error('Ad error:', e);
@@ -981,9 +1029,6 @@ async function watchAd() {
         return;
     }
 
-    if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-    if (timer) timer.textContent = 'Ready';
-    if (reward) reward.textContent = `+${AD_REWARD}`;
     state.isLoading = false;
 }
 
@@ -2095,3 +2140,4 @@ window.showToast = showToast;
 window.state = state;
 window.formatNum = formatNum;
 window.getVisualBalance = getVisualBalance;
+window.updateAdsStatus = updateAdsStatus;
