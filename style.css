@@ -1445,3 +1445,57 @@ body::after {
     pointer-events: none;
     z-index: 1000;
 }
+/* ============================================
+   CARD IMAGES
+   ============================================ */
+
+/* Картинки существ в карточках */
+.card-icon-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    transition: transform 0.2s;
+}
+
+.creature-card:hover .card-icon-img {
+    transform: scale(1.1);
+}
+
+/* Для мифических существ */
+.creature-card.mythic .card-icon-img {
+    filter: drop-shadow(0 0 8px rgba(239,68,68,0.8));
+    animation: mythicPulse 2s ease-in-out infinite;
+}
+
+.creature-card.legendary .card-icon-img {
+    filter: drop-shadow(0 0 8px rgba(245,158,11,0.8));
+}
+
+/* Для попапов */
+.popup-icon img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Для энциклопедии */
+.coll-item img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+/* Для слияния */
+.merge-card-mini img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.merge-card-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
