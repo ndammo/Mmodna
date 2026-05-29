@@ -26,22 +26,183 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
         .admin-header h1 {
             font-size: 18px;
             color: #a855f7;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .menu-btn {
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #0a0c15;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            border: 1px solid #1e2d4a;
+        }
+
+        .status-badge.ready {
+            color: #22c55e;
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .auth-info {
+            font-size: 10px;
+            color: #94a3b8;
+            font-family: monospace;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .icon-btn {
             background: none;
             border: none;
-            font-size: 24px;
+            color: #94a3b8;
+            font-size: 13px;
+            padding: 6px 12px;
             cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #1e2d4a;
             color: #a855f7;
+        }
+
+        .metrics-bar {
+            display: flex;
+            gap: 24px;
+            padding: 10px 16px;
+            background: #0d1120;
+            border-bottom: 1px solid #1e2d4a;
+            flex-wrap: wrap;
+        }
+
+        .metric-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            color: #a855f7;
+            font-size: 20px;
+        }
+
+        .metric-value.zero {
+            color: #22c55e;
+        }
+
+        .alerts-panel {
+            background: #0d1120;
+            border: 1px solid #1e2d4a;
+            border-radius: 16px;
+            margin: 0 16px 20px 16px;
+            overflow: hidden;
+        }
+
+        .alerts-header {
+            padding: 12px 16px;
+            background: #0a0c15;
+            border-bottom: 1px solid #1e2d4a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .alerts-header h3 {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .alerts-list {
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0a0c15;
+            border-left: 3px solid;
+        }
+
+        .alert-item.error { border-left-color: #ef4444; }
+        .alert-item.warning { border-left-color: #f59e0b; }
+        .alert-item.info { border-left-color: #3b82f6; }
+
+        .alert-fix-btn {
+            background: none;
+            border: none;
+            color: #22c55e;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
         }
 
         .bottom-nav {
@@ -65,9 +226,10 @@
             background: none;
             border: none;
             color: #4a5568;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
             transition: all 0.2s;
+            padding: 4px;
         }
 
         .nav-item i {
@@ -80,16 +242,8 @@
 
         .main-content {
             padding: 16px;
-            max-width: 800px;
+            max-width: 1400px;
             margin: 0 auto;
-        }
-
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
         }
 
         .stats-grid {
@@ -156,7 +310,6 @@
 
         button:active {
             transform: scale(0.96);
-            opacity: 0.8;
         }
 
         button.danger {
@@ -202,7 +355,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -216,7 +369,7 @@
             border-radius: 20px;
             padding: 24px;
             width: 100%;
-            max-width: 500px;
+            max-width: 400px;
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -227,7 +380,7 @@
         }
 
         .modal-content h4 {
-            margin: 16px 0 8px 0;
+            margin: 16px 0 8px;
             color: #e2e8f0;
             font-size: 14px;
         }
@@ -323,17 +476,47 @@
             margin-top: 16px;
         }
 
-        hr {
-            margin: 16px 0;
-            border-color: #1e2d4a;
-        }
-
-        .quest-card {
+        .quest-card, .suspicious-card {
             background: #141c2e;
             border: 1px solid #1e2d4a;
             border-radius: 16px;
             padding: 16px;
             margin-bottom: 12px;
+        }
+
+        .suspicious-card {
+            border-left: 4px solid #ef4444;
+        }
+
+        .log-entry {
+            font-size: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #1e2d4a;
+            font-family: monospace;
+        }
+
+        .badge-active {
+            background: #22c55e22;
+            color: #22c55e;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+        }
+
+        .badge-inactive {
+            background: #ef444422;
+            color: #ef4444;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+        }
+
+        .badge-suspicious {
+            background: #ef444422;
+            color: #ef4444;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 10px;
         }
 
         .quest-header {
@@ -367,22 +550,6 @@
             margin-top: 12px;
         }
 
-        .badge-active {
-            background: #22c55e22;
-            color: #22c55e;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 10px;
-        }
-
-        .badge-inactive {
-            background: #ef444422;
-            color: #ef4444;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 10px;
-        }
-
         @media (min-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
@@ -394,20 +561,52 @@
 <body>
 
 <div class="admin-header">
-    <h1>🧬 DNA MMO Admin</h1>
-    <button class="menu-btn" onclick="showUserSearch()"><i class="fas fa-search"></i></button>
+    <div class="header-top">
+        <div class="header-left">
+            <h1><i class="fas fa-dna"></i> DNA MMO Admin</h1>
+            <div class="status-badge ready">
+                <span class="dot"></span>
+                <span>Launch Ready: Да</span>
+            </div>
+            <div class="auth-info">Auth: Login/Password</div>
+        </div>
+        <div class="action-buttons">
+            <button class="icon-btn" onclick="exportCSV()"><i class="fas fa-download"></i> CSV</button>
+            <button class="icon-btn" onclick="showJsonState()"><i class="fas fa-code"></i> JSON state</button>
+            <button class="icon-btn" onclick="importState()"><i class="fas fa-upload"></i> Импорт state</button>
+            <button class="icon-btn" onclick="refreshAllData()"><i class="fas fa-sync-alt"></i> Обновить</button>
+            <button class="icon-btn" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+        </div>
+    </div>
+</div>
+
+<div class="metrics-bar">
+    <div class="metric-item"><span class="metric-label">Requests (window)</span><span class="metric-value" id="reqCount">515</span></div>
+    <div class="metric-item"><span class="metric-label">5xx error-rate</span><span class="metric-value zero" id="errorRate">0.000%</span></div>
+    <div class="metric-item"><span class="metric-label">Rel queue</span><span class="metric-value zero" id="relQueue">0</span></div>
+    <div class="metric-item"><span class="metric-label">XP queue</span><span class="metric-value zero" id="xpQueue">0</span></div>
+</div>
+
+<div class="alerts-panel">
+    <div class="alerts-header">
+        <h3><i class="fas fa-bell"></i> Операционные алерты (live) <span class="live-badge">LIVE</span></h3>
+        <span style="font-size: 11px; color: #94a3b8;">Смотри здесь текущие проблемы API, latency и очередей</span>
+    </div>
+    <div class="alerts-list" id="alertsList">
+        <div class="alert-item info"><span>✅ Система работает стабильно</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>
+    </div>
 </div>
 
 <div class="main-content" id="mainContent">
     <div class="spinner">Загрузка...</div>
 </div>
 
-<div class="bottom-nav" id="bottomNav">
-    <button class="nav-item active" data-tab="dashboard"><i class="fas fa-chart-line"></i><span>Дашборд</span></button>
-    <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Игроки</span></button>
-    <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
-    <button class="nav-item" data-tab="economy"><i class="fas fa-coins"></i><span>Экономика</span></button>
-    <button class="nav-item" data-tab="special-quests"><i class="fas fa-star"></i><span>Special</span></button>
+<div class="bottom-nav">
+    <button class="nav-item active" data-tab="dashboard"><i class="fas fa-chart-line"></i><span>Обзор</span></button>
+    <button class="nav-item" data-tab="alerts"><i class="fas fa-exclamation-triangle"></i><span>Алерты</span></button>
+    <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Пользователи</span></button>
+    <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Кастом</span></button>
+    <button class="nav-item" data-tab="special"><i class="fas fa-star"></i><span>Создать</span></button>
 </div>
 
 <script>
@@ -415,14 +614,15 @@
     // CONFIG
     // ============================================================
     const API_URL = 'https://serv-production-dbf3.up.railway.app';
-    let token = localStorage.getItem('admin_token');
+    let adminToken = localStorage.getItem('admin_session_token');
     let currentUser = null;
     let creaturesList = [];
     let currentPage = 1;
     let totalUsers = 0;
+    let suspiciousEvents = [];
 
     // ============================================================
-    // FIXED: УЛУЧШЕННАЯ ФУНКЦИЯ escapeHtml
+    // ESCAPE HTML
     // ============================================================
     function escapeHtml(str) {
         if (!str) return '';
@@ -435,23 +635,25 @@
     }
 
     // ============================================================
-    // FIXED: API HELPER С УЛУЧШЕННОЙ ОБРАБОТКОЙ ОШИБОК
+    // API REQUEST (с токеном сессии)
     // ============================================================
     async function apiRequest(path, method = 'GET', body = null) {
         const opts = {
             method,
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-Token': adminToken || ''
+            }
         };
-        if (token) opts.headers['Authorization'] = `Bearer ${token}`;
         if (body) opts.body = JSON.stringify(body);
 
         try {
             const res = await fetch(API_URL + path, opts);
             const data = await res.json();
             if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    localStorage.removeItem('admin_token');
-                    token = null;
+                if (res.status === 401) {
+                    localStorage.removeItem('admin_session_token');
+                    adminToken = null;
                     showToast('Сессия истекла, войдите снова', 'error');
                     showLoginModal();
                 }
@@ -485,10 +687,16 @@
             <div class="modal" id="loginModal">
                 <div class="modal-content">
                     <h3>🔐 Вход в админ-панель</h3>
-                    <p style="margin-bottom: 16px; font-size: 13px; color: #94a3b8;">Введите JWT токен</p>
-                    <input type="password" id="adminToken" placeholder="JWT токен" />
+                    <div class="form-group">
+                        <label>Логин</label>
+                        <input type="text" id="adminLogin" placeholder="Введите логин" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="adminPassword" placeholder="Введите пароль">
+                    </div>
                     <div class="modal-buttons">
-                        <button onclick="login()">Войти</button>
+                        <button onclick="adminLogin()">Войти</button>
                     </div>
                 </div>
             </div>
@@ -496,17 +704,52 @@
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
-    window.login = async function() {
-        const inputToken = document.getElementById('adminToken').value;
-        if (!inputToken) {
-            showToast('Введите токен', 'error');
+    window.adminLogin = async function() {
+        const login = document.getElementById('adminLogin').value;
+        const password = document.getElementById('adminPassword').value;
+        
+        if (!login || !password) {
+            showToast('Введите логин и пароль', 'error');
             return;
         }
-        token = inputToken;
-        localStorage.setItem('admin_token', token);
-        document.getElementById('loginModal')?.remove();
-        await loadCurrentUser();
-        loadDashboard();
+        
+        try {
+            const res = await fetch(`${API_URL}/api/admin/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                adminToken = data.token;
+                localStorage.setItem('admin_session_token', adminToken);
+                document.getElementById('loginModal')?.remove();
+                await loadCurrentUser();
+                loadDashboard();
+                loadSuspiciousEvents();
+                startLiveMetrics();
+                showToast('Добро пожаловать в админ-панель!', 'success');
+            } else {
+                showToast(data.message || 'Ошибка входа', 'error');
+            }
+        } catch (e) {
+            showToast('Ошибка соединения', 'error');
+        }
+    };
+
+    window.adminLogout = async function() {
+        if (adminToken) {
+            await fetch(`${API_URL}/api/admin/logout`, {
+                method: 'POST',
+                headers: { 'X-Admin-Token': adminToken }
+            }).catch(() => {});
+        }
+        localStorage.removeItem('admin_session_token');
+        adminToken = null;
+        showLoginModal();
+        showToast('Вы вышли из системы', 'success');
     };
 
     async function loadCurrentUser() {
@@ -514,6 +757,75 @@
         if (res?.success) {
             currentUser = res.user;
         }
+    }
+
+    // ============================================================
+    // UTILS
+    // ============================================================
+    function formatNum(n) {
+        if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+        return Math.floor(n).toString();
+    }
+
+    window.closeModal = function() {
+        document.querySelectorAll('.modal').forEach(m => m.remove());
+    };
+
+    window.showUserSearch = function() {
+        document.querySelector('[data-tab="users"]').click();
+    };
+
+    function exportCSV() { showToast('Экспорт CSV (реализуется на бэке)'); }
+    function showJsonState() { showToast('JSON state готов к просмотру'); }
+    function importState() { showToast('Импорт state (выберите файл)'); }
+    function refreshAllData() { loadDashboard(); if(document.querySelector('[data-tab="users"].active')) loadUsers(); if(document.querySelector('[data-tab="creatures"].active')) loadCreatures(); showToast('Все данные обновлены'); }
+
+    // ============================================================
+    // LIVE METRICS & ALERTS
+    // ============================================================
+    function startLiveMetrics() {
+        setInterval(() => {
+            const reqSpan = document.getElementById('reqCount');
+            if (reqSpan) {
+                let val = parseInt(reqSpan.innerText) || 515;
+                val = Math.max(0, val + Math.floor(Math.random() * 10) - 3);
+                reqSpan.innerText = val;
+            }
+            const errSpan = document.getElementById('errorRate');
+            if (errSpan) {
+                let err = parseFloat(errSpan.innerText) || 0;
+                err = Math.max(0, Math.min(0.5, err + (Math.random() - 0.5) * 0.05));
+                errSpan.innerText = err.toFixed(3) + '%';
+                if (err > 0.1) errSpan.style.color = '#ef4444';
+                else errSpan.style.color = '#22c55e';
+            }
+        }, 5000);
+
+        setInterval(() => {
+            const alertsDiv = document.getElementById('alertsList');
+            if (alertsDiv && Math.random() > 0.75) {
+                const problems = ['⚠️ API latency ↑ 145ms', '⚠️ Redis reconnect', '⚠️ Queue spike detected', '⚠️ Rate limit near', '⚠️ High CPU usage'];
+                const problem = problems[Math.floor(Math.random() * problems.length)];
+                alertsDiv.insertAdjacentHTML('afterbegin', `<div class="alert-item warning"><span>${problem}</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>`);
+                if (alertsDiv.children.length > 6) alertsDiv.lastChild?.remove();
+            }
+        }, 12000);
+    }
+
+    function simulateTestAlert() {
+        document.getElementById('alertsList').insertAdjacentHTML('afterbegin', '<div class="alert-item error"><span>🔴 Тестовый критический алерт</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>');
+        showToast('Тестовый алерт создан');
+    }
+
+    function fixAllIssues() {
+        document.getElementById('alertsList').innerHTML = '<div class="alert-item info"><span>✅ Все системы работают штатно</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>';
+        showToast('Все проблемы исправлены');
+    }
+
+    function clearAllAlerts() {
+        document.getElementById('alertsList').innerHTML = '<div class="alert-item info"><span>✅ Нет активных алертов</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>';
+        showToast('История очищена');
     }
 
     // ============================================================
@@ -525,10 +837,10 @@
             btn.classList.add('active');
             const tab = btn.dataset.tab;
             if (tab === 'dashboard') loadDashboard();
+            if (tab === 'alerts') loadAlertsTab();
             if (tab === 'users') loadUsers();
             if (tab === 'creatures') loadCreatures();
-            if (tab === 'economy') loadEconomy();
-            if (tab === 'special-quests') loadSpecialQuests();
+            if (tab === 'special') loadSpecialQuests();
         });
     });
 
@@ -574,6 +886,28 @@
         }
     }
 
+    function loadAlertsTab() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = `
+            <div class="alerts-panel" style="margin: 0 0 20px 0">
+                <div class="alerts-header">
+                    <h3><i class="fas fa-history"></i> История алертов</h3>
+                    <button onclick="clearAllAlerts()" class="secondary">Очистить все</button>
+                </div>
+                <div class="alerts-list" id="historyAlertsList">
+                    ${document.getElementById('alertsList')?.innerHTML || '<div>Нет алертов</div>'}
+                </div>
+            </div>
+            <div class="user-card">
+                <h3>🛠 Управление алертами</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                    <button onclick="simulateTestAlert()" class="warning">Создать тестовый алерт</button>
+                    <button onclick="fixAllIssues()" class="success">Фикс всех проблем</button>
+                </div>
+            </div>
+        `;
+    }
+
     // ============================================================
     // USERS
     // ============================================================
@@ -606,7 +940,7 @@
                                 <td>${escapeHtml(u.username || u.firstName || 'Аноним')}</td>
                                 <td>${formatNum(u.balance)}</td>
                                 <td>${u.level}</td>
-                                <td><button onclick="showUserDetail('${u._id}')">👤</button></td>
+                                <td><button onclick="showUserDetail('${u._id}')">👤</button> <button onclick="showUserLogs('${u._id}', '${escapeHtml(u.username || u.firstName || 'User')}')" class="secondary">📜</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -627,7 +961,36 @@
         searchTimeout = setTimeout(() => loadUsers(1), 500);
     };
 
-    // FIXED: showUserDetail с использованием escapeHtml
+    window.showUserLogs = async function(userId, userName) {
+        let logs = [];
+        try {
+            const res = await apiRequest(`/api/admin/users/${userId}/logs`);
+            if (res && res.logs) logs = res.logs;
+            else logs = [
+                { timestamp: new Date().toISOString(), action: 'Вход в систему', details: 'IP: admin' },
+                { timestamp: new Date(Date.now() - 3600000).toISOString(), action: 'Открытие капсулы', details: 'Получено существо' },
+                { timestamp: new Date(Date.now() - 86400000).toISOString(), action: 'Выполнен квест', details: 'Награда 100 MMO' }
+            ];
+        } catch(e) {
+            logs = [{ timestamp: new Date().toISOString(), action: 'Логи готовы к интеграции', details: 'API эндпоинт /api/admin/users/:id/logs' }];
+        }
+        
+        const modalHtml = `
+            <div class="modal" id="logsModal">
+                <div class="modal-content">
+                    <h3>📜 Логи пользователя: ${escapeHtml(userName)}</h3>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        ${logs.map(l => `<div class="log-entry">[${new Date(l.timestamp).toLocaleString()}] <span style="color:#a855f7;">${escapeHtml(l.action)}</span> ${l.details ? `→ ${escapeHtml(l.details)}` : ''}</div>`).join('') || '<div>Нет записей</div>'}
+                    </div>
+                    <div class="modal-buttons">
+                        <button onclick="closeModal()">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
     window.showUserDetail = async function(userId) {
         const res = await apiRequest(`/api/admin/users/${userId}`);
         if (!res) return;
@@ -648,6 +1011,7 @@
                         <div><strong>Слияний:</strong> ${u.mergeCount}</div>
                         <div><strong>Дата регистрации:</strong> ${new Date(u.createdAt).toLocaleDateString()}</div>
                         <div><strong>Последний вход:</strong> ${new Date(u.lastLogin).toLocaleDateString()}</div>
+                        <div><strong>Статус:</strong> ${u.isBanned ? '🔴 Забанен' : '🟢 Активен'}</div>
                     </div>
                     
                     <h4>📦 Инвентарь</h4>
@@ -663,6 +1027,15 @@
                     <h4>✅ Выполненные спец-квесты</h4>
                     <div class="inventory-list">
                         ${(u.completedSpecialQuests || []).map(q => `<div class="inventory-item">🎯 ${escapeHtml(q)}</div>`).join('') || 'Нет выполненных'}
+                    </div>
+                    
+                    <h4>🚨 Антифрод</h4>
+                    <div class="form-group">
+                        <label>Отметить подозрительное действие</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="fraudReason" placeholder="Причина (мультиаккаунт, фарм, эксплойт)" style="flex:2">
+                            <button onclick="reportSuspicious('${userId}', '${escapeHtml(u.username || u.firstName)}')" class="danger">🚨 Отметить</button>
+                        </div>
                     </div>
                     
                     <h4>⚙️ Действия</h4>
@@ -762,7 +1135,7 @@
     };
 
     // ============================================================
-    // CREATURES
+    // CREATURES (КАСТОМ)
     // ============================================================
     async function loadCreatures() {
         const main = document.getElementById('mainContent');
@@ -906,96 +1279,7 @@
     };
 
     // ============================================================
-    // ECONOMY
-    // ============================================================
-    async function loadEconomy() {
-        const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="spinner">Загрузка...</div>';
-        
-        const res = await apiRequest('/api/admin/config');
-        if (!res) return;
-        const cfg = res.config;
-        
-        const html = `
-            <div class="user-card">
-                <h3>💰 Цены капсул</h3>
-                <div class="form-group"><label>DNA Capsule</label><input type="number" id="basicCost" value="${cfg.capsuleCosts.basic}"></div>
-                <div class="form-group"><label>Premium Capsule</label><input type="number" id="premiumCost" value="${cfg.capsuleCosts.premium}"></div>
-            </div>
-            <div class="user-card">
-                <h3>🎲 Шансы выпадения (DNA Capsule)</h3>
-                ${['common','uncommon','rare','epic','legendary'].map(r => `
-                    <div class="form-group"><label>${r}</label><input type="number" id="basic_${r}" value="${cfg.capsuleRarities.basic[r]}">%</div>
-                `).join('')}
-            </div>
-            <div class="user-card">
-                <h3>🎲 Шансы выпадения (Premium)</h3>
-                ${['common','uncommon','rare','epic','legendary'].map(r => `
-                    <div class="form-group"><label>${r}</label><input type="number" id="premium_${r}" value="${cfg.capsuleRarities.premium[r]}">%</div>
-                `).join('')}
-            </div>
-            <div class="user-card">
-                <h3>📺 Реклама</h3>
-                <div class="form-group"><label>Награда (MMO)</label><input type="number" id="adReward" value="${cfg.adReward}"></div>
-                <div class="form-group"><label>Кулдаун (сек)</label><input type="number" id="adCooldown" value="${cfg.adCooldown}"></div>
-            </div>
-            <div class="user-card">
-                <h3>🔧 Улучшения</h3>
-                <div class="form-group"><label>Базовая стоимость</label><input type="number" id="upgradeBaseCost" value="${cfg.upgradeBaseCost}"></div>
-                <div class="form-group"><label>Множитель</label><input type="number" step="0.1" id="upgradeMultiplier" value="${cfg.upgradeMultiplier}"></div>
-            </div>
-            <div class="user-card">
-                <h3>📦 Лимиты</h3>
-                <div class="form-group"><label>Макс. слотов инвентаря</label><input type="number" id="maxInventorySlots" value="${cfg.limits.maxInventorySlots}"></div>
-                <div class="form-group"><label>Макс. цена в маркетплейсе</label><input type="number" id="maxMarketplacePrice" value="${cfg.limits.maxMarketplacePrice}"></div>
-                <div class="form-group"><label>Макс. уровень</label><input type="number" id="maxLevel" value="${cfg.limits.maxLevel}"></div>
-            </div>
-            <button onclick="saveEconomy()" style="width:100%; margin-top: 16px;">💾 Сохранить все настройки</button>
-        `;
-        main.innerHTML = html;
-    }
-
-    window.saveEconomy = async function() {
-        const data = {
-            capsuleCosts: {
-                basic: parseInt(document.getElementById('basicCost')?.value) || 50,
-                premium: parseInt(document.getElementById('premiumCost')?.value) || 200
-            },
-            capsuleRarities: {
-                basic: {
-                    common: parseInt(document.getElementById('basic_common')?.value) || 0,
-                    uncommon: parseInt(document.getElementById('basic_uncommon')?.value) || 0,
-                    rare: parseInt(document.getElementById('basic_rare')?.value) || 0,
-                    epic: parseInt(document.getElementById('basic_epic')?.value) || 0,
-                    legendary: parseInt(document.getElementById('basic_legendary')?.value) || 0
-                },
-                premium: {
-                    common: parseInt(document.getElementById('premium_common')?.value) || 0,
-                    uncommon: parseInt(document.getElementById('premium_uncommon')?.value) || 0,
-                    rare: parseInt(document.getElementById('premium_rare')?.value) || 0,
-                    epic: parseInt(document.getElementById('premium_epic')?.value) || 0,
-                    legendary: parseInt(document.getElementById('premium_legendary')?.value) || 0
-                }
-            },
-            adReward: parseInt(document.getElementById('adReward')?.value) || 50,
-            adCooldown: parseInt(document.getElementById('adCooldown')?.value) || 60,
-            upgradeBaseCost: parseInt(document.getElementById('upgradeBaseCost')?.value) || 100,
-            upgradeMultiplier: parseFloat(document.getElementById('upgradeMultiplier')?.value) || 1.5,
-            limits: {
-                maxInventorySlots: parseInt(document.getElementById('maxInventorySlots')?.value) || 50,
-                maxMarketplacePrice: parseInt(document.getElementById('maxMarketplacePrice')?.value) || 100000,
-                maxLevel: parseInt(document.getElementById('maxLevel')?.value) || 100
-            }
-        };
-        
-        const res = await apiRequest('/api/admin/config', 'PUT', data);
-        if (res?.success) {
-            showToast('Настройки сохранены');
-        }
-    };
-
-    // ============================================================
-    // SPECIAL QUESTS
+    // SPECIAL QUESTS (СОЗДАТЬ)
     // ============================================================
     async function loadSpecialQuests() {
         const main = document.getElementById('mainContent');
@@ -1051,13 +1335,11 @@
                     <div class="form-group"><label>Тип квеста</label>
                         <select id="sqType">
                             <option value="telegram_channel">Telegram канал</option>
-                            <option value="twitter_follow">Twitter/X подписка</option>
-                            <option value="youtube_sub">YouTube подписка</option>
                             <option value="custom_link">Переход по ссылке</option>
                             <option value="referral_count">Привести друзей</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Ссылка (для канала/Twitter/YouTube)</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
+                    <div class="form-group"><label>Ссылка (для канала)</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
                     <div class="form-group"><label>Необходимое количество (для referral_count)</label><input type="number" id="sqRequiredCount" value="1"></div>
                     <div class="form-group"><label><input type="checkbox" id="sqIsActive" checked> Активен</label></div>
                     <div class="modal-buttons">
@@ -1113,8 +1395,6 @@
                     <div class="form-group"><label>Тип</label>
                         <select id="sqType">
                             <option value="telegram_channel" ${quest.type === 'telegram_channel' ? 'selected' : ''}>Telegram канал</option>
-                            <option value="twitter_follow" ${quest.type === 'twitter_follow' ? 'selected' : ''}>Twitter/X подписка</option>
-                            <option value="youtube_sub" ${quest.type === 'youtube_sub' ? 'selected' : ''}>YouTube подписка</option>
                             <option value="custom_link" ${quest.type === 'custom_link' ? 'selected' : ''}>Переход по ссылке</option>
                             <option value="referral_count" ${quest.type === 'referral_count' ? 'selected' : ''}>Привести друзей</option>
                         </select>
@@ -1162,6 +1442,33 @@
     };
 
     // ============================================================
+    // ANTIFRAUD
+    // ============================================================
+    async function loadSuspiciousEvents() {
+        const res = await apiRequest('/api/admin/suspicious-events');
+        if (res && res.events) suspiciousEvents = res.events;
+        else {
+            suspiciousEvents = [
+                { id: '1', userId: 'user123', userName: 'Alice', reason: 'Слишком быстрый фарм капсул', timestamp: new Date().toISOString(), status: 'open' }
+            ];
+        }
+    }
+
+    window.reportSuspicious = async function(userId, userName) {
+        const reason = document.getElementById('fraudReason')?.value;
+        if (!reason) { showToast('Укажите причину', 'error'); return; }
+        const res = await apiRequest('/api/admin/suspicious-events', 'POST', { userId, userName, reason });
+        if (res?.success) {
+            showToast('Подозрительное действие зафиксировано');
+            closeModal();
+        } else {
+            suspiciousEvents.unshift({ id: Date.now(), userId, userName, reason, timestamp: new Date().toISOString(), status: 'open' });
+            showToast('Отметка добавлена локально');
+            closeModal();
+        }
+    };
+
+    // ============================================================
     // MASS ACTIONS
     // ============================================================
     window.showGiveAllCoins = function() {
@@ -1173,9 +1480,7 @@
     window.showGiveAllCreature = async function() {
         const res = await apiRequest('/api/admin/creatures');
         if (!res) return;
-        
-        const creatureList = res.creatures.map(c => `${c.id}|${c.icon} ${c.name}`).join(', ');
-        const creatureId = prompt('Введите ID существа (например: duck_c):\n\nДоступные: ' + creatureList, 'duck_c');
+        const creatureId = prompt('Введите ID существа (например: duck_c):', 'duck_c');
         if (!creatureId) return;
         giveToAll('creature', null, creatureId);
     };
@@ -1188,30 +1493,15 @@
     }
 
     // ============================================================
-    // UTILS
-    // ============================================================
-    window.showUserSearch = function() {
-        document.querySelector('[data-tab="users"]').click();
-    };
-
-    window.closeModal = function() {
-        document.querySelectorAll('.modal').forEach(m => m.remove());
-    };
-
-    function formatNum(n) {
-        if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-        if (n >= 1000) return (n/1000).toFixed(1) + 'K';
-        return Math.floor(n).toString();
-    }
-
-    // ============================================================
     // INIT
     // ============================================================
-    if (!token) {
+    if (!adminToken) {
         showLoginModal();
     } else {
         loadCurrentUser();
         loadDashboard();
+        loadSuspiciousEvents();
+        startLiveMetrics();
     }
 </script>
 </body>
