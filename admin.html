@@ -753,33 +753,24 @@
     function refreshAllData() { loadDashboard(); if(document.querySelector('[data-tab="users"].active')) loadUsers(); if(document.querySelector('[data-tab="creatures"].active')) loadCreatures(); showToast('Все данные обновлены'); }
 
     function startLiveMetrics() {
-        setInterval(() => {
-            const reqSpan = document.getElementById('reqCount');
-            if (reqSpan) {
-                let val = parseInt(reqSpan.innerText) || 515;
-                val = Math.max(0, val + Math.floor(Math.random() * 10) - 3);
-                reqSpan.innerText = val;
-            }
-            const errSpan = document.getElementById('errorRate');
-            if (errSpan) {
-                let err = parseFloat(errSpan.innerText) || 0;
-                err = Math.max(0, Math.min(0.5, err + (Math.random() - 0.5) * 0.05));
-                errSpan.innerText = err.toFixed(3) + '%';
-                if (err > 0.1) errSpan.style.color = '#ef4444';
-                else errSpan.style.color = '#22c55e';
-            }
-        }, 5000);
-
-        setInterval(() => {
-            const alertsDiv = document.getElementById('alertsList');
-            if (alertsDiv && Math.random() > 0.75) {
-                const problems = ['⚠️ API latency ↑ 145ms', '⚠️ Redis reconnect', '⚠️ Queue spike detected', '⚠️ Rate limit near', '⚠️ High CPU usage'];
-                const problem = problems[Math.floor(Math.random() * problems.length)];
-                alertsDiv.insertAdjacentHTML('afterbegin', `<div class="alert-item warning"><span>${problem}</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>`);
-                if (alertsDiv.children.length > 6) alertsDiv.lastChild?.remove();
-            }
-        }, 12000);
-    }
+    // Обновление счётчика запросов
+    setInterval(() => {
+        const reqSpan = document.getElementById('reqCount');
+        if (reqSpan) {
+            let val = parseInt(reqSpan.innerText) || 515;
+            val = Math.max(0, val + Math.floor(Math.random() * 10) - 3);
+            reqSpan.innerText = val;
+        }
+        const errSpan = document.getElementById('errorRate');
+        if (errSpan) {
+            let err = parseFloat(errSpan.innerText) || 0;
+            err = Math.max(0, Math.min(0.5, err + (Math.random() - 0.5) * 0.05));
+            errSpan.innerText = err.toFixed(3) + '%';
+            if (err > 0.1) errSpan.style.color = '#ef4444';
+            else errSpan.style.color = '#22c55e';
+        }
+    }, 5000);
+}
 
     function simulateTestAlert() {
         document.getElementById('alertsList').insertAdjacentHTML('afterbegin', '<div class="alert-item error"><span>🔴 Тестовый критический алерт</span><button class="alert-fix-btn" onclick="this.parentElement.remove()">✕</button></div>');
