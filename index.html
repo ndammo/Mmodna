@@ -6,16 +6,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>DNA MMO — Merge & Evolve</title>
-    <meta property="og:title" content="DNA MMO — Merge & Evolve">
-    <meta property="og:description" content="Open DNA capsules, collect creatures, merge to evolve and earn MMO tokens.">
-    <meta property="og:type" content="website">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <!-- Telegram WebApp SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>DNA MMO � Merge & Evolve</title>
+<meta property="og:title" content="DNA MMO � Merge & Evolve">
+<meta property="og:description" content="Open DNA capsules, collect creatures, merge to evolve and earn MMO tokens.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- Giga Pub Enhanced Reliability Script -->
 <script data-project-id="6820">
   !function(){
@@ -43,14 +43,14 @@
 <body>
 <canvas id="particles-canvas"></canvas>
 
-<!-- HEADER -->
+<!-- HEADER ( ) -->
 <div class="header">
     <div class="header-top">
         <div class="player-info">
             <div class="avatar" id="playerAvatar">G</div>
             <div>
                 <div class="player-name">GENOME_X</div>
-                <div class="player-level" id="playerLevelLabel">LVL 1 · Researcher</div>
+                <div class="player-level" id="playerLevelLabel">LVL 1 � Researcher</div>
             </div>
         </div>
         
@@ -59,21 +59,26 @@
             <button class="lang-btn" data-lang="ru" onclick="setLanguage('ru')">RU</button>
             <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
         </div>
-        
-        <div style="display:flex;align-items:center;gap:10px">
-            <div class="balance-area">
-                <div class="balance-icon"><i class="fa-solid fa-dna"></i></div>
-                <div>
-                    <div class="balance-amount" id="balanceDisplay">0</div>
-                    <div class="balance-label">MMO</div>
-                </div>
-            </div>
-        </div>
     </div>
     <div class="xp-bar-wrap">
         <div class="xp-label" id="xpLabel">XP 0/100</div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
         <div class="income-badge" id="incomeDisplay">+0/hr</div>
+    </div>
+</div>
+
+<!--      -->
+<div class="balance-glow-card" id="balanceCard">
+    <div class="balance-card-inner">
+        <div class="balance-card-icon">
+            <i class="fa-solid fa-dna"></i>
+        </div>
+        <div class="balance-card-content">
+            <div class="balance-card-label" data-i18n="wallet.totalBalance">TOTAL BALANCE</div>
+            <div class="balance-card-amount" id="heroBalanceDisplay">0</div>
+            <div class="balance-card-sub" id="heroBalanceSub"> $0.00 USD</div>
+        </div>
+        <div class="balance-card-glow"></div>
     </div>
 </div>
 
@@ -86,13 +91,13 @@
 
         <div class="capsule-area">
             <div class="capsule-card" id="basicCapsuleCard" onclick="showCapsuleModal('basic')">
-                <div class="capsule-icon dna">🧬</div>
+                <div class="capsule-icon dna"></div>
                 <div class="capsule-name" data-i18n="game.dnaCapsule">DNA CAPSULE</div>
                 <div class="capsule-cost"><i class="fa-solid fa-dna" style="font-size:10px"></i> 50 MMO</div>
                 <button class="capsule-btn" onclick="event.stopPropagation();showCapsuleModal('basic')" data-i18n="game.open">OPEN</button>
             </div>
             <div class="capsule-card premium" id="premiumCapsuleCard" onclick="showCapsuleModal('premium')">
-                <div class="capsule-icon premium-icon">💎</div>
+                <div class="capsule-icon premium-icon"></div>
                 <div class="capsule-name" data-i18n="game.premiumCapsule">PREMIUM DNA</div>
                 <div class="capsule-cost gold"><i class="fa-solid fa-gem" style="font-size:10px"></i> 200 MMO</div>
                 <button class="capsule-btn gold-btn" onclick="event.stopPropagation();showCapsuleModal('premium')" data-i18n="game.open">OPEN</button>
@@ -159,12 +164,12 @@
 
     <!-- LEADERBOARD TAB -->
     <div class="tab-content" id="tab-leaderboard">
-        <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast('🏆 Займи #1 и получи Black Pantera Mythic!', '🏆')">
+        <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast(' Season #1 leader: Black Pantera Mythic!', '')">
             <div style="position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:20px;border:1px solid rgba(255,255,255,0.18);background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(168,85,247,0.08) 40%,rgba(0,0,0,0) 100%)"></div>
             <div style="position:absolute;top:0;left:-10%;width:40%;height:100%;z-index:3;pointer-events:none;background:linear-gradient(105deg,rgba(255,255,255,0) 40%,rgba(255,255,255,0.13) 50%,rgba(255,255,255,0) 60%);border-radius:20px"></div>
             <div style="position:absolute;top:0;left:12%;width:76%;height:1.5px;z-index:4;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);border-radius:2px"></div>
             <img src="https://storage.yandexcloud.net/timenote/tmp/824f3177814a9035c2d9d37847e9c169caa97f4123274f5630877aefe899602c.jpg"
-                 alt="Season 1 — Black Pantera Mythic"
+                 alt="Season 1 � Black Pantera Mythic"
                  style="width:100%;display:block;border-radius:20px;object-fit:cover;max-height:160px;object-position:center top">
         </div>
         <div class="section-title"><i class="fa-solid fa-trophy" style="color:var(--legendary)"></i> <span data-i18n="leaderboard.title">Global Leaderboard</span></div>
@@ -174,7 +179,7 @@
     <!-- FRIENDS TAB -->
     <div class="tab-content" id="tab-friends">
         <div class="friends-hero">
-            <div class="friends-hero-icon">👥</div>
+            <div class="friends-hero-icon"></div>
             <div class="friends-hero-title" data-i18n="friends.inviteTitle">INVITE FRIENDS</div>
             <div class="friends-hero-sub" id="friendCountDisplay">0 friends invited</div>
             <button class="invite-btn" onclick="inviteFriend()">
@@ -186,29 +191,29 @@
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
     <!-- 10 Friends - Rare Wolf -->
     <div class="friends-reward-card" id="reward-10" data-reward="10">
-        <div class="reward-icon">🐺</div>
+        <div class="reward-icon"></div>
         <div class="reward-name rare">RARE WOLF</div>
         <div class="reward-friends"><i class="fa-solid fa-users"></i> 10</div>
         <div class="reward-income"><i class="fa-solid fa-bolt"></i> 25/hr</div>
-        <button class="reward-btn" id="reward-10-btn">🔒</button>
+        <button class="reward-btn" id="reward-10-btn"></button>
     </div>
     
     <!-- 50 Friends - Epic Wolf -->
     <div class="friends-reward-card" id="reward-50" data-reward="50">
-        <div class="reward-icon">🐺</div>
+        <div class="reward-icon"></div>
         <div class="reward-name epic">EPIC WOLF</div>
         <div class="reward-friends"><i class="fa-solid fa-users"></i> 50</div>
         <div class="reward-income"><i class="fa-solid fa-bolt"></i> 80/hr</div>
-        <button class="reward-btn" id="reward-50-btn">🔒</button>
+        <button class="reward-btn" id="reward-50-btn"></button>
     </div>
     
     <!-- 150 Friends - Legendary Wolf -->
     <div class="friends-reward-card" id="reward-150" data-reward="150">
-        <div class="reward-icon">🐺</div>
+        <div class="reward-icon"></div>
         <div class="reward-name legendary">LEGENDARY WOLF</div>
         <div class="reward-friends"><i class="fa-solid fa-users"></i> 150</div>
         <div class="reward-income"><i class="fa-solid fa-bolt"></i> 250/hr</div>
-        <button class="reward-btn" id="reward-150-btn">🔒</button>
+        <button class="reward-btn" id="reward-150-btn"></button>
     </div>
 </div>
         <div class="section-title"><i class="fa-solid fa-heart" style="color:#f472b6"></i> <span data-i18n="friends.myFriends">My Friends</span></div>
@@ -226,26 +231,26 @@
         <div class="wallet-hero">
             <div class="wallet-label" data-i18n="wallet.totalBalance">Total Balance</div>
             <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
-            <div class="wallet-sub" id="walletSub">≈ $0.00 USD</div>
+            <div class="wallet-sub" id="walletSub"> $0.00 USD</div>
         </div>
         <div class="wallet-stats">
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">⚡</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletIncome">0</div>
                 <div class="wallet-stat-label" data-i18n="wallet.mmoPerHour">MMO / Hour</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">🧬</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletCards">0</div>
                 <div class="wallet-stat-label" data-i18n="wallet.creatures">Creatures</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">🔀</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletMerges">0</div>
                 <div class="wallet-stat-label" data-i18n="wallet.totalMerges">Total Merges</div>
             </div>
             <div class="wallet-stat">
-                <div class="wallet-stat-icon">📦</div>
+                <div class="wallet-stat-icon"></div>
                 <div class="wallet-stat-val" id="walletStorage">0/10</div>
                 <div class="wallet-stat-label" data-i18n="wallet.storage">Storage</div>
             </div>
@@ -300,5 +305,210 @@
 <!-- SCRIPTS -->
 <script src="script.js"></script>
 <script src="localization.js"></script>
+
+<!--       -->
+<style>
+    /* BALANCE GLOW CARD */
+    .balance-glow-card {
+        position: relative;
+        z-index: 15;
+        margin: 12px 16px 8px 16px;
+        border-radius: 28px;
+        background: linear-gradient(135deg, rgba(20,28,46,0.95), rgba(13,17,32,0.98));
+        border: 1px solid rgba(124,58,237,0.3);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 20px rgba(124,58,237,0.2);
+        backdrop-filter: blur(2px);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .balance-card-inner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .balance-card-icon {
+        width: 52px;
+        height: 52px;
+        background: linear-gradient(145deg, #1a2540, #0d1120);
+        border-radius: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: var(--accent3);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+        border: 1px solid rgba(124,58,237,0.4);
+        transition: 0.2s;
+    }
+    
+    .balance-card-content {
+        flex: 1;
+    }
+    
+    .balance-card-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        color: var(--text2);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+    
+    .balance-card-amount {
+        font-family: 'Orbitron', monospace;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #fff, var(--accent2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1.1;
+        text-shadow: 0 0 12px rgba(6,182,212,0.3);
+        font-feature-settings: "tnum";
+        font-variant-numeric: tabular-nums;
+    }
+    
+    .balance-card-sub {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .balance-card-glow {
+        position: absolute;
+        top: -20%;
+        right: -10%;
+        width: 140px;
+        height: 140px;
+        background: radial-gradient(circle, rgba(124,58,237,0.3) 0%, rgba(6,182,212,0) 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        filter: blur(20px);
+        opacity: 0.5;
+        transition: opacity 0.4s;
+    }
+    
+    .balance-glow-card:hover .balance-card-glow {
+        opacity: 0.8;
+    }
+    
+    /*    */
+    @media (max-width: 420px) {
+        .balance-card-amount {
+            font-size: 24px;
+        }
+        .balance-card-icon {
+            width: 46px;
+            height: 46px;
+            font-size: 24px;
+        }
+        .balance-card-inner {
+            padding: 10px 16px;
+        }
+    }
+    
+    /*      */
+    .balance-updated {
+        animation: balanceFlash 0.3s ease-out;
+    }
+    
+    @keyframes balanceFlash {
+        0% { text-shadow: 0 0 0px var(--uncommon); opacity: 1; }
+        50% { text-shadow: 0 0 16px var(--uncommon); color: #22c55e; }
+        100% { text-shadow: 0 0 0px var(--uncommon); opacity: 1; }
+    }
+    
+    /*  header padding,      */
+    .header {
+        padding-top: calc(env(safe-area-inset-top, 0px) + 50px);
+    }
+    
+    /*   main-content */
+    .main-content {
+        padding-top: 4px;
+    }
+    
+    /*      ( ) */
+    .header-top .balance-area {
+        display: none;
+    }
+    
+    /*    */
+    @media (max-width: 480px) {
+        .balance-card-amount {
+            font-size: 26px;
+        }
+    }
+</style>
+
+<script>
+    (function() {
+        //         
+        const originalUpdateHeader = window.updateHeader;
+        if (originalUpdateHeader) {
+            window.updateHeader = function() {
+                originalUpdateHeader();
+                //  -
+                const heroBalance = document.getElementById('heroBalanceDisplay');
+                const heroSub = document.getElementById('heroBalanceSub');
+                if (heroBalance && window.getVisualBalance) {
+                    const visual = window.getVisualBalance();
+                    heroBalance.textContent = window.formatBalance ? window.formatBalance(visual) : visual.toFixed(3);
+                    if (heroSub && window.state?.user) {
+                        const usdVal = visual * 0.001;
+                        heroSub.innerHTML = ` ${usdVal.toFixed(3)} USD <i class="fa-solid fa-chart-line" style="font-size:9px;opacity:0.6"></i>`;
+                    }
+                    // 
+                    heroBalance.classList.add('balance-updated');
+                    setTimeout(() => heroBalance.classList.remove('balance-updated'), 300);
+                }
+            };
+        }
+        
+        //     visual ticker
+        setInterval(() => {
+            const heroBalance = document.getElementById('heroBalanceDisplay');
+            if (heroBalance && window.getVisualBalance && window.formatBalance) {
+                const newVal = window.getVisualBalance();
+                const current = heroBalance.textContent.replace(/[^\d.-]/g, '');
+                const numCurrent = parseFloat(current);
+                if (Math.abs(numCurrent - newVal) > 0.01) {
+                    heroBalance.textContent = window.formatBalance(newVal);
+                    const heroSub = document.getElementById('heroBalanceSub');
+                    if (heroSub && window.state?.user) {
+                        const usdVal = newVal * 0.001;
+                        heroSub.innerHTML = ` ${usdVal.toFixed(3)} USD <i class="fa-solid fa-chart-line" style="font-size:9px;opacity:0.6"></i>`;
+                    }
+                }
+            }
+        }, 800);
+        
+        //     
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.getVisualBalance && window.formatBalance) {
+                    const heroBalance = document.getElementById('heroBalanceDisplay');
+                    if (heroBalance) {
+                        const bal = window.getVisualBalance();
+                        heroBalance.textContent = window.formatBalance(bal);
+                        const heroSub = document.getElementById('heroBalanceSub');
+                        if (heroSub && window.state?.user) {
+                            const usdVal = bal * 0.001;
+                            heroSub.innerHTML = ` ${usdVal.toFixed(3)} USD <i class="fa-solid fa-chart-line" style="font-size:9px;opacity:0.6"></i>`;
+                        }
+                    }
+                }
+            }, 300);
+        });
+    })();
+</script>
 </body>
 </html>
