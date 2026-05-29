@@ -1499,3 +1499,23 @@ body::after {
     align-items: center;
     justify-content: center;
 }
+/* Капсулы с картинками */
+.capsule-icon img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.capsule-card:hover .capsule-icon img {
+    transform: scale(1.05);
+}
+
+.capsule-card:active .capsule-icon img {
+    transform: scale(0.95);
+}
+
+/* Анимация открытия для картинок */
+.capsule-opening img {
+    animation: capsuleShake 0.5s ease-in-out;
+}
