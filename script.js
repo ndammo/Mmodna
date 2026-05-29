@@ -933,61 +933,65 @@ async function watchAd() {
     if (state.isLoading) return;
 
     if (state.adsCooldown > 0) {
-        showToast(`Ad available in ${state.adsCooldown}s`, '⏳'); return;
+        showToast(`Ad available in ${state.adsCooldown}s`, '⏳');
+        return;
     }
 
     const btn = document.getElementById('adsBtn');
     const timer = document.getElementById('adsTimer');
     const reward = document.getElementById('adsReward');
+    
     if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
     if (timer) timer.textContent = '...';
     if (reward) reward.textContent = '';
 
-    showToast('Watching ad...', '📺');
+    showToast('Loading ad...', '📺');
 
-    await new Promise(r => setTimeout(r, 2000));
+    try {
+        // Ждём пока загрузится библиотека Giga Pub (максимум 3 секунды)
+        let waited = 0;
+        while (typeof window.showGiga !== 'function' && waited < 3000) {
+            await new Promise(r => setTimeout(r, 100));
+            waited += 100;
+        }
 
-    state.isLoading = true;
-    const res = await apiRequest('POST', '/api/game/watch-ad');
-    state.isLoading = false;
+        if (typeof window.showGiga !== 'function') {
+            throw new Error('Giga Pub not loaded');
+        }
 
-    if (!res.success) {
+        // Показываем рекламу и ждём завершения
+        await window.showGiga();
+        
+        // Реклама просмотрена - начисляем награду
+        const res = await apiRequest('POST', '/api/game/watch-ad');
+
+        if (!res.success) {
+            throw new Error(res.message || 'Failed');
+        }
+
+        state.user = res.user;
+        state.adsCooldown = AD_COOLDOWN;
+        
+        updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
+        updateHeader();
+        showToast(`+${AD_REWARD} MMO!`, '🎉');
+        spawnFloatingMMO(AD_REWARD);
+        
+    } catch (e) {
+        console.error('Ad error:', e);
+        showToast('Ad failed, try again', '❌');
+        
         if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
         if (timer) timer.textContent = 'Ready';
         if (reward) reward.textContent = `+${AD_REWARD}`;
-        showToast(res.message || 'Error', '❌');
+        state.isLoading = false;
         return;
     }
 
-    state.user = res.user;
-    state.adsCooldown = AD_COOLDOWN;
-    
-    updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
-    updateHeader();
-    showToast(`+${AD_REWARD} MMO from ad!`, '🎉');
-    spawnFloatingMMO(AD_REWARD);
-}
-
-function updateAdsTimer() {
-    const btn = document.getElementById('adsBtn');
-    const timer = document.getElementById('adsTimer');
-    const reward = document.getElementById('adsReward');
-
-    if (state.user?.adsCooldownUntil) {
-        const secondsLeft = Math.ceil((new Date(state.user.adsCooldownUntil) - Date.now()) / 1000);
-        state.adsCooldown = Math.max(0, secondsLeft);
-    }
-
-    if (state.adsCooldown > 0) {
-        state.adsCooldown--;
-        if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
-        if (timer) timer.textContent = `${state.adsCooldown}s`;
-        if (reward) reward.textContent = '';
-    } else {
-        if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-        if (timer) timer.textContent = 'Ready';
-        if (reward) reward.textContent = `+${AD_REWARD}`;
-    }
+    if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+    if (timer) timer.textContent = 'Ready';
+    if (reward) reward.textContent = `+${AD_REWARD}`;
+    state.isLoading = false;
 }
 
 // ============================================================
