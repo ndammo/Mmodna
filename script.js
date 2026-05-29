@@ -623,7 +623,7 @@ function renderCards() {
         return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
             ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
             ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
-            <div class="card-icon">${c.icon}</div>
+   <div class="card-icon">${c.icon.startsWith('/images/') ? `<img src="${c.icon}" alt="${escapeHtml(c.name)}" style="width:28px;height:28px;object-fit:contain">` : c.icon}</div>
             <div class="card-name">${escapeHtml(c.name)}</div>
             <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
             <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/hr</div>
