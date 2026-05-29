@@ -617,18 +617,18 @@ function renderCards() {
     });
 
     grid.innerHTML = sorted.map(item => {
-        const c = getCreature(item.creatureId);
-        if (!c) return '';
-        const merge = canMerge(item.creatureId);
-        return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
-            ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
-            ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
-   <div class="card-icon">${c.icon.startsWith('/images/') ? `<img src="${c.icon}" alt="${escapeHtml(c.name)}" style="width:28px;height:28px;object-fit:contain">` : c.icon}</div>
-            <div class="card-name">${escapeHtml(c.name)}</div>
-            <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
-            <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/hr</div>
-        </div>`;
-    }).join('');
+    const c = getCreature(item.creatureId);
+    if (!c) return '';
+    const merge = canMerge(item.creatureId);
+    return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
+        ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
+        ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
+        <div class="card-icon">${c.icon && (c.icon.startsWith('http') || c.icon.startsWith('/')) ? `<img src="${c.icon}" alt="${escapeHtml(c.name)}" style="width:28px;height:28px;object-fit:contain" onerror="this.style.display='none'">` : (c.icon || '🧬')}</div>
+        <div class="card-name">${escapeHtml(c.name)}</div>
+        <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
+        <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/hr</div>
+    </div>`;
+}).join('');
 
     document.getElementById('inventorySlots').textContent = `${getUsedSlots()}/${state.user?.inventorySlots || 10}`;
     document.getElementById('encyclopediaProgress').textContent = `${state.user?.discovered?.length || 0}/${CREATURES.length}`;
