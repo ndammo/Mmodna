@@ -103,16 +103,17 @@ body {
             font-weight: 500;
         }
 
-  .balance-area {
+.balance-area {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     background: rgba(124,58,237,0.12);
     border: 1px solid rgba(124,58,237,0.25);
     border-radius: 20px;
-    padding: 5px 12px;
-    min-width: 120px;
+    padding: 8px 16px;
+    min-width: 140px;
     flex-shrink: 0;
+    backdrop-filter: blur(4px);
 }
 
         .balance-icon {
