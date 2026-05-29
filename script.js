@@ -198,7 +198,7 @@ function escapeHtml(str) {
 }
 
 // Вспомогательная функция для отображения иконок (картинка или эмодзи)
-function getIconHtml(creature, size = 28, addShadow = false, shadowColor = null) {
+function getIconHtml(creature, size = 38, addShadow = false, shadowColor = null) {
     if (!creature) return '🧬';
     const icon = creature.icon;
     if (icon && (icon.startsWith('http') || icon.startsWith('/'))) {
@@ -737,7 +737,7 @@ function showCapsulePopup(creature) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, 96, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
@@ -761,7 +761,7 @@ function onCardClick(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, 96, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
