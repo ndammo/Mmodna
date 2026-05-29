@@ -327,11 +327,8 @@ async function initTelegramApp() {
     
     if (tg) {
         tg.ready();
-        
-        // Expand - базовое расширение
         tg.expand();
         
-        // Новый API для fullscreen (если доступен)
         if (tg.requestFullscreen) {
             try {
                 await tg.requestFullscreen();
@@ -346,12 +343,10 @@ async function initTelegramApp() {
             document.querySelector('.header').style.paddingTop = (top + 40) + 'px';
         }, 400);
         
-        // Отключаем вертикальные свайпы (чтобы не схлопывалось)
         if (tg.disableVerticalSwipes) {
             tg.disableVerticalSwipes();
         }
         
-        // Повторный вызов expand для надежности
         setTimeout(() => {
             if (tg && typeof tg.expand === 'function') {
                 tg.expand();
@@ -362,8 +357,6 @@ async function initTelegramApp() {
         tg.setBackgroundColor('#080b14');
         
         console.log('✅ Telegram WebApp initialized');
-        console.log('Viewport height:', window.innerHeight);
-        console.log('isExpanded:', tg.isExpanded);
     } else {
         console.warn('⚠️ Telegram WebApp not available');
     }
@@ -562,7 +555,10 @@ function updateHeader() {
 
     const visualBalance = getVisualBalance();
     document.getElementById('balanceDisplay').textContent = formatBalance(visualBalance);
-    document.getElementById('incomeDisplay').textContent = `+${formatNum(state.incomePerHour)}/hr`;
+    
+    // Обновляем доход в новом месте (внутри блока баланса)
+    const incomeInline = document.getElementById('incomeInline');
+    if (incomeInline) incomeInline.textContent = `+${formatNum(state.incomePerHour)}/hr`;
 
     const needed = u.level * 100;
     document.getElementById('xpLabel').textContent = `XP ${u.xp}/${needed}`;
@@ -948,7 +944,6 @@ async function watchAd() {
     showToast('Loading ad...', '📺');
 
     try {
-        // Ждём пока загрузится библиотека Giga Pub (максимум 3 секунды)
         let waited = 0;
         while (typeof window.showGiga !== 'function' && waited < 3000) {
             await new Promise(r => setTimeout(r, 100));
@@ -959,10 +954,8 @@ async function watchAd() {
             throw new Error('Giga Pub not loaded');
         }
 
-        // Показываем рекламу и ждём завершения
         await window.showGiga();
         
-        // Реклама просмотрена - начисляем награду
         const res = await apiRequest('POST', '/api/game/watch-ad');
 
         if (!res.success) {
@@ -992,6 +985,28 @@ async function watchAd() {
     if (timer) timer.textContent = 'Ready';
     if (reward) reward.textContent = `+${AD_REWARD}`;
     state.isLoading = false;
+}
+
+function updateAdsTimer() {
+    if (!state.user) return;
+    if (state.adsCooldown > 0) {
+        state.adsCooldown--;
+        const timerEl = document.getElementById('adsTimer');
+        if (timerEl) timerEl.textContent = `${state.adsCooldown}s`;
+        const btn = document.getElementById('adsBtn');
+        if (btn && state.adsCooldown > 0) {
+            btn.style.opacity = '0.5';
+            btn.disabled = true;
+        }
+    } else {
+        const timerEl = document.getElementById('adsTimer');
+        if (timerEl) timerEl.textContent = 'Ready';
+        const btn = document.getElementById('adsBtn');
+        if (btn) {
+            btn.style.opacity = '1';
+            btn.disabled = false;
+        }
+    }
 }
 
 // ============================================================
@@ -1792,12 +1807,11 @@ async function createDepositRequest() {
     currentDepositRequest = res.request;
     closeOverlay();
     
-    // Показываем окно с реквизитами для оплаты
     showPaymentDetails(currentDepositRequest);
 }
 
 function showPaymentDetails(request) {
-    const amountInTON = (request.amount / 1000).toFixed(2); // Примерный курс 1 MMO = 0.001 TON
+    const amountInTON = (request.amount / 1000).toFixed(2);
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
@@ -2060,11 +2074,6 @@ function spawnFloatingMMO(amount) {
 // ============================================================
 // INIT
 // ============================================================
-// ... остальной код вашего script.js ...
-
-// ============================================================
-// INIT
-// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramApp();
 });
@@ -2073,7 +2082,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ЭКСПОРТ ФУНКЦИЙ ДЛЯ ЛОКАЛИЗАЦИИ
 // ============================================================
 
-// Экспортируем основные функции в глобальную область для localization.js
 window.updateHeader = updateHeader;
 window.renderCards = renderCards;
 window.renderLeaderboard = renderLeaderboard;
