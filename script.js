@@ -42,14 +42,14 @@ let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
 // GAME DATA
 // ============================================================
 let CREATURES = [];
-let CAPSULE_COSTS = { basic: 50, premium: 200 };
+let CAPSULE_COSTS = { basic: 500, premium: 2000 };
 let RARITY_WEIGHTS = {
     basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
 };
-let AD_REWARD = 50;
+let AD_REWARD = 100;
 let AD_COOLDOWN = 60;
-let UPGRADE_BASE_COST = 100;
+let UPGRADE_BASE_COST = 300;
 let UPGRADE_MULTIPLIER = 1.5;
 let MAX_INVENTORY_SLOTS = 50;
 let SPECIAL_QUESTS = [];
@@ -211,11 +211,11 @@ async function loadGameConfig() {
     const res = await apiRequest('GET', '/api/game/config');
     if (res && res.success) {
         const cfg = res.config;
-        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 50, premium: 200 };
+        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 500, premium: 2000 };
         RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
         AD_REWARD = cfg.adReward || 50;
         AD_COOLDOWN = cfg.adCooldown || 60;
-        UPGRADE_BASE_COST = cfg.upgradeBaseCost || 100;
+        UPGRADE_BASE_COST = cfg.upgradeBaseCost || 300;
         UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
         MAX_INVENTORY_SLOTS = cfg.limits?.maxInventorySlots || 50;
         SPECIAL_QUESTS = cfg.specialQuests || [];
@@ -445,10 +445,10 @@ async function initTelegramApp() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (loginRes.isNewUser && referralCode) {
-        setTimeout(() => showToast('🎉 +250 MMO за реферальный код!', '🎁'), 800);
-    } else if (loginRes.isNewUser) {
-        setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
-    }
+    setTimeout(() => showToast('🎉 Добро пожаловать! Реферальный бонус: 2% от депозитов друга', '🎁'), 800);
+} else if (loginRes.isNewUser) {
+    setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
+}
     
     if (state.user) {
         console.log('👥 Referral info:', {
@@ -1006,7 +1006,7 @@ async function watchAd() {
         }
 
         state.user = res.user;
-        state.adsCooldown = AD_COOLDOWN;
+state.adsCooldown = res.cooldownSeconds || AD_COOLDOWN;
         
         const adsRemainingEl = document.getElementById('adsRemaining');
         if (adsRemainingEl && res.adsRemaining !== undefined) {
