@@ -1502,3 +1502,42 @@ body::after {
     pointer-events: none;
     z-index: 1000;
 }
+/* ============================================
+   ЗАПРЕТ ВЫДЕЛЕНИЯ И КОНТЕКСТНОГО МЕНЮ
+   ============================================ */
+
+/* Запрет выделения текста */
+body, .header, .main-content, .bottom-nav, .popup, button, span, div, p, h1, h2, h3, h4, .player-name, .balance-amount, .card-name, .capsule-name {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+/* Разрешить выделение только в полях ввода */
+input, textarea, .price-input-field {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+/* Запрет долгого нажатия на картинки */
+img {
+    pointer-events: none;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Но для капсул нужно вернуть клики (чтобы открывались) */
+.capsule-icon img {
+    pointer-events: auto;
+}
+
+/* Запрет контекстного меню */
+* {
+    -webkit-touch-callout: none;
+}

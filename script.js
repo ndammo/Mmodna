@@ -8,6 +8,24 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // ============================================================
+// ЗАПРЕТ КОНТЕКСТНОГО МЕНЮ И ВЫДЕЛЕНИЯ
+// ============================================================
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('selectstart', (e) => {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+    return false;
+});
+
+// ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 // ============================================================
 let state = {
@@ -339,6 +357,11 @@ async function initTelegramApp() {
         tg.ready();
         tg.expand();
         
+        // Дополнительные настройки Telegram WebApp
+        if (tg.enableClosingConfirmation) {
+            tg.enableClosingConfirmation();
+        }
+        
         if (tg.requestFullscreen) {
             try {
                 await tg.requestFullscreen();
@@ -461,6 +484,19 @@ async function initTelegramApp() {
     setTimeout(() => checkActiveRequests(), 1000);
     
     updateAdsStatus();
+    
+    // Запрет долгого нажатия на изображения
+    document.querySelectorAll('img').forEach(img => {
+        img.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        });
+        img.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+    });
 }
 
 // ============================================================
