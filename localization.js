@@ -112,16 +112,17 @@ const translations = {
         'merge.input': 'Исходные',
         'merge.output': 'Результат',
         'merge.possibleOutcomes': 'Возможные результаты',
-        'merge.success': '30% Успех',
-        'merge.mutation': '70% Мутация',
+        'merge.success': 'Успех',
+        'merge.fail': 'Провал',
         'merge.rankUp': '▲ ПОВЫШЕНИЕ',
         'merge.same': '= БЕЗ ИЗМЕНЕНИЙ',
         'merge.mergeNow': 'СЛИТЬ СЕЙЧАС',
         'merge.cancel': 'ОТМЕНА',
         'merge.evolutionSuccess': '🎉 Эволюция успешна!',
-        'merge.mutationComplete': '⚗️ Мутация завершена!',
+        'merge.failComplete': '❌ Провал! Существо не изменилось',
         'merge.evolution': 'ЭВОЛЮЦИЯ!',
         'merge.continue': 'ПРОДОЛЖИТЬ',
+        'merge.close': 'ЗАКРЫТЬ',
         'merge.successResult': '+РЕДКОСТЬ',
         'merge.sameResult': '=РЕДКОСТЬ',
         
@@ -286,16 +287,17 @@ const translations = {
         'merge.input': 'Input',
         'merge.output': 'Output',
         'merge.possibleOutcomes': 'Possible Outcomes',
-        'merge.success': '30% Success',
-        'merge.mutation': '70% Mutation',
+        'merge.success': 'Success',
+        'merge.fail': 'Fail',
         'merge.rankUp': '▲ RANK UP',
         'merge.same': '= SAME',
         'merge.mergeNow': 'MERGE NOW',
         'merge.cancel': 'CANCEL',
         'merge.evolutionSuccess': '🎉 Evolution successful!',
-        'merge.mutationComplete': '⚗️ Mutation complete!',
+        'merge.failComplete': '❌ Fail! Creature unchanged',
         'merge.evolution': 'EVOLUTION!',
         'merge.continue': 'CONTINUE',
+        'merge.close': 'CLOSE',
         'merge.successResult': '+RARITY',
         'merge.sameResult': '=RARITY',
         
@@ -397,7 +399,7 @@ function setLanguage(lang) {
     // Применяем перевод к статическим элементам
     applyLocaleStatic();
     
-    // Вызываем обновление динамических компонентов (если функции существуют)
+    // Вызываем обновление динамических компонентов
     if (typeof window.updateHeader === 'function') window.updateHeader();
     if (typeof window.renderCards === 'function') window.renderCards();
     if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
@@ -419,11 +421,6 @@ function setLanguage(lang) {
     if (playerLevelLabel && window.state?.user) {
         const u = window.state.user;
         playerLevelLabel.textContent = `${t('common.lvl')} ${u.level} · ${u.level >= 20 ? 'God Scientist' : u.level >= 15 ? 'DNA Master' : u.level >= 10 ? 'Geneticist' : u.level >= 5 ? 'Lab Expert' : u.level >= 3 ? 'Biologist' : 'Researcher'}`;
-    }
-    
-    const incomeDisplay = document.getElementById('incomeDisplay');
-    if (incomeDisplay && window.state?.incomePerHour !== undefined) {
-        incomeDisplay.textContent = `+${window.formatNum ? window.formatNum(window.state.incomePerHour) : window.state.incomePerHour}/${t('common.hour')}`;
     }
     
     const friendCountDisplay = document.getElementById('friendCountDisplay');
@@ -483,6 +480,60 @@ function setLanguage(lang) {
     const withdrawWallet = document.getElementById('withdrawWallet');
     if (withdrawWallet) withdrawWallet.placeholder = t('wallet.tonWallet');
     
+    // Обновляем статические элементы без data-i18n
+    const basicCapsuleName = document.querySelector('#basicCapsuleCard .capsule-name');
+    if (basicCapsuleName) basicCapsuleName.textContent = t('game.dnaCapsule');
+    const premiumCapsuleName = document.querySelector('#premiumCapsuleCard .capsule-name');
+    if (premiumCapsuleName) premiumCapsuleName.textContent = t('game.premiumCapsule');
+    
+    document.querySelectorAll('.capsule-btn').forEach(btn => {
+        btn.textContent = t('game.open');
+    });
+    
+    const adsBtnText = document.querySelector('#adsBtn span[style*="flex:1"]');
+    if (adsBtnText) adsBtnText.textContent = t('game.watchAd');
+    
+    const encTitle = document.querySelector('.enc-title');
+    if (encTitle) encTitle.textContent = t('encyclopedia.title');
+    const encSub = document.querySelector('.enc-sub');
+    if (encSub) encSub.textContent = t('encyclopedia.subtitle');
+    
+    const myCreatures = document.querySelector('.section-title span[data-i18n="inventory.myCreatures"]');
+    if (myCreatures) myCreatures.textContent = t('inventory.myCreatures');
+    
+    document.querySelectorAll('.bottom-nav .nav-item span').forEach(span => {
+        const key = span.getAttribute('data-i18n');
+        if (key) span.textContent = t(key);
+    });
+    
+    const leaderboardTitle = document.querySelector('#tab-leaderboard .section-title span');
+    if (leaderboardTitle && leaderboardTitle.getAttribute('data-i18n') === 'leaderboard.title') {
+        leaderboardTitle.textContent = t('leaderboard.title');
+    }
+    
+    const friendsTitle = document.querySelector('.friends-hero-title');
+    if (friendsTitle) friendsTitle.textContent = t('friends.inviteTitle');
+    const inviteBtn = document.querySelector('.invite-btn span');
+    if (inviteBtn) inviteBtn.textContent = t('friends.inviteBtn');
+    const myFriendsTitle = document.querySelector('#tab-friends .section-title span[data-i18n="friends.myFriends"]');
+    if (myFriendsTitle) myFriendsTitle.textContent = t('friends.myFriends');
+    
+    const specialTitle = document.querySelector('#tab-special .section-title span');
+    if (specialTitle && specialTitle.getAttribute('data-i18n') === 'specialQuests.title') {
+        specialTitle.textContent = t('specialQuests.title');
+    }
+    
+    const depositBtn = document.querySelector('.wallet-action-btn.deposit span');
+    if (depositBtn) depositBtn.textContent = t('wallet.deposit');
+    const withdrawBtn = document.querySelector('.wallet-action-btn.withdraw span');
+    if (withdrawBtn) withdrawBtn.textContent = t('wallet.withdraw');
+    
+    const walletStatLabels = document.querySelectorAll('.wallet-stat-label');
+    const walletStatKeys = ['wallet.mmoPerHour', 'wallet.creatures', 'wallet.totalMerges', 'wallet.storage'];
+    walletStatLabels.forEach((label, i) => {
+        if (walletStatKeys[i]) label.textContent = t(walletStatKeys[i]);
+    });
+    
     // Уведомление о смене языка
     if (typeof window.showToast === 'function') {
         window.showToast(`🌐 Language: ${lang.toUpperCase()}`, '✅');
@@ -491,10 +542,8 @@ function setLanguage(lang) {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    // Применяем перевод к статическим элементам
     applyLocaleStatic();
     
-    // Устанавливаем активный класс на кнопке языка
     setTimeout(() => {
         const activeBtn = document.querySelector(`.lang-btn[data-lang="${currentLocale}"]`);
         if (activeBtn) {

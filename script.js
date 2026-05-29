@@ -197,13 +197,12 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Вспомогательная функция для отображения иконок (картинка или эмодзи)
-function getIconHtml(creature, size = 38, addShadow = false, shadowColor = null) {
+function getIconHtml(creature, size = 32, addShadow = false, shadowColor = null) {
     if (!creature) return '🧬';
     const icon = creature.icon;
-    if (icon && (icon.startsWith('http') || icon.startsWith('/'))) {
+    if (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.startsWith('Images/'))) {
         const shadowStyle = addShadow && shadowColor ? `filter:drop-shadow(0 0 16px ${shadowColor});` : '';
-        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" style="width:${size}px;height:${size}px;object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display='none'">`;
+        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" loading="lazy" style="width:${size}px;height:${size}px;object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display='none'">`;
     }
     return icon || '🧬';
 }
@@ -737,7 +736,7 @@ function showCapsulePopup(creature) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 96, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
@@ -761,7 +760,7 @@ function onCardClick(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 96, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
@@ -796,50 +795,50 @@ function showMergePreview(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title" style="margin-bottom:4px">Merge Preview</div>
+        <div class="popup-title" style="margin-bottom:4px">${t('merge.preview')}</div>
         <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">${getIconHtml(creature, 32)}</div>
-                    <div style="font-size:10px;color:#94a3b8">Input</div>
+                    <div style="font-size:10px;color:#94a3b8">${t('merge.input')}</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div>
                 </div>
                 <div style="color:#4a5568;font-size:18px">→</div>
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">?</div>
-                    <div style="font-size:10px;color:#94a3b8">Output</div>
+                    <div style="font-size:10px;color:#94a3b8">${t('merge.output')}</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">Unknown</div>
                 </div>
             </div>
             <div style="border-top:1px solid #1e2d4a;padding-top:14px">
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Possible Outcomes</div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">${t('merge.possibleOutcomes')}</div>
                 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${getIconHtml(nextCreature, 28)}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% Success</div>
+                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% ${t('merge.success')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ RANK UP</div>
+                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ ${t('merge.rankUp')}</div>
                     </div>
                 </div>
-                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px">
+                <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${getIconHtml(creature, 28)}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#f59e0b">70% Mutation</div>
+                            <div style="font-size:11px;font-weight:600;color:#ef4444">70% ${t('merge.fail')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#f59e0b">= SAME</div>
+                        <div style="font-size:12px;font-weight:700;color:#ef4444">= ${t('merge.same')}</div>
                     </div>
                 </div>
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px" onclick="closeOverlay();executeMerge('${creatureId}')">
-            <i class="fa-solid fa-code-merge"></i> MERGE NOW
+            <i class="fa-solid fa-code-merge"></i> ${t('merge.mergeNow')}
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">CANCEL</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">${t('merge.cancel')}</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -892,7 +891,7 @@ function showMergeResultPopup(from, to, success) {
             <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;">${getIconHtml(toC, 36)}</div>
         </div>
         <div class="popup-title" style="color:${color}">${escapeHtml(toC.name)}</div>
-        <div class="popup-subtitle">${success ? '🎉 Evolution successful!' : '⚗️ Mutation complete!'}</div>
+        <div class="popup-subtitle">${success ? '🎉 ' + t('merge.evolutionSuccess') : '❌ ' + t('merge.failComplete')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
             ${toC.rarity.toUpperCase()} ${success ? '▲ UPGRADED' : ''}
         </div>
@@ -901,7 +900,7 @@ function showMergeResultPopup(from, to, success) {
             <div class="popup-stat"><div class="popup-stat-val" style="color:${success ? '#22c55e' : '#94a3b8'}">${success ? '+RARITY' : '=RARITY'}</div><div class="popup-stat-label">Result</div></div>
         </div>
         <button class="popup-btn" onclick="closeOverlay()" style="${success ? 'background:linear-gradient(135deg,#16a34a,#22c55e)' : ''}">
-            ${success ? 'EVOLUTION!' : 'CONTINUE'}
+            ${success ? t('merge.evolution') : t('merge.close')}
         </button>
     `;
     document.getElementById('overlay').classList.add('show');
