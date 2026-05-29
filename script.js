@@ -7,7 +7,6 @@
 // ============================================================
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
-
 // ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 // ============================================================
@@ -197,12 +196,13 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function getIconHtml(creature, size = 32, addShadow = false, shadowColor = null) {
+// Функция отображения иконок - размеры управляются через CSS!
+function getIconHtml(creature, addShadow = false, shadowColor = null) {
     if (!creature) return '🧬';
     const icon = creature.icon;
     if (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.startsWith('Images/'))) {
         const shadowStyle = addShadow && shadowColor ? `filter:drop-shadow(0 0 16px ${shadowColor});` : '';
-        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" loading="lazy" style="width:${size}px;height:${size}px;object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display='none'">`;
+        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" loading="lazy" style="object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display='none'">`;
     }
     return icon || '🧬';
 }
@@ -445,10 +445,10 @@ async function initTelegramApp() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (loginRes.isNewUser && referralCode) {
-    setTimeout(() => showToast('🎉 Добро пожаловать! Реферальный бонус: 2% от депозитов друга', '🎁'), 800);
-} else if (loginRes.isNewUser) {
-    setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
-}
+        setTimeout(() => showToast('🎉 Добро пожаловать! Реферальный бонус: 2% от депозитов друга', '🎁'), 800);
+    } else if (loginRes.isNewUser) {
+        setTimeout(() => showToast('Open a DNA Capsule to start!', '🧬'), 800);
+    }
     
     if (state.user) {
         console.log('👥 Referral info:', {
@@ -631,7 +631,7 @@ function renderCards() {
         return `<div class="creature-card ${c.rarity}" onclick="onCardClick('${item.creatureId}')">
             ${merge ? `<div class="merge-ready-badge">MERGE!</div>` : ''}
             ${item.count > 1 ? `<div class="card-count">${item.count}</div>` : ''}
-            <div class="card-icon">${getIconHtml(c, 32)}</div>
+            <div class="card-icon">${getIconHtml(c)}</div>
             <div class="card-name">${escapeHtml(c.name)}</div>
             <div class="card-rarity-badge badge-${c.rarity}">${c.rarity}</div>
             <div class="card-income"><i class="fa-solid fa-bolt"></i>${c.incomeBase}/hr</div>
@@ -736,7 +736,7 @@ function showCapsulePopup(creature) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
@@ -760,7 +760,7 @@ function onCardClick(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
@@ -800,7 +800,7 @@ function showMergePreview(creatureId) {
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                 <div style="text-align:center;flex:1">
-                    <div style="font-size:24px;margin-bottom:6px">${getIconHtml(creature, 32)}</div>
+                    <div style="font-size:24px;margin-bottom:6px">${getIconHtml(creature)}</div>
                     <div style="font-size:10px;color:#94a3b8">${t('merge.input')}</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div>
                 </div>
@@ -815,7 +815,7 @@ function showMergePreview(creatureId) {
                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">${t('merge.possibleOutcomes')}</div>
                 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
                     <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:18px">${getIconHtml(nextCreature, 28)}</span>
+                        <span style="font-size:18px">${getIconHtml(nextCreature)}</span>
                         <div style="flex:1">
                             <div style="font-size:11px;font-weight:600;color:#22c55e">30% ${t('merge.success')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
@@ -825,7 +825,7 @@ function showMergePreview(creatureId) {
                 </div>
                 <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px">
                     <div style="display:flex;align-items:center;gap:8px">
-                        <span style="font-size:18px">${getIconHtml(creature, 28)}</span>
+                        <span style="font-size:18px">${getIconHtml(creature)}</span>
                         <div style="flex:1">
                             <div style="font-size:11px;font-weight:600;color:#ef4444">70% ${t('merge.fail')}</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
@@ -884,11 +884,11 @@ function showMergeResultPopup(from, to, success) {
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <div class="merge-popup-cards">
-            <div class="merge-card-mini">${getIconHtml(fromC, 32)}</div>
-            <div class="merge-card-mini">${getIconHtml(fromC, 32)}</div>
-            <div class="merge-card-mini">${getIconHtml(fromC, 32)}</div>
+            <div class="merge-card-mini">${getIconHtml(fromC)}</div>
+            <div class="merge-card-mini">${getIconHtml(fromC)}</div>
+            <div class="merge-card-mini">${getIconHtml(fromC)}</div>
             <div class="merge-arrow"><i class="fa-solid fa-arrow-right"></i></div>
-            <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;">${getIconHtml(toC, 36)}</div>
+            <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;">${getIconHtml(toC)}</div>
         </div>
         <div class="popup-title" style="color:${color}">${escapeHtml(toC.name)}</div>
         <div class="popup-subtitle">${success ? '🎉 ' + t('merge.evolutionSuccess') : '❌ ' + t('merge.failComplete')}</div>
@@ -1006,7 +1006,7 @@ async function watchAd() {
         }
 
         state.user = res.user;
-state.adsCooldown = res.cooldownSeconds || AD_COOLDOWN;
+        state.adsCooldown = res.cooldownSeconds || AD_COOLDOWN;
         
         const adsRemainingEl = document.getElementById('adsRemaining');
         if (adsRemainingEl && res.adsRemaining !== undefined) {
@@ -1111,7 +1111,7 @@ function showEncyclopedia() {
         const items = grouped[rarity].map(c => {
             const isFound = discovered.has(c.id);
             return `<div class="coll-item ${isFound ? 'found' : 'not-found'}" style="${isFound ? `border-color:${color}44` : ''};cursor:pointer" onclick="showCreatureInfo('${c.id}')">
-                <span style="font-size:22px;${isFound ? `filter:drop-shadow(0 0 6px ${color})` : ''}">${getIconHtml(c, 28)}</span>
+                <span style="font-size:22px;${isFound ? `filter:drop-shadow(0 0 6px ${color})` : ''}">${getIconHtml(c)}</span>
                 <div class="coll-item-name">${isFound ? escapeHtml(c.name) : '???'}</div>
             </div>`;
         }).join('');
@@ -1142,7 +1142,7 @@ function showCreatureInfo(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="showEncyclopedia()"><i class="fa-solid fa-arrow-left"></i></div>
-        <div class="popup-icon">${getIconHtml(c, 56, true, color)}</div>
+        <div class="popup-icon">${getIconHtml(c, true, color)}</div>
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
@@ -1231,7 +1231,7 @@ function renderMarketplaceListings(listings) {
         const isOwn = l.sellerTgId === state.user?.telegramId;
 
         return `<div class="marketplace-listing">
-            <div class="marketplace-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c, 28)}</div>
+            <div class="marketplace-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c)}</div>
             <div class="marketplace-listing-info">
                 <div class="marketplace-listing-name">${escapeHtml(c.name)}</div>
                 <div class="marketplace-listing-seller">by ${escapeHtml(l.sellerName)}${isOwn ? ' (You)' : ''}</div>
@@ -1261,7 +1261,7 @@ function renderMarketplaceSell() {
         const c = getCreature(item.creatureId);
         if (!c || !item.count) return '';
         return `<div class="marketplace-sell-card" style="cursor:pointer" onclick="openSellModal('${item.creatureId}', '${c.name}', ${item.count})">
-            <div class="marketplace-sell-card-icon">${getIconHtml(c, 28)}</div>
+            <div class="marketplace-sell-card-icon">${getIconHtml(c)}</div>
             <div class="marketplace-sell-card-name">${escapeHtml(c.name)}</div>
             <div style="font-size:9px;color:#4a5568">x${item.count}</div>
             <div style="font-size:10px;color:#06b6d4;font-weight:600;margin-top:4px">SET PRICE</div>
@@ -1350,7 +1350,7 @@ async function renderMarketplaceMyListings() {
         if (!c) return '';
         const color = RARITY_COLORS[c.rarity];
         return `<div class="marketplace-my-listing">
-            <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c, 28)}</div>
+            <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c)}</div>
             <div class="marketplace-my-listing-info">
                 <div class="marketplace-my-listing-name">${escapeHtml(c.name)}</div>
                 <div class="marketplace-my-listing-status">Listed ${new Date(l.createdAt).toLocaleDateString()}</div>
