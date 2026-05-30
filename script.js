@@ -55,6 +55,10 @@ let isMarketplaceTabActive = false;
 let leaderboardCache = { data: null, expiresAt: 0 };
 let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
 
+// Переменные для депозита
+let currentPaymentMemo = null;
+let currentPaymentAmount = null;
+
 // ============================================================
 // GAME DATA
 // ============================================================
@@ -202,11 +206,12 @@ function canMerge(creatureId) {
     return item && item.count >= 3 && c && c.rarity !== 'legendary' && c.rarity !== 'mythic';
 }
 function getLevelTitle(lvl) {
-    if (lvl >= 20) return 'God Scientist';
-    if (lvl >= 15) return 'DNA Master';
-    if (lvl >= 10) return 'Geneticist';
-    if (lvl >= 5) return 'Lab Expert';
-    if (lvl >= 3) return 'Biologist';
+    const level = lvl || 1;
+    if (level >= 20) return 'God Scientist';
+    if (level >= 15) return 'DNA Master';
+    if (level >= 10) return 'Geneticist';
+    if (level >= 5) return 'Lab Expert';
+    if (level >= 3) return 'Biologist';
     return 'Researcher';
 }
 function escapeHtml(str) {
@@ -214,7 +219,6 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Функция отображения иконок - размеры управляются через CSS!
 function getIconHtml(creature, addShadow = false, shadowColor = null) {
     if (!creature) return '🧬';
     const icon = creature.icon;
@@ -357,7 +361,6 @@ async function initTelegramApp() {
         tg.ready();
         tg.expand();
         
-        // Дополнительные настройки Telegram WebApp
         if (tg.enableClosingConfirmation) {
             tg.enableClosingConfirmation();
         }
@@ -485,7 +488,6 @@ async function initTelegramApp() {
     
     updateAdsStatus();
     
-    // Запрет долгого нажатия на изображения
     document.querySelectorAll('img').forEach(img => {
         img.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -612,7 +614,6 @@ function updateHeader() {
     document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
     document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
 
-    
     document.getElementById('walletIncome').textContent = formatNum(state.incomePerHour);
     document.getElementById('walletCards').textContent = state.inventory.reduce((s, i) => s + i.count, 0);
     document.getElementById('walletMerges').textContent = u.mergeCount || 0;
@@ -1532,9 +1533,6 @@ async function inviteFriend() {
     }
 }
 
-// ============================================================
-// RENDER FRIENDS LIST
-// ============================================================
 async function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -1840,13 +1838,11 @@ function updateFriendRewardButtons() {
 }
 
 // ============================================================
-// ДЕПОЗИТЫ И ВЫВОДЫ (ОБНОВЛЕННАЯ ВЕРСИЯ ДЛЯ TON)
+// ДЕПОЗИТЫ И ВЫВОДЫ (НОВАЯ ЛОГИКА)
 // ============================================================
 
 const MIN_TRANSACTION_AMOUNT = 5000;
 const MAX_ACTIVE_REQUESTS = 2;
-
-let currentDepositRequest = null;
 
 async function showDepositModal() {
     if (state.isLoading) return;
@@ -1859,7 +1855,7 @@ async function showDepositModal() {
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title">💎 Депозит TON</div>
+        <div class="popup-title">💎 Пополнение баланса</div>
         <div class="popup-subtitle" style="margin-bottom:16px">Минимальная сумма: ${MIN_TRANSACTION_AMOUNT.toLocaleString()} MMO</div>
         <div class="price-input-modal">
             <div>
@@ -1867,15 +1863,15 @@ async function showDepositModal() {
                 <input type="number" class="price-input-field" id="depositAmount" placeholder="Введите сумму" min="${MIN_TRANSACTION_AMOUNT}">
             </div>
         </div>
-        <button class="popup-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:16px" onclick="createDepositRequest()">
-            <i class="fa-solid fa-arrow-down"></i> СОЗДАТЬ ЗАЯВКУ
+        <button class="popup-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);margin-top:16px" onclick="getPaymentDetails()">
+            <i class="fa-solid fa-arrow-down"></i> ПРОДОЛЖИТЬ
         </button>
         <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
 
-async function createDepositRequest() {
+async function getPaymentDetails() {
     const amountInput = document.getElementById('depositAmount');
     const amount = parseInt(amountInput?.value);
     
@@ -1885,27 +1881,27 @@ async function createDepositRequest() {
     }
     
     state.isLoading = true;
-    const res = await apiRequest('POST', '/api/wallet/deposit-request', { amount });
+    const res = await apiRequest('POST', '/api/wallet/get-payment-details', { amount });
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка создания заявки', '❌');
+        showToast(res.message || 'Ошибка', '❌');
         return;
     }
     
-    currentDepositRequest = res.request;
-    closeOverlay();
+    currentPaymentMemo = res.memo;
+    currentPaymentAmount = res.amount;
     
-    showPaymentDetails(currentDepositRequest);
+    showPaymentDetails(res.wallet, res.memo, res.amount);
 }
 
-function showPaymentDetails(request) {
-    const amountInTON = (request.amount / 1000).toFixed(2);
+function showPaymentDetails(wallet, memo, amount) {
+    const amountInTON = (amount / 1000).toFixed(2);
     
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <div class="popup-title">💎 Оплатите депозит</div>
-        <div class="popup-subtitle">Сумма к оплате: ${request.amount.toLocaleString()} MMO</div>
+        <div class="popup-subtitle">Сумма: ${amount.toLocaleString()} MMO</div>
         
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:16px;padding:16px;margin-bottom:16px">
             <div style="margin-bottom:12px">
@@ -1916,9 +1912,9 @@ function showPaymentDetails(request) {
             <div style="margin-bottom:12px">
                 <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🏦 Кошелек TON</div>
                 <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;word-break:break-all;border:1px solid #1e2d4a">
-                    ${request.wallet}
+                    ${wallet}
                 </div>
-                <button onclick="copyToClipboard('${request.wallet}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
+                <button onclick="copyToClipboard('${wallet}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
                     <i class="fa-regular fa-copy"></i> Копировать кошелек
                 </button>
             </div>
@@ -1926,20 +1922,20 @@ function showPaymentDetails(request) {
             <div style="margin-bottom:12px">
                 <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📝 Мемо (ОБЯЗАТЕЛЬНО!)</div>
                 <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;border:1px solid #1e2d4a">
-                    ${request.memo}
+                    ${memo}
                 </div>
-                <button onclick="copyToClipboard('${request.memo}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
+                <button onclick="copyToClipboard('${memo}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
                     <i class="fa-regular fa-copy"></i> Копировать мемо
                 </button>
             </div>
             
             <div style="font-size:10px;color:#ef4444;background:rgba(239,68,68,0.1);padding:8px;border-radius:8px;margin-top:8px">
-                ⚠️ <b>Важно!</b> Укажите мемо в комментарии к переводу, иначе платеж не будет зачислен!
+                ⚠️ <b>Важно!</b> Укажите мемо в комментарии к переводу!\nПосле оплаты нажмите "Я ОПЛАТИЛ".
             </div>
         </div>
         
         <div style="display:flex;gap:10px">
-            <button class="popup-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a)" onclick="confirmPayment('${request._id}')">
+            <button class="popup-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a)" onclick="createDepositRequestAfterPayment()">
                 <i class="fa-solid fa-check"></i> Я ОПЛАТИЛ
             </button>
             <button class="popup-btn" style="flex:1;background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">
@@ -1950,24 +1946,32 @@ function showPaymentDetails(request) {
     document.getElementById('overlay').classList.add('show');
 }
 
-async function confirmPayment(requestId) {
-    const txHash = prompt('Введите хэш транзакции (опционально, для проверки):');
+async function createDepositRequestAfterPayment() {
+    if (!currentPaymentMemo) {
+        showToast('Ошибка: данные оплаты утеряны. Начните заново.', '❌');
+        closeOverlay();
+        return;
+    }
     
     state.isLoading = true;
-    const res = await apiRequest('POST', '/api/wallet/confirm-payment', { 
-        requestId, 
-        transactionHash: txHash || '' 
+    showToast('Создание заявки...', '⏳');
+    
+    const res = await apiRequest('POST', '/api/wallet/create-deposit-request', { 
+        memo: currentPaymentMemo
     });
     state.isLoading = false;
     
     if (!res.success) {
-        showToast(res.message || 'Ошибка', '❌');
+        showToast(res.message || 'Ошибка создания заявки', '❌');
         return;
     }
     
     closeOverlay();
-    showToast('Спасибо! Администратор проверит платеж и начислит средства.', '✅');
+    showToast('✅ Заявка создана! Администратор проверит платеж и начислит средства.', '✅');
     await checkActiveRequests();
+    
+    currentPaymentMemo = null;
+    currentPaymentAmount = null;
 }
 
 async function showWithdrawModal() {
