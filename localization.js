@@ -60,23 +60,27 @@ const translations = {
         'leaderboard.xp': 'ОП',
         'leaderboard.you': '(Вы)',
         
-        // Friends
+        // Friends (обновлено)
         'friends.inviteTitle': 'ПРИГЛАСИТЕ ДРУЗЕЙ',
         'friends.inviteBtn': 'ПРИГЛАСИТЬ ДРУГА',
-        'friends.milestones': 'Награды за друзей',
+        'friends.milestones': 'Награды за друзей 5+ уровня',
         'friends.myFriends': 'Мои Друзья',
-        'friends.noFriends': 'Нет друзей\nПригласите друзей, чтобы получить награды!',
-        'friends.friendsCount': '{count} друзей приглашено',
+        'friends.noFriends': 'Нет друзей\nПригласите друзей и помогите им достичь 5 уровня!',
+        'friends.friendsCount': '{count} друзей 5+ уровня из {total}',
         'friends.joined': 'Присоединился',
+        'friends.needLevel': 'нужно {level} ур.',
+        'friends.qualified': '✅ 5+ уровень',
+        'friends.notQualified': '📈 нужно {left} ур.',
+        'friends.levelRequirement': '🔥 ВАЖНО: Для получения наград друзья должны достичь 5 уровня!',
         
-        // Special Quests
+        // Special Quests (обновлено)
         'specialQuests.title': 'Особые Квесты',
         'specialQuests.noQuests': 'Нет активных спец-квестов',
         'specialQuests.comingSoon': 'Скоро появятся новые квесты!',
         'specialQuests.go': 'ПЕРЕЙТИ',
         'specialQuests.claim': 'ЗАБРАТЬ',
         'specialQuests.completed': 'ВЫПОЛНЕНО',
-        'specialQuests.locked': 'НУЖНО {required} ДРУЗЕЙ ({current})',
+        'specialQuests.locked': 'НУЖНО {required} ДРУЗЕЙ 5+ УРОВНЯ ({current})',
         
         // Wallet
         'wallet.totalBalance': 'Общий Баланс',
@@ -143,7 +147,7 @@ const translations = {
         'toast.inventoryFull': 'Инвентарь полон! Улучшите хранилище',
         'toast.errorOpening': 'Ошибка открытия капсулы',
         'toast.mergeFailed': 'Ошибка слияния',
-        'toast.needMore': 'Нужно {count} друзей (у вас {current})',
+        'toast.needMore': 'Нужно {count} друзей 5+ уровня (у вас {current})',
         'toast.alreadyClaimed': 'Вы уже получили эту награду',
         'toast.watchingAd': 'Просмотр рекламы...',
         'toast.adReward': '+{amount} MMO за рекламу!',
@@ -168,10 +172,11 @@ const translations = {
         'common.mmo': 'MMO',
         'common.hour': 'час',
         
-        // Friend Rewards
+        // Friend Rewards (обновлено)
         'friendReward.claimed': 'ПОЛУЧЕНО',
         'friendReward.claim': 'ЗАБРАТЬ',
-        'friendReward.locked': '{friends} ДРУЗЕЙ',
+        'friendReward.locked': '{friends} ДРУЗЕЙ 5+ УРОВНЯ',
+        'friendReward.requirement': 'Требование: друзья должны достичь 5 уровня',
         
         // Encyclopedia
         'encyclopedia.discovered': 'обнаружено',
@@ -235,23 +240,27 @@ const translations = {
         'leaderboard.xp': 'XP',
         'leaderboard.you': '(You)',
         
-        // Friends
+        // Friends (updated)
         'friends.inviteTitle': 'INVITE FRIENDS',
         'friends.inviteBtn': 'INVITE FRIEND',
-        'friends.milestones': 'Friend Milestones',
+        'friends.milestones': 'Friend Milestones (Level 5+)',
         'friends.myFriends': 'My Friends',
-        'friends.noFriends': 'No friends yet\nInvite friends to get rewards!',
-        'friends.friendsCount': '{count} friends invited',
+        'friends.noFriends': 'No friends yet\nInvite friends and help them reach level 5!',
+        'friends.friendsCount': '{count} friends level 5+ out of {total}',
         'friends.joined': 'Joined',
+        'friends.needLevel': 'need {level} lvl',
+        'friends.qualified': '✅ level 5+',
+        'friends.notQualified': '📈 need {left} lvl',
+        'friends.levelRequirement': '🔥 IMPORTANT: Friends must reach level 5 to count for rewards!',
         
-        // Special Quests
+        // Special Quests (updated)
         'specialQuests.title': 'Special Quests',
         'specialQuests.noQuests': 'No active special quests',
         'specialQuests.comingSoon': 'New quests coming soon!',
         'specialQuests.go': 'GO',
         'specialQuests.claim': 'CLAIM',
         'specialQuests.completed': 'COMPLETED',
-        'specialQuests.locked': 'NEED {required} FRIENDS ({current})',
+        'specialQuests.locked': 'NEED {required} FRIENDS LEVEL 5+ ({current})',
         
         // Wallet
         'wallet.totalBalance': 'Total Balance',
@@ -318,7 +327,7 @@ const translations = {
         'toast.inventoryFull': 'Inventory full! Upgrade storage',
         'toast.errorOpening': 'Error opening capsule',
         'toast.mergeFailed': 'Merge failed',
-        'toast.needMore': 'Need {count} friends (you have {current})',
+        'toast.needMore': 'Need {count} friends level 5+ (you have {current})',
         'toast.alreadyClaimed': 'You already claimed this reward',
         'toast.watchingAd': 'Watching ad...',
         'toast.adReward': '+{amount} MMO from ad!',
@@ -343,10 +352,11 @@ const translations = {
         'common.mmo': 'MMO',
         'common.hour': 'hr',
         
-        // Friend Rewards
+        // Friend Rewards (updated)
         'friendReward.claimed': 'CLAIMED',
         'friendReward.claim': 'CLAIM',
-        'friendReward.locked': '{friends} FRIENDS',
+        'friendReward.locked': '{friends} FRIENDS LEVEL 5+',
+        'friendReward.requirement': 'Requirement: friends must reach level 5',
         
         // Encyclopedia
         'encyclopedia.discovered': 'discovered',
@@ -399,6 +409,28 @@ function setLanguage(lang) {
     // Применяем перевод к статическим элементам
     applyLocaleStatic();
     
+    // Обновляем текст требования в разделе друзей
+    const friendsHeroSub = document.querySelector('.friends-hero-sub');
+    if (friendsHeroSub) {
+        friendsHeroSub.innerHTML = `🔥 <strong>${t('friends.levelRequirement').replace('🔥 ', '')}</strong>`;
+    }
+    
+    // Обновляем текст на карточках наград
+    const rewardCards = document.querySelectorAll('.friends-reward-card');
+    const rewardsData = [
+        { card: rewardCards[0], friends: 10 },
+        { card: rewardCards[1], friends: 50 },
+        { card: rewardCards[2], friends: 150 }
+    ];
+    rewardsData.forEach(r => {
+        if (r.card) {
+            const friendsSpan = r.card.querySelector('.reward-friends');
+            if (friendsSpan) {
+                friendsSpan.textContent = `🎁 ${t('friendReward.locked', { friends: r.friends })}`;
+            }
+        }
+    });
+    
     // Вызываем обновление динамических компонентов
     if (typeof window.updateHeader === 'function') window.updateHeader();
     if (typeof window.renderCards === 'function') window.renderCards();
@@ -425,7 +457,8 @@ function setLanguage(lang) {
     
     const friendCountDisplay = document.getElementById('friendCountDisplay');
     if (friendCountDisplay && window.state?.user) {
-        friendCountDisplay.textContent = t('friends.friendsCount', { count: window.state.user.referralCount || 0 });
+        const totalFriends = window.state.user.referralTotalCount || 0;
+        friendCountDisplay.textContent = t('friends.friendsCount', { count: window.state.user.referralCount || 0, total: totalFriends });
     }
     
     const walletIncome = document.getElementById('walletIncome');

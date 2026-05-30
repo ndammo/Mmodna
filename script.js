@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + ЛИМИТ РЕКЛАМЫ 10/ДЕНЬ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + РЕФЕРАЛЫ 5+ УРОВНЯ)
 // ============================================================
 
 // ============================================================
@@ -345,6 +345,12 @@ async function refreshUserProfile() {
         renderCards();
         updateFriendRewardButtons();
         
+        // Обновляем счетчик друзей в хедере
+        const friendCountDisplay = document.getElementById('friendCountDisplay');
+        if (friendCountDisplay && state.user) {
+            friendCountDisplay.textContent = `${state.user.referralCount || 0} друзей 5+ уровня`;
+        }
+        
         if (res.offlineEarned > 10) {
             setTimeout(() => showToast(`+${formatNum(res.offlineEarned)} MMO offline!`, '💤'), 1000);
         }
@@ -624,7 +630,7 @@ function updateHeader() {
 
     const friendCountDisplay = document.getElementById('friendCountDisplay');
     if (friendCountDisplay && state.user) {
-        friendCountDisplay.textContent = `${state.user.referralCount || 0} friends invited`;
+        friendCountDisplay.textContent = `${state.user.referralCount || 0} друзей 5+ уровня`;
     }
 }
 
@@ -1368,17 +1374,18 @@ async function confirmSellListing(creatureId) {
 async function renderMarketplaceMyListings() {
     const container = document.getElementById('marketplaceMyListings');
     if (!container) return;
-    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">Loading...</div>`;
+    
+    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">${t('marketplace.loading')}</div>`;
 
     const res = await apiRequest('GET', '/api/marketplace/my-listings');
     if (!res || !res.success) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">Error</div>`;
+        container.innerHTML = `<div class="empty-listings">${t('marketplace.error')}</div>`;
         return;
     }
 
     const listings = Array.isArray(res.listings) ? res.listings : [];
     if (!listings.length) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">You have no active listings</div>`;
+        container.innerHTML = `<div class="empty-listings">${t('marketplace.noMyListings')}</div>`;
         return;
     }
 
@@ -1386,16 +1393,20 @@ async function renderMarketplaceMyListings() {
         const c = getCreature(l.creatureId);
         if (!c) return '';
         const color = RARITY_COLORS[c.rarity];
+        const date = new Date(l.createdAt).toLocaleDateString();
+        
         return `<div class="marketplace-my-listing">
-            <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c)}</div>
+            <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">
+                ${getIconHtml(c)}
+            </div>
             <div class="marketplace-my-listing-info">
                 <div class="marketplace-my-listing-name">${escapeHtml(c.name)}</div>
-                <div class="marketplace-my-listing-status">Listed ${new Date(l.createdAt).toLocaleDateString()}</div>
+                <div class="marketplace-my-listing-status">Listed ${date}</div>
                 <div class="marketplace-listing-rarity badge-${c.rarity}">${c.rarity}</div>
             </div>
             <div class="marketplace-my-listing-price">
-                <div class="marketplace-my-listing-amount">${l.price}</div>
-                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">CANCEL</button>
+                <div class="marketplace-my-listing-amount">${l.price} MMO</div>
+                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">${t('marketplace.cancel')}</button>
             </div>
         </div>`;
     }).join('');
@@ -1475,13 +1486,20 @@ async function renderLeaderboard() {
     const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
     if (!res || !res.success) {
         if (res === null) return;
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Error loading leaderboard</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('error.server')}</div>`;
         return;
+    }
+    
+    if (res.leaders) {
+        res.leaders = res.leaders.map(l => ({
+            ...l,
+            telegramId: l.telegramId
+        }));
     }
     
     leaderboardCache = {
         data: res,
-        expiresAt: Date.now() + 5 * 60 * 1000
+        expiresAt: Date.now() + 30 * 1000
     };
     
     renderLeaderboardData(res);
@@ -1492,30 +1510,45 @@ function renderLeaderboardData(data) {
     const list = document.getElementById('leaderboardList');
     if (!list) return;
     
+    const currentUserId = state.user?.telegramId;
+    if (!currentUserId) {
+        console.warn('No current user telegram ID');
+        return;
+    }
+    
     const leaders = data.leaders || [];
+    
+    if (!leaders.length) {
+        list.innerHTML = `<div class="empty-listings">No players yet</div>`;
+        return;
+    }
+    
     list.innerHTML = leaders.map(l => {
         const rank = l.rank;
         const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
         const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
-        const color = l.isMe ? '#a855f7' : '#94a3b8';
-        return `<div class="lb-item ${l.isMe ? 'me' : ''}">
+        const isMe = l.telegramId === currentUserId;
+        
+        return `<div class="lb-item ${isMe ? 'me' : ''}">
             <div class="lb-rank ${rankClass}">${rankIcon}</div>
-            <div class="lb-avatar" style="background:${color}33;border:1px solid ${color}44;color:${color}">${l.username[0]?.toUpperCase() || '?'}</div>
+            <div class="lb-avatar" style="background:${isMe ? '#a855f7' : '#4a5568'}33;border:1px solid ${isMe ? '#a855f7' : '#4a5568'}44;color:${isMe ? '#a855f7' : '#fff'}">
+                ${l.username[0]?.toUpperCase() || '?'}
+            </div>
             <div class="lb-info">
-                <div class="lb-name">${escapeHtml(l.username)} ${l.isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
-                <div class="lb-level">LVL ${l.level} · ${getLevelTitle(l.level)}</div>
-                <div class="lb-xp" style="font-size:9px;color:#4a5568">XP: ${l.xp}/${l.level * 100}</div>
+                <div class="lb-name">${escapeHtml(l.username)} ${isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
+                <div class="lb-level">${t('common.lvl')} ${l.level} · ${getLevelTitle(l.level)}</div>
+                <div class="lb-xp" style="font-size:9px;color:#4a5568">${t('common.xp')}: ${l.xp}/${l.level * 100}</div>
             </div>
             <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
-                <span style="font-size:12px;font-weight:700;color:#f59e0b">LVL ${l.level}</span>
-                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} MMO</span>
+                <span style="font-size:12px;font-weight:700;color:#f59e0b">${t('common.lvl')} ${l.level}</span>
+                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} ${t('common.mmo')}</span>
             </div>
         </div>`;
     }).join('');
 }
 
 // ============================================================
-// FRIENDS
+// FRIENDS (ОБНОВЛЕНО - ТРЕБОВАНИЕ 5+ УРОВНЯ)
 // ============================================================
 async function inviteFriend() {
     const res = await apiRequest('GET', '/api/user/referrals');
@@ -1547,11 +1580,18 @@ async function renderFriendsList() {
         }
         
         const referrals = res.referrals || [];
+        const qualifiedCount = res.referralCount || 0;
+        
+        // Обновляем счетчик друзей в UI
+        const friendCountDisplay = document.getElementById('friendCountDisplay');
+        if (friendCountDisplay) {
+            friendCountDisplay.textContent = `${qualifiedCount} друзей 5+ уровня из ${referrals.length}`;
+        }
         
         if (referrals.length === 0) {
             container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">
                 <i class="fa-solid fa-user-plus" style="font-size:24px;margin-bottom:10px;display:block"></i>
-                No friends yet<br>Invite friends to get rewards!
+                Нет друзей<br>Пригласите друзей и помогите им достичь 5 уровня!
             </div>`;
             return;
         }
@@ -1559,22 +1599,142 @@ async function renderFriendsList() {
         container.innerHTML = referrals.map(friend => {
             const date = new Date(friend.joinedAt);
             const formattedDate = date.toLocaleDateString();
+            const isQualified = friend.level >= 5;
+            
             return `
-                <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
-                    <div style="width:40px;height:40px;background:linear-gradient(135deg,#1e2d4a,#0d1120);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid #a855f744">👤</div>
+                <div style="background:#0d1120;border:1px solid ${isQualified ? '#22c55e' : '#1e2d4a'};border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                    <div style="width:40px;height:40px;background:${isQualified ? 'linear-gradient(135deg,#22c55e,#16a34a)' : 'linear-gradient(135deg,#1e2d4a,#0d1120)'};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid ${isQualified ? '#22c55e' : '#a855f744'}">👤</div>
                     <div style="flex:1">
                         <div style="font-size:13px;font-weight:600;color:#e2e8f0">${escapeHtml(friend.username)}</div>
-                        <div style="font-size:10px;color:#4a5568">Joined ${formattedDate}</div>
+                        <div style="font-size:10px;color:#4a5568">Уровень ${friend.level} • Присоединился ${formattedDate}</div>
                     </div>
-                    <div style="font-size:12px;font-weight:700;color:#22c55e">${formatNum(friend.balance)} MMO</div>
+                    <div style="text-align:right">
+                        ${isQualified 
+                            ? '<div style="font-size:11px;color:#22c55e;font-weight:600">✅ 5+ уровень</div>'
+                            : `<div style="font-size:11px;color:#f59e0b">📈 нужно ${5 - friend.level} ур.</div>`
+                        }
+                        <div style="font-size:12px;font-weight:700;color:#a855f7">${formatNum(friend.balance)} MMO</div>
+                    </div>
                 </div>
             `;
         }).join('');
         
     } catch (e) {
         console.error('renderFriendsList error:', e);
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Error loading friends</div>`;
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Ошибка загрузки друзей</div>`;
     }
+}
+
+// ============================================================
+// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ОБНОВЛЕНО - ТРЕБОВАНИЕ 5+ УРОВНЯ)
+// ============================================================
+async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
+    if (state.isLoading) return;
+    
+    const currentFriends = state.user?.referralCount || 0;
+    
+    if (currentFriends < requiredFriends) {
+        showToast(`Нужно ${requiredFriends} друзей 5+ уровня (у вас ${currentFriends})`, '❌');
+        return;
+    }
+    
+    const rewardKey = `friend_reward_${requiredFriends}`;
+    if (state.user?.completedSpecialQuests?.includes(rewardKey)) {
+        showToast('Вы уже получили эту награду', 'ℹ️');
+        return;
+    }
+    
+    state.isLoading = true;
+    showToast('🔄 Получение награды...', '');
+    
+    const res = await apiRequest('POST', '/api/game/claim-friend-reward', { requiredFriends, creatureId });
+    
+    state.isLoading = false;
+    
+    if (!res.success) {
+        showToast(res.message || 'Ошибка', '❌');
+        return;
+    }
+    
+    state.user = res.user;
+    state.inventory = res.inventory;
+    if (res.incomePerHour !== undefined) {
+        state.incomePerHour = res.incomePerHour;
+    } else {
+        state.incomePerHour = await getCurrentIncome();
+    }
+    
+    updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
+    updateHeader();
+    renderCards();
+    updateFriendRewardButtons();
+    renderSpecialQuests();
+    
+    showFriendRewardPopup(creatureName, creatureIcon);
+}
+
+function showFriendRewardPopup(creatureName, creatureIcon) {
+    const colorMap = {
+        'Rare Wolf': '#3b82f6',
+        'Epic Wolf': '#a855f7',
+        'Legendary Wolf': '#f59e0b'
+    };
+    const color = colorMap[creatureName] || '#a855f7';
+    
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${creatureIcon || '🐺'}</span>
+        <div class="popup-title" style="color:${color}">${escapeHtml(creatureName)}</div>
+        <div class="popup-subtitle">Получен за ${creatureName === 'Legendary Wolf' ? '150' : creatureName === 'Epic Wolf' ? '50' : '10'} друзей 5+ уровня!</div>
+        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">🎁 НАГРАДА</div>
+        <button class="popup-btn" onclick="closeOverlay()">ОТЛИЧНО!</button>
+    `;
+    document.getElementById('overlay').classList.add('show');
+    spawnStars('epic');
+}
+
+function updateFriendRewardButtons() {
+    const currentQualified = state.user?.referralCount || 0;
+    const completedQuests = new Set(state.user?.completedSpecialQuests || []);
+    
+    const rewards = [
+        { friends: 10, creatureId: 'wolf_r', creatureName: 'Rare Wolf', creatureIcon: '🐺', rarity: 'rare', btnId: 'reward-10-btn', cardId: 'reward-10' },
+        { friends: 50, creatureId: 'wolf_e', creatureName: 'Epic Wolf', creatureIcon: '🐺', rarity: 'epic', btnId: 'reward-50-btn', cardId: 'reward-50' },
+        { friends: 150, creatureId: 'wolf_l', creatureName: 'Legendary Wolf', creatureIcon: '🐺', rarity: 'legendary', btnId: 'reward-150-btn', cardId: 'reward-150' }
+    ];
+    
+    rewards.forEach(reward => {
+        const btn = document.getElementById(reward.btnId);
+        const card = document.getElementById(reward.cardId);
+        if (!btn) return;
+        
+        const alreadyClaimed = completedQuests.has(`friend_reward_${reward.friends}`);
+        
+        if (alreadyClaimed) {
+            btn.textContent = '✅ ПОЛУЧЕНО';
+            btn.style.background = 'rgba(34,197,94,0.2)';
+            btn.style.color = '#22c55e';
+            btn.style.cursor = 'default';
+            btn.disabled = true;
+            if (card) card.style.opacity = '0.6';
+        } else if (currentQualified >= reward.friends) {
+            btn.textContent = '🎁 ЗАБРАТЬ';
+            btn.style.background = `linear-gradient(135deg, #f59e0b, #d97706)`;
+            btn.style.color = '#fff';
+            btn.style.cursor = 'pointer';
+            btn.disabled = false;
+            btn.onclick = () => claimFriendReward(reward.friends, reward.creatureId, reward.creatureName, reward.creatureIcon);
+            if (card) card.style.borderColor = `var(--${reward.rarity})`;
+        } else {
+            btn.textContent = `🔒 ${reward.friends} ДРУЗЕЙ 5+ УРОВНЯ`;
+            btn.style.background = '#1a2540';
+            btn.style.color = '#94a3b8';
+            btn.style.cursor = 'not-allowed';
+            btn.disabled = true;
+        }
+    });
+    
+    renderFriendsList();
 }
 
 // ============================================================
@@ -1700,7 +1860,7 @@ async function renderSpecialQuests() {
                     if (currentFriends >= required) {
                         actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})</button>`;
                     } else {
-                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ (${currentFriends})</button>`;
+                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ 5+ УРОВНЯ (${currentFriends})</button>`;
                     }
                     break;
             }
@@ -1726,119 +1886,7 @@ async function updateSpecialQuests() {
 }
 
 // ============================================================
-// РЕФЕРАЛЬНЫЕ НАГРАДЫ
-// ============================================================
-async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
-    if (state.isLoading) return;
-    
-    const currentFriends = state.user?.referralCount || 0;
-    
-    if (currentFriends < requiredFriends) {
-        showToast(`Нужно ${requiredFriends} друзей (у вас ${currentFriends})`, '❌');
-        return;
-    }
-    
-    const rewardKey = `friend_reward_${requiredFriends}`;
-    if (state.user?.completedSpecialQuests?.includes(rewardKey)) {
-        showToast('Вы уже получили эту награду', 'ℹ️');
-        return;
-    }
-    
-    state.isLoading = true;
-    showToast('🔄 Получение награды...', '');
-    
-    const res = await apiRequest('POST', '/api/game/claim-friend-reward', { requiredFriends, creatureId });
-    
-    state.isLoading = false;
-    
-    if (!res.success) {
-        showToast(res.message || 'Ошибка', '❌');
-        return;
-    }
-    
-    state.user = res.user;
-    state.inventory = res.inventory;
-    if (res.incomePerHour !== undefined) {
-        state.incomePerHour = res.incomePerHour;
-    } else {
-        state.incomePerHour = await getCurrentIncome();
-    }
-    
-    updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
-    updateHeader();
-    renderCards();
-    updateFriendRewardButtons();
-    renderSpecialQuests();
-    
-    showFriendRewardPopup(creatureName, creatureIcon);
-}
-
-function showFriendRewardPopup(creatureName, creatureIcon) {
-    const colorMap = {
-        'Rare Wolf': '#3b82f6',
-        'Epic Wolf': '#a855f7',
-        'Legendary Wolf': '#f59e0b'
-    };
-    const color = colorMap[creatureName] || '#a855f7';
-    
-    document.getElementById('popup').innerHTML = `
-        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <span class="popup-icon" style="filter:drop-shadow(0 0 16px ${color})">${creatureIcon || '🐺'}</span>
-        <div class="popup-title" style="color:${color}">${escapeHtml(creatureName)}</div>
-        <div class="popup-subtitle">Получен за приглашение друзей!</div>
-        <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">🎁 НАГРАДА</div>
-        <button class="popup-btn" onclick="closeOverlay()">ОТЛИЧНО!</button>
-    `;
-    document.getElementById('overlay').classList.add('show');
-    spawnStars('epic');
-}
-
-function updateFriendRewardButtons() {
-    const currentFriends = state.user?.referralCount || 0;
-    const completedQuests = new Set(state.user?.completedSpecialQuests || []);
-    
-    const rewards = [
-        { friends: 10, creatureId: 'wolf_r', creatureName: 'Rare Wolf', creatureIcon: '🐺', rarity: 'rare', btnId: 'reward-10-btn', cardId: 'reward-10' },
-        { friends: 50, creatureId: 'wolf_e', creatureName: 'Epic Wolf', creatureIcon: '🐺', rarity: 'epic', btnId: 'reward-50-btn', cardId: 'reward-50' },
-        { friends: 150, creatureId: 'wolf_l', creatureName: 'Legendary Wolf', creatureIcon: '🐺', rarity: 'legendary', btnId: 'reward-150-btn', cardId: 'reward-150' }
-    ];
-    
-    rewards.forEach(reward => {
-        const btn = document.getElementById(reward.btnId);
-        const card = document.getElementById(reward.cardId);
-        if (!btn) return;
-        
-        const alreadyClaimed = completedQuests.has(`friend_reward_${reward.friends}`);
-        
-        if (alreadyClaimed) {
-            btn.textContent = '✅ ПОЛУЧЕНО';
-            btn.style.background = 'rgba(34,197,94,0.2)';
-            btn.style.color = '#22c55e';
-            btn.style.cursor = 'default';
-            btn.disabled = true;
-            if (card) card.style.opacity = '0.6';
-        } else if (currentFriends >= reward.friends) {
-            btn.textContent = '🎁 ЗАБРАТЬ';
-            btn.style.background = `linear-gradient(135deg, #f59e0b, #d97706)`;
-            btn.style.color = '#fff';
-            btn.style.cursor = 'pointer';
-            btn.disabled = false;
-            btn.onclick = () => claimFriendReward(reward.friends, reward.creatureId, reward.creatureName, reward.creatureIcon);
-            if (card) card.style.borderColor = `var(--${reward.rarity})`;
-        } else {
-            btn.textContent = `🔒 ${reward.friends} ДРУЗЕЙ`;
-            btn.style.background = '#1a2540';
-            btn.style.color = '#94a3b8';
-            btn.style.cursor = 'not-allowed';
-            btn.disabled = true;
-        }
-    });
-    
-    renderFriendsList();
-}
-
-// ============================================================
-// ДЕПОЗИТЫ И ВЫВОДЫ (НОВАЯ ЛОГИКА)
+// ДЕПОЗИТЫ И ВЫВОДЫ
 // ============================================================
 
 const MIN_TRANSACTION_AMOUNT = 5000;
@@ -2106,7 +2154,10 @@ function switchTab(tab) {
     
     isMarketplaceTabActive = (tab === 'shop');
 
-    if (tab === 'leaderboard') renderLeaderboard();
+    if (tab === 'leaderboard') {
+        leaderboardCache = { data: null, expiresAt: 0 };
+        renderLeaderboard();
+    }
     if (tab === 'special') renderSpecialQuests();
     if (tab === 'wallet') {
         updateHeader();
@@ -2172,7 +2223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// ЭКСПОРТ ФУНКЦИЙ ДЛЯ ЛОКАЛИЗАЦИИ
+// ЭКСПОРТ ФУНКЦИЙ ДЛЯ ГЛОБАЛЬНОГО ДОСТУПА
 // ============================================================
 
 window.updateHeader = updateHeader;
@@ -2189,3 +2240,32 @@ window.state = state;
 window.formatNum = formatNum;
 window.getVisualBalance = getVisualBalance;
 window.updateAdsStatus = updateAdsStatus;
+window.switchTab = switchTab;
+window.closeOverlay = closeOverlay;
+window.showCapsuleModal = showCapsuleModal;
+window.openCapsule = openCapsule;
+window.onCardClick = onCardClick;
+window.showMergePreview = showMergePreview;
+window.executeMerge = executeMerge;
+window.upgradeInventory = upgradeInventory;
+window.watchAd = watchAd;
+window.showEncyclopedia = showEncyclopedia;
+window.showCreatureInfo = showCreatureInfo;
+window.switchMarketplaceTab = switchMarketplaceTab;
+window.openSellModal = openSellModal;
+window.updateFeeCalculator = updateFeeCalculator;
+window.confirmSellListing = confirmSellListing;
+window.cancelMarketplaceListing = cancelMarketplaceListing;
+window.buyFromMarketplace = buyFromMarketplace;
+window.inviteFriend = inviteFriend;
+window.claimFriendReward = claimFriendReward;
+window.openChannelAndStartTimer = openChannelAndStartTimer;
+window.claimSpecialQuest = claimSpecialQuest;
+window.openCustomLinkAndComplete = openCustomLinkAndComplete;
+window.showDepositModal = showDepositModal;
+window.getPaymentDetails = getPaymentDetails;
+window.createDepositRequestAfterPayment = createDepositRequestAfterPayment;
+window.showWithdrawModal = showWithdrawModal;
+window.createWithdrawRequest = createWithdrawRequest;
+window.copyToClipboard = copyToClipboard;
+window.checkActiveRequests = checkActiveRequests;
