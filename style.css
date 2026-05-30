@@ -1676,3 +1676,27 @@ img {
 #tab-friends > div:first-of-type {
     margin-bottom: 16px;
 }
+/* Анимация для кнопки "НА ПРОВЕРКЕ" */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.special-quest-btn.pending {
+    background: #f59e0b !important;
+    animation: pulse 1.5s infinite;
+    cursor: wait;
+}
+
+.special-quest-btn.claim {
+    background: linear-gradient(135deg, #eab308, #ca8a04) !important;
+    animation: pulse 1.5s infinite;
+}
+
+.special-quest-btn.claim:hover {
+    transform: scale(1.02);
+}

@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + РЕФЕРАЛЫ 5+ УРОВНЯ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + РЕФЕРАЛЫ 5+ УРОВНЯ + СТАТУС КВЕСТОВ)
 // ============================================================
 
 // ============================================================
@@ -58,6 +58,9 @@ let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
 // Переменные для депозита
 let currentPaymentMemo = null;
 let currentPaymentAmount = null;
+
+// Хранилище статусов квестов (pending, available, claimed)
+let questStatuses = new Map();
 
 // ============================================================
 // GAME DATA
@@ -278,6 +281,7 @@ function clearAllIntervals() {
     collectIncomeTimer = null;
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
     activeQuestTimers.clear();
+    clearAllQuestTimers();
 }
 
 function startOptimizedIntervals() {
@@ -345,7 +349,6 @@ async function refreshUserProfile() {
         renderCards();
         updateFriendRewardButtons();
         
-        // Обновляем счетчик друзей в хедере
         const friendCountDisplay = document.getElementById('friendCountDisplay');
         if (friendCountDisplay && state.user) {
             friendCountDisplay.textContent = `${state.user.referralCount || 0} друзей 5+ уровня`;
@@ -1582,7 +1585,6 @@ async function renderFriendsList() {
         const referrals = res.referrals || [];
         const qualifiedCount = res.referralCount || 0;
         
-        // Обновляем счетчик друзей в UI
         const friendCountDisplay = document.getElementById('friendCountDisplay');
         if (friendCountDisplay) {
             friendCountDisplay.textContent = `${qualifiedCount} друзей 5+ уровня из ${referrals.length}`;
@@ -1626,7 +1628,7 @@ async function renderFriendsList() {
 }
 
 // ============================================================
-// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ОБНОВЛЕНО - ТРЕБОВАНИЕ 5+ УРОВНЯ)
+// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ТРЕБОВАНИЕ 5+ УРОВНЯ)
 // ============================================================
 async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
     if (state.isLoading) return;
@@ -1738,9 +1740,84 @@ function updateFriendRewardButtons() {
 }
 
 // ============================================================
-// SPECIAL QUESTS
+// SPECIAL QUESTS (ОБНОВЛЕНО - СТАТУС "НА ПРОВЕРКЕ")
 // ============================================================
+
+// Функция получения названия квеста
+function getQuestTitle(questId) {
+    const quest = SPECIAL_QUESTS.find(q => q.id === questId);
+    return quest ? quest.title : 'квест';
+}
+
+// Функция очистки всех таймеров квестов
+function clearAllQuestTimers() {
+    for (const [questId, data] of questStatuses.entries()) {
+        if (data.timerId) {
+            clearTimeout(data.timerId);
+        }
+    }
+    questStatuses.clear();
+}
+
+// Функция обновления кнопки квеста в зависимости от статуса
+function updateQuestButton(questId, status) {
+    // Находим кнопку в DOM
+    const questCard = document.querySelector(`.special-quest-card[data-quest-id="${questId}"]`);
+    if (!questCard) return;
+    
+    const footer = questCard.querySelector('.special-quest-footer');
+    if (!footer) return;
+    
+    const quest = SPECIAL_QUESTS.find(q => q.id === questId);
+    if (!quest) return;
+    
+    const isCompleted = state.user?.completedSpecialQuests?.includes(questId);
+    
+    if (isCompleted) {
+        footer.innerHTML = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ВЫПОЛНЕНО</button>`;
+        return;
+    }
+    
+    switch (status) {
+        case 'pending':
+            footer.innerHTML = `<button class="special-quest-btn pending" disabled style="background: #f59e0b; animation: pulse 1.5s infinite;">
+                <i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ...
+            </button>`;
+            break;
+        case 'available':
+            footer.innerHTML = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${questId}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); animation: pulse 1.5s infinite;">
+                <i class="fa-solid fa-gift"></i> 🎁 ЗАБРАТЬ НАГРАДУ
+            </button>`;
+            break;
+        default:
+            // Стандартная кнопка выполнения
+            if (quest.type === 'telegram_channel') {
+                footer.innerHTML = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')">
+                    <i class="fa-brands fa-telegram"></i> ВЫПОЛНИТЬ
+                </button>`;
+            } else if (quest.type === 'custom_link') {
+                footer.innerHTML = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')">
+                    <i class="fa-solid fa-globe"></i> ВЫПОЛНИТЬ
+                </button>`;
+            } else if (quest.type === 'referral_count') {
+                const currentFriends = state.user?.referralCount || 0;
+                const required = quest.required_count || 1;
+                if (currentFriends >= required) {
+                    footer.innerHTML = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')">
+                        <i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})
+                    </button>`;
+                } else {
+                    footer.innerHTML = `<button class="special-quest-btn locked" disabled>
+                        <i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ 5+ (${currentFriends})
+                    </button>`;
+                }
+            }
+            break;
+    }
+}
+
 function openChannelAndStartTimer(questId, channelLink) {
+    // Открываем ссылку если есть
     if (channelLink) {
         if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
             window.Telegram.WebApp.openTelegramLink(channelLink);
@@ -1749,44 +1826,93 @@ function openChannelAndStartTimer(questId, channelLink) {
         }
     }
     
-    if (activeQuestTimers.has(questId)) {
-        clearTimeout(activeQuestTimers.get(questId));
-        activeQuestTimers.delete(questId);
-    }
-    
-    const timer = setTimeout(async () => {
-        if (state.user?.completedSpecialQuests?.includes(questId)) {
-            activeQuestTimers.delete(questId);
-            return;
-        }
-        await claimSpecialQuestSilent(questId);
-        activeQuestTimers.delete(questId);
-    }, 60000);
-    
-    activeQuestTimers.set(questId, timer);
-}
-
-async function claimSpecialQuestSilent(questId) {
-    if (state.isLoading) return;
-    
-    state.isLoading = true;
-    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
-    state.isLoading = false;
-    
-    if (!res.success) {
-        console.log('Ошибка получения награды:', res.message);
+    // Проверяем, не выполнен ли уже квест
+    if (state.user?.completedSpecialQuests?.includes(questId)) {
+        showToast('Вы уже получили награду за этот квест', 'ℹ️');
         return;
     }
     
-    state.user = res.user;
-    updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
-    updateHeader();
-    await renderSpecialQuests();
-    showToast(`+${res.reward} MMO`, '✅');
+    // Проверяем, не на проверке ли уже
+    const existingStatus = questStatuses.get(questId);
+    if (existingStatus && existingStatus.status === 'pending') {
+        showToast('Квест уже на проверке! Осталось подождать.', '⏳');
+        return;
+    }
+    
+    // Устанавливаем статус "на проверке"
+    questStatuses.set(questId, { status: 'pending', timerId: null });
+    
+    // Обновляем UI кнопки
+    updateQuestButton(questId, 'pending');
+    
+    // Запускаем таймер на 60 секунд
+    const timerId = setTimeout(async () => {
+        // По истечении времени меняем статус на "доступно для получения"
+        questStatuses.set(questId, { status: 'available', timerId: null });
+        updateQuestButton(questId, 'available');
+        
+        showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+    }, 60000);
+    
+    // Сохраняем timerId в статусе
+    questStatuses.set(questId, { status: 'pending', timerId });
+    
+    showToast('🔍 Проверка выполнения квеста... Подождите 60 секунд.', '⏳');
 }
 
+function openCustomLinkAndComplete(questId, link) {
+    // Открываем ссылку если есть
+    if (link) {
+        window.open(link, '_blank');
+    }
+    
+    // Проверяем, не выполнен ли уже квест
+    if (state.user?.completedSpecialQuests?.includes(questId)) {
+        showToast('Вы уже получили награду за этот квест', 'ℹ️');
+        return;
+    }
+    
+    // Проверяем, не на проверке ли уже
+    const existingStatus = questStatuses.get(questId);
+    if (existingStatus && existingStatus.status === 'pending') {
+        showToast('Квест уже на проверке! Осталось подождать.', '⏳');
+        return;
+    }
+    
+    // Устанавливаем статус "на проверке"
+    questStatuses.set(questId, { status: 'pending', timerId: null });
+    
+    // Обновляем UI кнопки
+    updateQuestButton(questId, 'pending');
+    
+    // Запускаем таймер на 60 секунд
+    const timerId = setTimeout(async () => {
+        // По истечении времени меняем статус на "доступно для получения"
+        questStatuses.set(questId, { status: 'available', timerId: null });
+        updateQuestButton(questId, 'available');
+        
+        showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+    }, 60000);
+    
+    questStatuses.set(questId, { status: 'pending', timerId });
+    
+    showToast('🔍 Проверка выполнения квеста... Подождите 60 секунд.', '⏳');
+}
+
+// Обновленная функция получения награды
 async function claimSpecialQuest(questId) {
     if (state.isLoading) return;
+    
+    // Проверяем, доступен ли квест для получения
+    const questStatus = questStatuses.get(questId);
+    if (questStatus && questStatus.status !== 'available') {
+        if (questStatus && questStatus.status === 'pending') {
+            showToast('Квест ещё на проверке! Подождите немного.', '⏳');
+        } else {
+            showToast('Сначала выполните квест!', '⚠️');
+        }
+        return;
+    }
     
     if (state.user?.completedSpecialQuests?.includes(questId)) {
         showToast('Вы уже получили награду за этот квест', 'ℹ️');
@@ -1805,18 +1931,53 @@ async function claimSpecialQuest(questId) {
     state.user = res.user;
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
+    
+    // Очищаем статус квеста
+    const existing = questStatuses.get(questId);
+    if (existing && existing.timerId) {
+        clearTimeout(existing.timerId);
+    }
+    questStatuses.delete(questId);
+    
     await renderSpecialQuests();
-    showToast(`+${res.reward} MMO`, '✅');
+    showToast(`+${res.reward} MMO получено!`, '✅');
     spawnFloatingMMO(res.reward);
 }
 
-function openCustomLinkAndComplete(questId, link) {
-    if (link) {
-        window.open(link, '_blank');
+// Функция для тихого получения награды (для каналов с таймером)
+async function claimSpecialQuestSilent(questId) {
+    if (state.isLoading) return;
+    
+    const questStatus = questStatuses.get(questId);
+    if (questStatus && questStatus.status !== 'available') {
+        return;
     }
-    setTimeout(() => {
-        claimSpecialQuest(questId);
-    }, 500);
+    
+    if (state.user?.completedSpecialQuests?.includes(questId)) {
+        return;
+    }
+    
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/game/complete-special-quest', { questId });
+    state.isLoading = false;
+    
+    if (!res.success) {
+        console.log('Ошибка получения награды:', res.message);
+        return;
+    }
+    
+    state.user = res.user;
+    updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
+    updateHeader();
+    
+    const existing = questStatuses.get(questId);
+    if (existing && existing.timerId) {
+        clearTimeout(existing.timerId);
+    }
+    questStatuses.delete(questId);
+    
+    await renderSpecialQuests();
+    showToast(`+${res.reward} MMO получено за квест!`, '✅');
 }
 
 async function renderSpecialQuests() {
@@ -1841,32 +2002,49 @@ async function renderSpecialQuests() {
     
     container.innerHTML = filteredQuests.map(quest => {
         const isCompleted = completedQuests.has(quest.id);
+        const questStatus = questStatuses.get(quest.id);
         
         let actionHtml = '';
         
         if (isCompleted) {
             actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ВЫПОЛНЕНО</button>`;
+        } else if (questStatus && questStatus.status === 'pending') {
+            actionHtml = `<button class="special-quest-btn pending" disabled style="background: #f59e0b; animation: pulse 1.5s infinite;">
+                <i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ...
+            </button>`;
+        } else if (questStatus && questStatus.status === 'available') {
+            actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); animation: pulse 1.5s infinite;">
+                <i class="fa-solid fa-gift"></i> 🎁 ЗАБРАТЬ НАГРАДУ
+            </button>`;
         } else {
             switch (quest.type) {
                 case 'telegram_channel':
-                    actionHtml = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')"><i class="fa-brands fa-telegram"></i> ПЕРЕЙТИ</button>`;
+                    actionHtml = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')">
+                        <i class="fa-brands fa-telegram"></i> ВЫПОЛНИТЬ
+                    </button>`;
                     break;
                 case 'custom_link':
-                    actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')"><i class="fa-solid fa-globe"></i> ПЕРЕЙТИ</button>`;
+                    actionHtml = `<button class="special-quest-btn" onclick="openCustomLinkAndComplete('${quest.id}', '${quest.link}')">
+                        <i class="fa-solid fa-globe"></i> ВЫПОЛНИТЬ
+                    </button>`;
                     break;
                 case 'referral_count':
                     const currentFriends = state.user?.referralCount || 0;
                     const required = quest.required_count || 1;
                     if (currentFriends >= required) {
-                        actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')"><i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})</button>`;
+                        actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')">
+                            <i class="fa-solid fa-gift"></i> ЗАБРАТЬ (${currentFriends}/${required})
+                        </button>`;
                     } else {
-                        actionHtml = `<button class="special-quest-btn locked" disabled><i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ 5+ УРОВНЯ (${currentFriends})</button>`;
+                        actionHtml = `<button class="special-quest-btn locked" disabled>
+                            <i class="fa-solid fa-lock"></i> НУЖНО ${required} ДРУЗЕЙ 5+ (${currentFriends})
+                        </button>`;
                     }
                     break;
             }
         }
         
-        return `<div class="special-quest-card">
+        return `<div class="special-quest-card" data-quest-id="${quest.id}">
             <div class="special-quest-header">
                 <div class="special-quest-icon">${quest.icon || '🎯'}</div>
                 <div class="special-quest-info">
