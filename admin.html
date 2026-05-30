@@ -357,10 +357,10 @@
 </div>
 
 <div class="metrics-bar" id="metricsBar">
-    <div class="metric-item"><span class="metric-label">📊 Load (GPU/CPU)</span><span class="metric-value" id="cpuLoad">0%</span></div>
-    <div class="metric-item"><span class="metric-label">📡 Requests/min</span><span class="metric-value" id="reqCount">0</span></div>
-    <div class="metric-item"><span class="metric-label">⚠️ 5xx error-rate</span><span class="metric-value zero" id="errorRate">0.000%</span></div>
-    <div class="metric-item"><span class="metric-label">⏱️ Uptime</span><span class="metric-value" id="uptime">0</span></div>
+    <div class="metric-item"><span class="metric-label">📡 Запросов/мин</span><span class="metric-value" id="reqCount">0</span></div>
+    <div class="metric-item"><span class="metric-label">⚠️ Ошибок 5xx</span><span class="metric-value zero" id="errorRate">0.000%</span></div>
+    <div class="metric-item"><span class="metric-label">⏱️ Аптайм</span><span class="metric-value" id="uptime">0</span></div>
+    <div class="metric-item"><span class="metric-label">🖥️ RAM</span><span class="metric-value" id="ramUsage">0 MB</span></div>
 </div>
 
 <div class="main-content" id="mainContent">
@@ -385,6 +385,7 @@
     let currentPage = 1;
     let totalUsers = 0;
     let metricsInterval = null;
+    let isRefreshing = false;
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -404,20 +405,28 @@
         try {
             const res = await fetch(API_URL + path, opts);
             const data = await res.json();
-            if (!res.ok) {
-                if (res.status === 401) {
+            
+            // Только при явной 401 показываем вход
+            if (res.status === 401) {
+                // Не очищаем токен сразу при метриках
+                if (!path.includes('/metrics')) {
                     localStorage.removeItem('admin_session_token');
                     adminToken = null;
                     showToast('Сессия истекла, войдите снова', 'error');
                     showLoginModal();
                     if (metricsInterval) clearInterval(metricsInterval);
                 }
-                throw new Error(data.message || 'Ошибка');
+                return null;
+            }
+            
+            if (!res.ok) {
+                console.warn(`API ${path} error:`, data.message);
+                return null;
             }
             return data;
         } catch (e) {
             if (e.name !== 'AbortError') {
-                showToast(e.message || 'Ошибка сети', 'error');
+                console.error(`API ${path} error:`, e.message);
             }
             return null;
         }
@@ -515,19 +524,17 @@
                 errSpan.classList.remove('error');
             }
             
-            // Симуляция нагрузки GPU/CPU (на основе RPS)
-            const loadVal = Math.min(100, (res.requestsLastMinute || 0) * 1.5);
-            document.getElementById('cpuLoad').innerText = Math.floor(loadVal) + '%';
-            if (loadVal > 70) document.getElementById('cpuLoad').style.color = '#ef4444';
-            else if (loadVal > 40) document.getElementById('cpuLoad').style.color = '#f59e0b';
-            else document.getElementById('cpuLoad').style.color = '#22c55e';
+            // РЕАЛЬНОЕ использование памяти (если сервер возвращает)
+            if (res.memoryUsage) {
+                document.getElementById('ramUsage').innerText = res.memoryUsage + ' MB';
+            }
         }
     }
 
     function startRealMetrics() {
         if (metricsInterval) clearInterval(metricsInterval);
         fetchRealMetrics();
-        metricsInterval = setInterval(fetchRealMetrics, 10000);
+        metricsInterval = setInterval(fetchRealMetrics, 30000);
     }
 
     function formatNum(n) {
@@ -564,7 +571,10 @@
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
         const statsRes = await apiRequest('/api/admin/stats');
-        if (!statsRes) return;
+        if (!statsRes) {
+            main.innerHTML = '<div class="spinner">Ошибка загрузки статистики</div>';
+            return;
+        }
         
         const stats = statsRes.stats;
         
@@ -597,14 +607,16 @@
     }
 
     // ============================================================
-    // ПОЛЬЗОВАТЕЛИ (С ПОИСКОМ ПО КНОПКЕ)
+    // ПОЛЬЗОВАТЕЛИ (ИСПРАВЛЕН ПОИСК)
     // ============================================================
     async function loadUsers(page = 1) {
         currentPage = page;
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
-        const search = document.getElementById('userSearch')?.value || '';
+        const searchInput = document.getElementById('userSearch');
+        const search = searchInput ? searchInput.value : '';
+        
         const skip = (page - 1) * 20;
         
         const res = await apiRequest(`/api/admin/users?limit=20&skip=${skip}&search=${encodeURIComponent(search)}`);
@@ -615,15 +627,21 @@
         
         totalUsers = res.total || 0;
         
+        // Загружаем существ для отображения имён в инвентаре
+        const creaturesRes = await apiRequest('/api/admin/creatures');
+        if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
+        
         const html = `
             <div class="search-bar">
                 <input type="text" id="userSearch" placeholder="Поиск по ID, имени, username..." value="${escapeHtml(search)}">
-                <button onclick="loadUsers(1)"><i class="fas fa-search"></i> Поиск</button>
-                <button onclick="clearSearch()" class="secondary"><i class="fas fa-times"></i> Сброс</button>
+                <button onclick="searchUsers()"><i class="fas fa-search"></i> Поиск</button>
+                <button onclick="clearSearchAndReload()" class="secondary"><i class="fas fa-times"></i> Сброс</button>
             </div>
             <div class="data-table">
                 <table style="width:100%">
-                    <thead><tr><th>Telegram ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th></th></tr></thead>
+                    <thead>
+                        <tr><th>Telegram ID</th><th>Имя</th><th>Баланс</th><th>Уровень</th><th></th></tr>
+                    </thead>
                     <tbody>
                         ${res.users && res.users.length > 0 ? res.users.map(u => `
                             <tr>
@@ -649,7 +667,11 @@
         main.innerHTML = html;
     }
 
-    window.clearSearch = function() {
+    window.searchUsers = function() {
+        loadUsers(1);
+    };
+
+    window.clearSearchAndReload = function() {
         const searchInput = document.getElementById('userSearch');
         if (searchInput) searchInput.value = '';
         loadUsers(1);
@@ -942,7 +964,7 @@
                             <option value="legendary">Legendary</option><option value="mythic">Mythic</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="🧬"></div>
+                    <div class="form-group"><label>Иконка URL</label><input type="text" id="cIcon" value="🧬"></div>
                     <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
                     <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
                     <div class="modal-buttons"><button onclick="createCreature()">Создать</button><button onclick="closeModal()">Отмена</button></div>
@@ -974,7 +996,7 @@
                     <h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
                     <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
                     <div class="form-group"><label>Редкость</label><select id="cRarity">${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}"></div>
+                    <div class="form-group"><label>Иконка URL</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}"></div>
                     <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
                     <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
                     <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
