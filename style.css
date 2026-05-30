@@ -20,11 +20,11 @@
     --mythic: #ef4444;
 
     /* ===== ЕДИНЫЕ РАЗМЕРЫ СУЩЕСТВ ===== */
-    --creature-size: 64px;           /* размер в карточках */
+    --creature-size: 78px;           /* размер в карточках */
     --creature-popup: 128px;          /* размер в попапе */
     --creature-merge: 32px;          /* размер в окне слияния */
     --creature-encyclopedia: 28px;   /* размер в энциклопедии */
-    --capsule-size: 72px;            /* размер капсул */
+    --capsule-size: 100px;            /* размер капсул */
     --market-icon: 28px;             /* размер в маркете */
 }
 
