@@ -612,7 +612,7 @@ function updateHeader() {
     document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
     document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
 
-    document.getElementById('walletSub').textContent = `≈ ${(visualBalance * 0.001).toFixed(3)} USD`;
+    
     document.getElementById('walletIncome').textContent = formatNum(state.incomePerHour);
     document.getElementById('walletCards').textContent = state.inventory.reduce((s, i) => s + i.count, 0);
     document.getElementById('walletMerges').textContent = u.mergeCount || 0;
