@@ -338,7 +338,36 @@
         .inventory-item { background: #0d1120; border-radius: 8px; padding: 4px 8px; font-size: 11px; }
         
         .log-entry { font-size: 11px; padding: 8px 0; border-bottom: 1px solid #1e2d4a; font-family: monospace; }
-        .market-log-entry { font-size: 11px; padding: 8px 0; border-bottom: 1px solid #1e2d4a; }
+        
+        .sale-history-item {
+            background: #0d1120;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .sale-history-item:hover {
+            background: #1a2538;
+        }
+        
+        .creature-icon-preview {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #0d1120;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .creature-icon-img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
 
         @media (min-width: 768px) {
             .stats-grid {
@@ -371,7 +400,7 @@
     <button class="nav-item active" data-tab="dashboard"><i class="fas fa-chart-line"></i><span>Обзор</span></button>
     <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Пользователи</span></button>
     <button class="nav-item" data-tab="transactions"><i class="fas fa-exchange-alt"></i><span>Заявки</span></button>
-    <button class="nav-item" data-tab="market-logs"><i class="fas fa-store"></i><span>Маркет</span></button>
+    <button class="nav-item" data-tab="market"><i class="fas fa-store"></i><span>Маркет</span></button>
     <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
     <button class="nav-item" data-tab="quests"><i class="fas fa-star"></i><span>Квесты</span></button>
 </div>
@@ -407,9 +436,7 @@
             const res = await fetch(API_URL + path, opts);
             const data = await res.json();
             
-            // Только при явной 401 показываем вход
             if (res.status === 401) {
-                // Не очищаем токен сразу при метриках
                 if (!path.includes('/metrics')) {
                     localStorage.removeItem('admin_session_token');
                     adminToken = null;
@@ -422,7 +449,6 @@
             
             if (!res.ok) {
                 console.warn(`API ${path} error:`, data.message);
-                // Возвращаем data чтобы caller мог показать сообщение от сервера
                 return data;
             }
             return data;
@@ -526,7 +552,6 @@
                 errSpan.classList.remove('error');
             }
             
-            // RAM из сервера
             const ram = res.memoryUsage || 0;
             document.getElementById('ramUsage').innerText = ram + ' MB';
         }
@@ -559,7 +584,7 @@
             if (tab === 'dashboard') loadDashboard();
             if (tab === 'users') loadUsers(1);
             if (tab === 'transactions') loadTransactions();
-            if (tab === 'market-logs') loadMarketLogs();
+            if (tab === 'market') loadMarketSection();
             if (tab === 'creatures') loadCreatures();
             if (tab === 'quests') loadSpecialQuests();
         });
@@ -609,7 +634,7 @@
     }
 
     // ============================================================
-    // ПОЛЬЗОВАТЕЛИ (ИСПРАВЛЕН ПОИСК)
+    // ПОЛЬЗОВАТЕЛИ
     // ============================================================
     let _lastUserSearch = '';
 
@@ -617,7 +642,6 @@
         currentPage = page;
         const main = document.getElementById('mainContent');
         
-        // Читаем значение поиска ДО перерисовки (или используем сохранённое)
         const existingInput = document.getElementById('userSearch');
         if (existingInput) _lastUserSearch = existingInput.value;
         const search = _lastUserSearch;
@@ -634,8 +658,6 @@
         
         totalUsers = res.total || 0;
         
-        // Существа уже загружены в кэш при инициализации
-        // (если кэш пуст — загружаем)
         if (creaturesList.length === 0) {
             const creaturesRes = await apiRequest('/api/admin/creatures');
             if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
@@ -688,9 +710,6 @@
         loadUsers(1);
     };
 
-    // ============================================================
-    // ЛОГИ ПОЛЬЗОВАТЕЛЯ (ТРАНЗАКЦИИ)
-    // ============================================================
     window.showUserLogs = async function(userId, userName) {
         const res = await apiRequest(`/api/admin/users/${userId}`);
         if (!res || !res.user) {
@@ -724,25 +743,24 @@
     };
 
     // ============================================================
-    // МАРКЕТ ЛОГИ
+    // МАРКЕТ (АКТИВНЫЕ ЛОТЫ + ИСТОРИЯ ПРОДАЖ)
     // ============================================================
-    async function loadMarketLogs() {
+    async function loadMarketSection() {
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="spinner">Загрузка логов маркета...</div>';
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
-        // Загружаем существ для отображения имён
+        // Загружаем существ
         const creaturesRes = await apiRequest('/api/admin/creatures');
         if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
         
-        // Получаем все активные лоты
+        // Загружаем активные лоты
         const listingsRes = await apiRequest('/api/marketplace/listings');
         
-        if (!listingsRes) {
-            main.innerHTML = '<div class="spinner">Ошибка загрузки логов маркета</div>';
-            return;
-        }
+        // Загружаем историю продаж
+        const historyRes = await apiRequest('/api/admin/market-sales-history?limit=50');
         
-        const listings = listingsRes.listings || [];
+        const listings = (listingsRes && listingsRes.listings) ? listingsRes.listings : [];
+        const history = (historyRes && historyRes.history) ? historyRes.history : [];
         
         const html = `
             <div class="user-card">
@@ -782,6 +800,36 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            
+            <div class="user-card">
+                <h3><i class="fas fa-history"></i> История продаж (последние 50)</h3>
+                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Успешно завершённые сделки</div>
+                ${history.length > 0 ? history.map(sale => {
+                    const creature = sale.creature || { name: sale.creatureId, rarity: 'common' };
+                    const date = new Date(sale.soldAt).toLocaleString();
+                    return `
+                        <div class="sale-history-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div>
+                                        <div style="font-weight: 600;">${escapeHtml(creature.name)}</div>
+                                        <div style="font-size: 10px; color: #94a3b8;">${creature.rarity}</div>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="color: #f59e0b; font-weight: 600;">${sale.price.toLocaleString()} MMO</div>
+                                    <div style="font-size: 10px;">${date}</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; flex-wrap: wrap; gap: 8px;">
+                                <div>👤 Продавец: <span style="color: #a855f7;">${escapeHtml(sale.sellerName || sale.sellerTgId)}</span></div>
+                                <div>💰 Получил: <span style="color: #22c55e;">${sale.sellerEarns.toLocaleString()} MMO</span> (комиссия ${sale.fee.toLocaleString()})</div>
+                                <div>🛒 Покупатель: ${escapeHtml(sale.buyerName || sale.buyerTgId)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<div style="text-align:center; padding: 20px;">История продаж пуста</div>'}
             </div>
         `;
         main.innerHTML = html;
@@ -925,7 +973,7 @@
     };
 
     // ============================================================
-    // СУЩЕСТВА
+    // СУЩЕСТВА (с отображением иконок как ссылок, но не показываем картинки)
     // ============================================================
     async function loadCreatures() {
         const main = document.getElementById('mainContent');
@@ -938,11 +986,11 @@
             <div style="margin-bottom:16px;"><button onclick="showAddCreatureModal()"><i class="fas fa-plus"></i> Добавить существо</button></div>
             <div class="data-table">
                 <table style="width:100%">
-                    <thead><tr><th>Иконка</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr></thead>
+                    <thead><tr><th>ID иконки</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr></thead>
                     <tbody>
                         ${res.creatures.map(c => `
                             <tr>
-                                <td style="font-size:22px;">${escapeHtml(c.icon)}</td>
+                                <td><code style="font-size:11px;">${escapeHtml(c.icon)}</code></td>
                                 <td><small>${escapeHtml(c.id)}</small></td>
                                 <td>${escapeHtml(c.name)}</td>
                                 <td class="rarity-${c.rarity}">${c.rarity}</td>
@@ -951,7 +999,7 @@
                                 <td>
                                     <button onclick="editCreature('${c.id}')"><i class="fas fa-edit"></i></button>
                                     <button onclick="deleteCreature('${c.id}')" class="danger"><i class="fas fa-trash"></i></button>
-                                </td>
+                                 </td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -975,7 +1023,10 @@
                             <option value="legendary">Legendary</option><option value="mythic">Mythic</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Иконка URL</label><input type="text" id="cIcon" value="🧬"></div>
+                    <div class="form-group"><label>Иконка (ссылка на изображение или эмодзи)</label>
+                        <input type="text" id="cIcon" placeholder="https://... или 🧬" value="🧬">
+                        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Можно использовать URL картинки или эмодзи</div>
+                    </div>
                     <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
                     <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
                     <div class="modal-buttons"><button onclick="createCreature()">Создать</button><button onclick="closeModal()">Отмена</button></div>
@@ -1007,7 +1058,10 @@
                     <h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
                     <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
                     <div class="form-group"><label>Редкость</label><select id="cRarity">${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-                    <div class="form-group"><label>Иконка URL</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}"></div>
+                    <div class="form-group"><label>Иконка (ссылка на изображение или эмодзи)</label>
+                        <input type="text" id="cIcon" value="${escapeHtml(creature.icon)}">
+                        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Можно использовать URL картинки или эмодзи</div>
+                    </div>
                     <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
                     <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
                     <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
@@ -1167,47 +1221,12 @@
     };
 
     // ============================================================
-    // МАССОВЫЕ ДЕЙСТВИЯ
-    // ============================================================
-    window.showGiveAllCoins = function() {
-        const amount = prompt('Введите количество MMO для выдачи всем игрокам:', '100');
-        if (!amount) return;
-        giveToAll('coins', parseInt(amount));
-    };
-
-    window.showGiveAllCreature = function() {
-        const creatureId = prompt('Введите ID существа (например: duck_c):', 'duck_c');
-        if (!creatureId) return;
-        giveToAll('creature', null, creatureId);
-    };
-
-    async function giveToAll(type, amount, creatureId) {
-        const res = await apiRequest('/api/admin/give-to-all', 'POST', { type, amount, creatureId });
-        if (res?.success) showToast(res.message);
-        else showToast('Ошибка при массовой выдаче', 'error');
-    }
-
-
-    // ============================================================
     // ЗАЯВКИ НА ДЕПОЗИТ / ВЫВОД
     // ============================================================
     async function loadTransactions() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка заявок...</div>';
 
-        // Получаем все транзакции через admin/users (нет отдельного endpoint для всех заявок)
-        // Используем endpoint списка транзакций
-        const res = await apiRequest('/api/admin/users?limit=200&skip=0');
-        if (!res) {
-            main.innerHTML = '<div class="spinner">Ошибка загрузки</div>';
-            return;
-        }
-
-        // Загружаем pending заявки от всех юзеров
-        // Server has: GET /api/wallet/requests (только для текущего пользователя)
-        // Admin endpoint: POST /api/admin/transaction-request/:id
-        // Нет endpoint для всех заявок — добавим фильтр через stats и покажем инструкцию
-        
         const statsRes = await apiRequest('/api/admin/stats');
         const stats = statsRes?.stats || {};
 
@@ -1275,6 +1294,27 @@
     };
 
     // ============================================================
+    // МАССОВЫЕ ДЕЙСТВИЯ
+    // ============================================================
+    window.showGiveAllCoins = function() {
+        const amount = prompt('Введите количество MMO для выдачи всем игрокам:', '100');
+        if (!amount) return;
+        giveToAll('coins', parseInt(amount));
+    };
+
+    window.showGiveAllCreature = function() {
+        const creatureId = prompt('Введите ID существа (например: duck_c):', 'duck_c');
+        if (!creatureId) return;
+        giveToAll('creature', null, creatureId);
+    };
+
+    async function giveToAll(type, amount, creatureId) {
+        const res = await apiRequest('/api/admin/give-to-all', 'POST', { type, amount, creatureId });
+        if (res?.success) showToast(res.message);
+        else showToast('Ошибка при массовой выдаче', 'error');
+    }
+
+    // ============================================================
     // INIT
     // ============================================================
     if (!adminToken) {
@@ -1289,10 +1329,8 @@
                     const creaturesRes = await apiRequest('/api/admin/creatures');
                     if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
                 } else if (res === null && !adminToken) {
-                    // Только если токен уже сброшен (401 сработал в apiRequest)
                     showLoginModal();
                 } else if (res === null) {
-                    // Сетевая ошибка — не разлогиниваем, показываем дашборд с ошибкой
                     loadDashboard();
                     startRealMetrics();
                     showToast('Сервер временно недоступен', 'error');
