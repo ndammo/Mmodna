@@ -370,6 +370,7 @@
 <div class="bottom-nav">
     <button class="nav-item active" data-tab="dashboard"><i class="fas fa-chart-line"></i><span>Обзор</span></button>
     <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Пользователи</span></button>
+    <button class="nav-item" data-tab="transactions"><i class="fas fa-exchange-alt"></i><span>Заявки</span></button>
     <button class="nav-item" data-tab="market-logs"><i class="fas fa-store"></i><span>Маркет</span></button>
     <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
     <button class="nav-item" data-tab="quests"><i class="fas fa-star"></i><span>Квесты</span></button>
@@ -421,7 +422,8 @@
             
             if (!res.ok) {
                 console.warn(`API ${path} error:`, data.message);
-                return null;
+                // Возвращаем data чтобы caller мог показать сообщение от сервера
+                return data;
             }
             return data;
         } catch (e) {
@@ -524,10 +526,9 @@
                 errSpan.classList.remove('error');
             }
             
-            // РЕАЛЬНОЕ использование памяти (если сервер возвращает)
-            if (res.memoryUsage) {
-                document.getElementById('ramUsage').innerText = res.memoryUsage + ' MB';
-            }
+            // RAM из сервера
+            const ram = res.memoryUsage || 0;
+            document.getElementById('ramUsage').innerText = ram + ' MB';
         }
     }
 
@@ -557,6 +558,7 @@
             const tab = btn.dataset.tab;
             if (tab === 'dashboard') loadDashboard();
             if (tab === 'users') loadUsers(1);
+            if (tab === 'transactions') loadTransactions();
             if (tab === 'market-logs') loadMarketLogs();
             if (tab === 'creatures') loadCreatures();
             if (tab === 'quests') loadSpecialQuests();
@@ -609,13 +611,18 @@
     // ============================================================
     // ПОЛЬЗОВАТЕЛИ (ИСПРАВЛЕН ПОИСК)
     // ============================================================
+    let _lastUserSearch = '';
+
     async function loadUsers(page = 1) {
         currentPage = page;
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
-        const searchInput = document.getElementById('userSearch');
-        const search = searchInput ? searchInput.value : '';
+        // Читаем значение поиска ДО перерисовки (или используем сохранённое)
+        const existingInput = document.getElementById('userSearch');
+        if (existingInput) _lastUserSearch = existingInput.value;
+        const search = _lastUserSearch;
+        
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
         const skip = (page - 1) * 20;
         
@@ -627,13 +634,16 @@
         
         totalUsers = res.total || 0;
         
-        // Загружаем существ для отображения имён в инвентаре
-        const creaturesRes = await apiRequest('/api/admin/creatures');
-        if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
+        // Существа уже загружены в кэш при инициализации
+        // (если кэш пуст — загружаем)
+        if (creaturesList.length === 0) {
+            const creaturesRes = await apiRequest('/api/admin/creatures');
+            if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
+        }
         
         const html = `
             <div class="search-bar">
-                <input type="text" id="userSearch" placeholder="Поиск по ID, имени, username..." value="${escapeHtml(search)}">
+                <input type="text" id="userSearch" placeholder="Поиск по ID, имени, username..." value="${escapeHtml(search)}" onkeydown="if(event.key==='Enter') searchUsers()">
                 <button onclick="searchUsers()"><i class="fas fa-search"></i> Поиск</button>
                 <button onclick="clearSearchAndReload()" class="secondary"><i class="fas fa-times"></i> Сброс</button>
             </div>
@@ -672,6 +682,7 @@
     };
 
     window.clearSearchAndReload = function() {
+        _lastUserSearch = '';
         const searchInput = document.getElementById('userSearch');
         if (searchInput) searchInput.value = '';
         loadUsers(1);
@@ -1176,6 +1187,93 @@
         else showToast('Ошибка при массовой выдаче', 'error');
     }
 
+
+    // ============================================================
+    // ЗАЯВКИ НА ДЕПОЗИТ / ВЫВОД
+    // ============================================================
+    async function loadTransactions() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка заявок...</div>';
+
+        // Получаем все транзакции через admin/users (нет отдельного endpoint для всех заявок)
+        // Используем endpoint списка транзакций
+        const res = await apiRequest('/api/admin/users?limit=200&skip=0');
+        if (!res) {
+            main.innerHTML = '<div class="spinner">Ошибка загрузки</div>';
+            return;
+        }
+
+        // Загружаем pending заявки от всех юзеров
+        // Server has: GET /api/wallet/requests (только для текущего пользователя)
+        // Admin endpoint: POST /api/admin/transaction-request/:id
+        // Нет endpoint для всех заявок — добавим фильтр через stats и покажем инструкцию
+        
+        const statsRes = await apiRequest('/api/admin/stats');
+        const stats = statsRes?.stats || {};
+
+        const html = `
+            <div class="user-card">
+                <h3><i class="fas fa-exchange-alt"></i> Заявки на депозит и вывод</h3>
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">
+                    Заявки обрабатываются через Telegram-бота (кнопки ✅/❌ в уведомлениях).
+                    Ниже — ручная обработка по ID заявки.
+                </div>
+                <div style="background:#0d1120;border-radius:12px;padding:16px;margin-bottom:16px;">
+                    <h4 style="margin-bottom:12px;color:#a855f7;">⚡ Ручная обработка заявки</h4>
+                    <div class="form-group">
+                        <label>ID заявки (MongoDB ObjectId)</label>
+                        <input type="text" id="txRequestId" placeholder="Вставьте ID заявки из Telegram...">
+                    </div>
+                    <div class="form-group">
+                        <label>Действие</label>
+                        <select id="txAction">
+                            <option value="approve">✅ Подтвердить</option>
+                            <option value="reject">❌ Отклонить</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Примечание (опционально)</label>
+                        <input type="text" id="txNote" placeholder="Причина отклонения и т.д.">
+                    </div>
+                    <button onclick="processTransaction()" class="success">
+                        <i class="fas fa-check"></i> Применить
+                    </button>
+                </div>
+
+                <div style="background:#0d1120;border-radius:12px;padding:16px;">
+                    <h4 style="margin-bottom:12px;color:#a855f7;">📊 Общая статистика</h4>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:13px;">
+                        <div><span style="color:#94a3b8">Всего игроков:</span> <strong>${stats.totalUsers || 0}</strong></div>
+                        <div><span style="color:#94a3b8">Общий баланс:</span> <strong>${formatNum(stats.totalBalance || 0)} MMO</strong></div>
+                        <div><span style="color:#94a3b8">Активные сегодня:</span> <strong>${stats.activeToday || 0}</strong></div>
+                        <div><span style="color:#94a3b8">Забанено:</span> <strong>${stats.bannedUsers || 0}</strong></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        main.innerHTML = html;
+    }
+
+    window.processTransaction = async function() {
+        const id = document.getElementById('txRequestId')?.value?.trim();
+        const action = document.getElementById('txAction')?.value;
+        const note = document.getElementById('txNote')?.value?.trim();
+
+        if (!id) { showToast('Введите ID заявки', 'error'); return; }
+        if (!action) { showToast('Выберите действие', 'error'); return; }
+
+        if (!confirm(`${action === 'approve' ? 'Подтвердить' : 'Отклонить'} заявку ${id}?`)) return;
+
+        const res = await apiRequest(`/api/admin/transaction-request/${id}`, 'POST', { action, note });
+        if (res?.success) {
+            showToast(res.message || `Заявка ${action === 'approve' ? 'подтверждена' : 'отклонена'}`);
+            document.getElementById('txRequestId').value = '';
+            document.getElementById('txNote').value = '';
+        } else {
+            showToast(res?.message || 'Ошибка обработки заявки', 'error');
+        }
+    };
+
     // ============================================================
     // INIT
     // ============================================================
@@ -1183,17 +1281,25 @@
         showLoginModal();
     } else {
         (async function checkAuth() {
-            const res = await apiRequest('/api/admin/stats');
-            if (!res) {
-                adminToken = null;
-                localStorage.removeItem('admin_session_token');
+            try {
+                const res = await apiRequest('/api/admin/stats');
+                if (res && res.success) {
+                    loadDashboard();
+                    startRealMetrics();
+                    const creaturesRes = await apiRequest('/api/admin/creatures');
+                    if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
+                } else if (res === null && !adminToken) {
+                    // Только если токен уже сброшен (401 сработал в apiRequest)
+                    showLoginModal();
+                } else if (res === null) {
+                    // Сетевая ошибка — не разлогиниваем, показываем дашборд с ошибкой
+                    loadDashboard();
+                    startRealMetrics();
+                    showToast('Сервер временно недоступен', 'error');
+                }
+            } catch(e) {
+                console.error('checkAuth error:', e);
                 showLoginModal();
-            } else {
-                loadDashboard();
-                startRealMetrics();
-                // Загружаем существ в кэш
-                const creaturesRes = await apiRequest('/api/admin/creatures');
-                if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
             }
         })();
     }
