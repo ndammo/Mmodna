@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ДЕПОЗИТАМИ/ВЫВОДАМИ + РЕФЕРАЛЫ 5+ УРОВНЯ + СТАТУС КВЕСТОВ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С СОХРАНЕНИЕМ СТАТУСА КВЕСТОВ)
 // ============================================================
 
 // ============================================================
@@ -61,6 +61,9 @@ let currentPaymentAmount = null;
 
 // Хранилище статусов квестов (pending, available, claimed)
 let questStatuses = new Map();
+
+// Ключ для хранения в localStorage
+const QUESTS_STORAGE_KEY = 'dna_mmo_quests_status';
 
 // ============================================================
 // GAME DATA
@@ -282,6 +285,7 @@ function clearAllIntervals() {
     for (const timer of activeQuestTimers.values()) clearTimeout(timer);
     activeQuestTimers.clear();
     clearAllQuestTimers();
+    if (window.questTimerInterval) clearInterval(window.questTimerInterval);
 }
 
 function startOptimizedIntervals() {
@@ -454,6 +458,9 @@ async function initTelegramApp() {
 
     await loadGameConfig();
     await loadCreaturesFromServer();
+    
+    // Загружаем сохраненные статусы квестов
+    loadQuestStatusesFromStorage();
 
     updatePlayerInfo();
 
@@ -841,50 +848,50 @@ function showMergePreview(creatureId) {
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title" style="margin-bottom:4px">${t('merge.preview')}</div>
+        <div class="popup-title" style="margin-bottom:4px">Предпросмотр Слияния</div>
         <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
         <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">${getIconHtml(creature)}</div>
-                    <div style="font-size:10px;color:#94a3b8">${t('merge.input')}</div>
+                    <div style="font-size:10px;color:#94a3b8">Исходные</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div>
                 </div>
                 <div style="color:#4a5568;font-size:18px">→</div>
                 <div style="text-align:center;flex:1">
                     <div style="font-size:24px;margin-bottom:6px">?</div>
-                    <div style="font-size:10px;color:#94a3b8">${t('merge.output')}</div>
+                    <div style="font-size:10px;color:#94a3b8">Результат</div>
                     <div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">Unknown</div>
                 </div>
             </div>
             <div style="border-top:1px solid #1e2d4a;padding-top:14px">
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">${t('merge.possibleOutcomes')}</div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Возможные результаты</div>
                 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${getIconHtml(nextCreature)}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% ${t('merge.success')}</div>
+                            <div style="font-size:11px;font-weight:600;color:#22c55e">30% Успех</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ ${t('merge.rankUp')}</div>
+                        <div style="font-size:12px;font-weight:700;color:#22c55e">▲ ПОВЫШЕНИЕ</div>
                     </div>
                 </div>
                 <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px">
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:18px">${getIconHtml(creature)}</span>
                         <div style="flex:1">
-                            <div style="font-size:11px;font-weight:600;color:#ef4444">70% ${t('merge.fail')}</div>
+                            <div style="font-size:11px;font-weight:600;color:#ef4444">70% Провал</div>
                             <div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div>
                         </div>
-                        <div style="font-size:12px;font-weight:700;color:#ef4444">= ${t('merge.same')}</div>
+                        <div style="font-size:12px;font-weight:700;color:#ef4444">= БЕЗ ИЗМЕНЕНИЙ</div>
                     </div>
                 </div>
             </div>
         </div>
         <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px" onclick="closeOverlay();executeMerge('${creatureId}')">
-            <i class="fa-solid fa-code-merge"></i> ${t('merge.mergeNow')}
+            <i class="fa-solid fa-code-merge"></i> СЛИТЬ СЕЙЧАС
         </button>
-        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">${t('merge.cancel')}</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">ОТМЕНА</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
@@ -937,16 +944,16 @@ function showMergeResultPopup(from, to, success) {
             <div class="merge-card-mini" style="border-color:${color};box-shadow:0 0 12px ${color}44;">${getIconHtml(toC)}</div>
         </div>
         <div class="popup-title" style="color:${color}">${escapeHtml(toC.name)}</div>
-        <div class="popup-subtitle">${success ? '🎉 ' + t('merge.evolutionSuccess') : '❌ ' + t('merge.failComplete')}</div>
+        <div class="popup-subtitle">${success ? '🎉 Эволюция успешна!' : '❌ Провал! Существо не изменилось'}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">
             ${toC.rarity.toUpperCase()} ${success ? '▲ UPGRADED' : ''}
         </div>
         <div class="popup-stats">
             <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${toC.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
-            <div class="popup-stat"><div class="popup-stat-val" style="color:${success ? '#22c55e' : '#94a3b8'}">${success ? '+RARITY' : '=RARITY'}</div><div class="popup-stat-label">Result</div></div>
+            <div class="popup-stat"><div class="popup-stat-val" style="color:${success ? '#22c55e' : '#94a3b8'}">${success ? '+РЕДКОСТЬ' : '=РЕДКОСТЬ'}</div><div class="popup-stat-label">Result</div></div>
         </div>
         <button class="popup-btn" onclick="closeOverlay()" style="${success ? 'background:linear-gradient(135deg,#16a34a,#22c55e)' : ''}">
-            ${success ? t('merge.evolution') : t('merge.close')}
+            ${success ? 'ЭВОЛЮЦИЯ!' : 'ЗАКРЫТЬ'}
         </button>
     `;
     document.getElementById('overlay').classList.add('show');
@@ -1378,17 +1385,17 @@ async function renderMarketplaceMyListings() {
     const container = document.getElementById('marketplaceMyListings');
     if (!container) return;
     
-    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">${t('marketplace.loading')}</div>`;
+    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">Загрузка...</div>`;
 
     const res = await apiRequest('GET', '/api/marketplace/my-listings');
     if (!res || !res.success) {
-        container.innerHTML = `<div class="empty-listings">${t('marketplace.error')}</div>`;
+        container.innerHTML = `<div class="empty-listings">Ошибка загрузки</div>`;
         return;
     }
 
     const listings = Array.isArray(res.listings) ? res.listings : [];
     if (!listings.length) {
-        container.innerHTML = `<div class="empty-listings">${t('marketplace.noMyListings')}</div>`;
+        container.innerHTML = `<div class="empty-listings">У вас нет активных лотов</div>`;
         return;
     }
 
@@ -1409,7 +1416,7 @@ async function renderMarketplaceMyListings() {
             </div>
             <div class="marketplace-my-listing-price">
                 <div class="marketplace-my-listing-amount">${l.price} MMO</div>
-                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">${t('marketplace.cancel')}</button>
+                <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">ОТМЕНИТЬ</button>
             </div>
         </div>`;
     }).join('');
@@ -1489,7 +1496,7 @@ async function renderLeaderboard() {
     const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
     if (!res || !res.success) {
         if (res === null) return;
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">${t('error.server')}</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Ошибка сервера</div>`;
         return;
     }
     
@@ -1539,12 +1546,12 @@ function renderLeaderboardData(data) {
             </div>
             <div class="lb-info">
                 <div class="lb-name">${escapeHtml(l.username)} ${isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
-                <div class="lb-level">${t('common.lvl')} ${l.level} · ${getLevelTitle(l.level)}</div>
-                <div class="lb-xp" style="font-size:9px;color:#4a5568">${t('common.xp')}: ${l.xp}/${l.level * 100}</div>
+                <div class="lb-level">УР ${l.level} · ${getLevelTitle(l.level)}</div>
+                <div class="lb-xp" style="font-size:9px;color:#4a5568">ОП: ${l.xp}/${l.level * 100}</div>
             </div>
             <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
-                <span style="font-size:12px;font-weight:700;color:#f59e0b">${t('common.lvl')} ${l.level}</span>
-                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} ${t('common.mmo')}</span>
+                <span style="font-size:12px;font-weight:700;color:#f59e0b">УР ${l.level}</span>
+                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} MMO</span>
             </div>
         </div>`;
     }).join('');
@@ -1740,13 +1747,75 @@ function updateFriendRewardButtons() {
 }
 
 // ============================================================
-// SPECIAL QUESTS (ОБНОВЛЕНО - СТАТУС "НА ПРОВЕРКЕ")
+// SPECIAL QUESTS (С СОХРАНЕНИЕМ В localStorage)
 // ============================================================
 
-// Функция получения названия квеста
-function getQuestTitle(questId) {
-    const quest = SPECIAL_QUESTS.find(q => q.id === questId);
-    return quest ? quest.title : 'квест';
+// Функция загрузки статусов квестов из localStorage
+function loadQuestStatusesFromStorage() {
+    const saved = localStorage.getItem(QUESTS_STORAGE_KEY);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            for (const [questId, data] of Object.entries(parsed)) {
+                if (data.expiresAt && data.expiresAt > Date.now()) {
+                    const remainingSeconds = Math.ceil((data.expiresAt - Date.now()) / 1000);
+                    questStatuses.set(questId, {
+                        status: data.status,
+                        expiresAt: data.expiresAt,
+                        timerId: null
+                    });
+                    restartQuestTimer(questId, remainingSeconds);
+                } else if (data.status === 'pending' && data.expiresAt && data.expiresAt <= Date.now()) {
+                    questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+                    saveQuestStatusesToStorage();
+                    if (document.getElementById(`tab-special`).classList.contains('active')) {
+                        updateQuestButton(questId, 'available');
+                    }
+                } else if (data.status === 'available') {
+                    questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка загрузки статусов квестов:', e);
+        }
+    }
+}
+
+// Функция сохранения статусов квестов в localStorage
+function saveQuestStatusesToStorage() {
+    const toSave = {};
+    for (const [questId, data] of questStatuses.entries()) {
+        toSave[questId] = {
+            status: data.status,
+            expiresAt: data.expiresAt || null
+        };
+    }
+    localStorage.setItem(QUESTS_STORAGE_KEY, JSON.stringify(toSave));
+}
+
+// Функция перезапуска таймера квеста
+function restartQuestTimer(questId, remainingSeconds) {
+    if (remainingSeconds <= 0) return;
+    
+    const timerId = setTimeout(async () => {
+        const questData = questStatuses.get(questId);
+        if (questData && questData.status === 'pending') {
+            questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+            saveQuestStatusesToStorage();
+            updateQuestButton(questId, 'available');
+            
+            const quest = SPECIAL_QUESTS.find(q => q.id === questId);
+            if (quest) {
+                showToast(`✅ Квест "${quest.title}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+            }
+        }
+    }, remainingSeconds * 1000);
+    
+    const questData = questStatuses.get(questId);
+    if (questData) {
+        questData.timerId = timerId;
+        questStatuses.set(questId, questData);
+    }
 }
 
 // Функция очистки всех таймеров квестов
@@ -1757,11 +1826,17 @@ function clearAllQuestTimers() {
         }
     }
     questStatuses.clear();
+    localStorage.removeItem(QUESTS_STORAGE_KEY);
+}
+
+// Функция получения названия квеста
+function getQuestTitle(questId) {
+    const quest = SPECIAL_QUESTS.find(q => q.id === questId);
+    return quest ? quest.title : 'квест';
 }
 
 // Функция обновления кнопки квеста в зависимости от статуса
 function updateQuestButton(questId, status) {
-    // Находим кнопку в DOM
     const questCard = document.querySelector(`.special-quest-card[data-quest-id="${questId}"]`);
     if (!questCard) return;
     
@@ -1790,7 +1865,6 @@ function updateQuestButton(questId, status) {
             </button>`;
             break;
         default:
-            // Стандартная кнопка выполнения
             if (quest.type === 'telegram_channel') {
                 footer.innerHTML = `<button class="special-quest-btn" onclick="openChannelAndStartTimer('${quest.id}', '${quest.link}')">
                     <i class="fa-brands fa-telegram"></i> ВЫПОЛНИТЬ
@@ -1817,7 +1891,6 @@ function updateQuestButton(questId, status) {
 }
 
 function openChannelAndStartTimer(questId, channelLink) {
-    // Открываем ссылку если есть
     if (channelLink) {
         if (window.Telegram?.WebApp && channelLink.includes('t.me')) {
             window.Telegram.WebApp.openTelegramLink(channelLink);
@@ -1826,88 +1899,119 @@ function openChannelAndStartTimer(questId, channelLink) {
         }
     }
     
-    // Проверяем, не выполнен ли уже квест
     if (state.user?.completedSpecialQuests?.includes(questId)) {
         showToast('Вы уже получили награду за этот квест', 'ℹ️');
         return;
     }
     
-    // Проверяем, не на проверке ли уже
     const existingStatus = questStatuses.get(questId);
     if (existingStatus && existingStatus.status === 'pending') {
-        showToast('Квест уже на проверке! Осталось подождать.', '⏳');
+        const remainingTime = existingStatus.expiresAt ? Math.ceil((existingStatus.expiresAt - Date.now()) / 1000) : 0;
+        if (remainingTime > 0) {
+            showToast(`Квест уже на проверке! Осталось ${remainingTime} секунд.`, '⏳');
+            return;
+        }
+    }
+    
+    if (existingStatus && existingStatus.status === 'available') {
+        showToast('Квест уже выполнен! Нажмите "ЗАБРАТЬ НАГРАДУ".', '🎁');
+        updateQuestButton(questId, 'available');
         return;
     }
     
-    // Устанавливаем статус "на проверке"
-    questStatuses.set(questId, { status: 'pending', timerId: null });
+    const expiresAt = Date.now() + 60000;
+    questStatuses.set(questId, { 
+        status: 'pending', 
+        expiresAt: expiresAt,
+        timerId: null 
+    });
+    saveQuestStatusesToStorage();
     
-    // Обновляем UI кнопки
     updateQuestButton(questId, 'pending');
     
-    // Запускаем таймер на 60 секунд
     const timerId = setTimeout(async () => {
-        // По истечении времени меняем статус на "доступно для получения"
-        questStatuses.set(questId, { status: 'available', timerId: null });
-        updateQuestButton(questId, 'available');
-        
-        showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+        const questData = questStatuses.get(questId);
+        if (questData && questData.status === 'pending') {
+            questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+            saveQuestStatusesToStorage();
+            updateQuestButton(questId, 'available');
+            
+            showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+        }
     }, 60000);
     
-    // Сохраняем timerId в статусе
-    questStatuses.set(questId, { status: 'pending', timerId });
+    const questData = questStatuses.get(questId);
+    questData.timerId = timerId;
+    questStatuses.set(questId, questData);
     
     showToast('🔍 Проверка выполнения квеста... Подождите 60 секунд.', '⏳');
 }
 
 function openCustomLinkAndComplete(questId, link) {
-    // Открываем ссылку если есть
     if (link) {
         window.open(link, '_blank');
     }
     
-    // Проверяем, не выполнен ли уже квест
     if (state.user?.completedSpecialQuests?.includes(questId)) {
         showToast('Вы уже получили награду за этот квест', 'ℹ️');
         return;
     }
     
-    // Проверяем, не на проверке ли уже
     const existingStatus = questStatuses.get(questId);
     if (existingStatus && existingStatus.status === 'pending') {
-        showToast('Квест уже на проверке! Осталось подождать.', '⏳');
+        const remainingTime = existingStatus.expiresAt ? Math.ceil((existingStatus.expiresAt - Date.now()) / 1000) : 0;
+        if (remainingTime > 0) {
+            showToast(`Квест уже на проверке! Осталось ${remainingTime} секунд.`, '⏳');
+            return;
+        }
+    }
+    
+    if (existingStatus && existingStatus.status === 'available') {
+        showToast('Квест уже выполнен! Нажмите "ЗАБРАТЬ НАГРАДУ".', '🎁');
+        updateQuestButton(questId, 'available');
         return;
     }
     
-    // Устанавливаем статус "на проверке"
-    questStatuses.set(questId, { status: 'pending', timerId: null });
+    const expiresAt = Date.now() + 60000;
+    questStatuses.set(questId, { 
+        status: 'pending', 
+        expiresAt: expiresAt,
+        timerId: null 
+    });
+    saveQuestStatusesToStorage();
     
-    // Обновляем UI кнопки
     updateQuestButton(questId, 'pending');
     
-    // Запускаем таймер на 60 секунд
     const timerId = setTimeout(async () => {
-        // По истечении времени меняем статус на "доступно для получения"
-        questStatuses.set(questId, { status: 'available', timerId: null });
-        updateQuestButton(questId, 'available');
-        
-        showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+        const questData = questStatuses.get(questId);
+        if (questData && questData.status === 'pending') {
+            questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+            saveQuestStatusesToStorage();
+            updateQuestButton(questId, 'available');
+            
+            showToast(`✅ Квест "${getQuestTitle(questId)}" выполнен! Нажмите "ЗАБРАТЬ" для получения награды.`, '🎁');
+        }
     }, 60000);
     
-    questStatuses.set(questId, { status: 'pending', timerId });
+    const questData = questStatuses.get(questId);
+    questData.timerId = timerId;
+    questStatuses.set(questId, questData);
     
     showToast('🔍 Проверка выполнения квеста... Подождите 60 секунд.', '⏳');
 }
 
-// Обновленная функция получения награды
 async function claimSpecialQuest(questId) {
     if (state.isLoading) return;
     
-    // Проверяем, доступен ли квест для получения
     const questStatus = questStatuses.get(questId);
     if (questStatus && questStatus.status !== 'available') {
         if (questStatus && questStatus.status === 'pending') {
-            showToast('Квест ещё на проверке! Подождите немного.', '⏳');
+            const remainingTime = questStatus.expiresAt ? Math.ceil((questStatus.expiresAt - Date.now()) / 1000) : 0;
+            if (remainingTime > 0) {
+                showToast(`Квест ещё на проверке! Осталось ${remainingTime} секунд.`, '⏳');
+            } else {
+                showToast('Квест ещё на проверке! Подождите немного.', '⏳');
+            }
         } else {
             showToast('Сначала выполните квест!', '⚠️');
         }
@@ -1932,19 +2036,18 @@ async function claimSpecialQuest(questId) {
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
     
-    // Очищаем статус квеста
     const existing = questStatuses.get(questId);
     if (existing && existing.timerId) {
         clearTimeout(existing.timerId);
     }
     questStatuses.delete(questId);
+    saveQuestStatusesToStorage();
     
     await renderSpecialQuests();
     showToast(`+${res.reward} MMO получено!`, '✅');
     spawnFloatingMMO(res.reward);
 }
 
-// Функция для тихого получения награды (для каналов с таймером)
 async function claimSpecialQuestSilent(questId) {
     if (state.isLoading) return;
     
@@ -1975,6 +2078,7 @@ async function claimSpecialQuestSilent(questId) {
         clearTimeout(existing.timerId);
     }
     questStatuses.delete(questId);
+    saveQuestStatusesToStorage();
     
     await renderSpecialQuests();
     showToast(`+${res.reward} MMO получено за квест!`, '✅');
@@ -2000,6 +2104,14 @@ async function renderSpecialQuests() {
         return;
     }
     
+    // Обновляем статусы из localStorage при рендере
+    for (const [questId, data] of questStatuses.entries()) {
+        if (data.status === 'pending' && data.expiresAt && data.expiresAt <= Date.now()) {
+            questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
+            saveQuestStatusesToStorage();
+        }
+    }
+    
     container.innerHTML = filteredQuests.map(quest => {
         const isCompleted = completedQuests.has(quest.id);
         const questStatus = questStatuses.get(quest.id);
@@ -2009,8 +2121,10 @@ async function renderSpecialQuests() {
         if (isCompleted) {
             actionHtml = `<button class="special-quest-btn completed" disabled><i class="fa-solid fa-check"></i> ВЫПОЛНЕНО</button>`;
         } else if (questStatus && questStatus.status === 'pending') {
+            const remainingTime = questStatus.expiresAt ? Math.ceil((questStatus.expiresAt - Date.now()) / 1000) : 60;
+            const remainingText = remainingTime > 0 ? ` (${remainingTime}с)` : '';
             actionHtml = `<button class="special-quest-btn pending" disabled style="background: #f59e0b; animation: pulse 1.5s infinite;">
-                <i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ...
+                <i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ${remainingText}
             </button>`;
         } else if (questStatus && questStatus.status === 'available') {
             actionHtml = `<button class="special-quest-btn claim" onclick="claimSpecialQuest('${quest.id}')" style="background: linear-gradient(135deg, #eab308, #ca8a04); animation: pulse 1.5s infinite;">
@@ -2056,6 +2170,32 @@ async function renderSpecialQuests() {
             <div class="special-quest-footer">${actionHtml}</div>
         </div>`;
     }).join('');
+    
+    // Запускаем обновление таймеров каждую секунду для отображения обратного отсчета
+    if (window.questTimerInterval) clearInterval(window.questTimerInterval);
+    window.questTimerInterval = setInterval(() => {
+        const pendingButtons = document.querySelectorAll('.special-quest-btn.pending');
+        if (pendingButtons.length === 0) {
+            if (window.questTimerInterval) clearInterval(window.questTimerInterval);
+            return;
+        }
+        
+        for (const btn of pendingButtons) {
+            const card = btn.closest('.special-quest-card');
+            if (card) {
+                const questId = card.dataset.questId;
+                const questStatus = questStatuses.get(questId);
+                if (questStatus && questStatus.expiresAt) {
+                    const remaining = Math.ceil((questStatus.expiresAt - Date.now()) / 1000);
+                    if (remaining > 0) {
+                        btn.innerHTML = `<i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ (${remaining}с)`;
+                    } else {
+                        btn.innerHTML = `<i class="fa-solid fa-clock"></i> ⏳ НА ПРОВЕРКЕ...`;
+                    }
+                }
+            }
+        }
+    }, 1000);
 }
 
 async function updateSpecialQuests() {
