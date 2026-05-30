@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С СОХРАНЕНИЕМ СТАТУСА КВЕСТОВ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ОПТИМИЗАЦИЯМИ)
 // ============================================================
 
 // ============================================================
@@ -44,7 +44,8 @@ let intervals = {
     adsTimer: null,
     specialQuests: null,
     leaderboard: null,
-    marketplace: null
+    marketplace: null,
+    inventory: null
 };
 
 let activeQuestTimers = new Map();
@@ -54,6 +55,13 @@ let isMarketplaceTabActive = false;
 // КЭШИ
 let leaderboardCache = { data: null, expiresAt: 0 };
 let marketplaceCache = { data: null, hash: null, expiresAt: 0 };
+
+// Версии данных для ETag
+let clientVersions = {
+    marketplace: 0,
+    leaderboard: 0,
+    inventory: 0
+};
 
 // Переменные для депозита
 let currentPaymentMemo = null;
@@ -272,6 +280,194 @@ async function getCurrentIncome() {
 }
 
 // ============================================================
+// УМНЫЙ POLLING С ETag
+// ============================================================
+
+// Загрузка инвентаря с версионированием
+let inventoryLoadPromise = null;
+let lastInventoryLoad = 0;
+const INVENTORY_COOLDOWN = 3000; // 3 секунды
+
+async function loadInventory(force = false) {
+    if (!state.token) return null;
+    
+    const now = Date.now();
+    if (!force && now - lastInventoryLoad < INVENTORY_COOLDOWN) {
+        return state.inventory;
+    }
+    
+    if (inventoryLoadPromise) {
+        return await inventoryLoadPromise;
+    }
+    
+    inventoryLoadPromise = (async () => {
+        try {
+            const headers = {};
+            if (clientVersions.inventory > 0) {
+                headers['If-None-Match'] = `"${clientVersions.inventory}"`;
+            }
+            
+            const res = await fetch(API_URL + '/api/user/inventory', {
+                headers: { ...headers, 'Authorization': `Bearer ${state.token}` }
+            });
+            
+            if (res.status === 304) {
+                return state.inventory;
+            }
+            
+            const data = await res.json();
+            if (data.success) {
+                if (data.version) clientVersions.inventory = data.version;
+                state.inventory = data.inventory;
+                lastInventoryLoad = now;
+                renderCards();
+                return data.inventory;
+            }
+            return null;
+        } catch (e) {
+            console.error('loadInventory error:', e);
+            return null;
+        } finally {
+            inventoryLoadPromise = null;
+        }
+    })();
+    
+    return await inventoryLoadPromise;
+}
+
+// Загрузка маркетплейса с ETag
+let marketplaceLoadPromise = null;
+let lastMarketplaceLoad = 0;
+const MARKETPLACE_COOLDOWN = 2000; // 2 секунды
+
+async function renderMarketplaceBuy(force = false) {
+    const container = document.getElementById('marketplaceListings');
+    if (!container) return;
+    
+    const now = Date.now();
+    if (!force && now - lastMarketplaceLoad < MARKETPLACE_COOLDOWN) {
+        if (marketplaceCache.data) {
+            renderMarketplaceListings(marketplaceCache.data);
+        }
+        return;
+    }
+    lastMarketplaceLoad = now;
+    
+    if (marketplaceLoadPromise) {
+        const result = await marketplaceLoadPromise;
+        if (result) renderMarketplaceListings(result);
+        return;
+    }
+    
+    marketplaceLoadPromise = (async () => {
+        try {
+            const headers = {};
+            if (clientVersions.marketplace > 0) {
+                headers['If-None-Match'] = `"${clientVersions.marketplace}"`;
+            }
+            
+            const res = await fetch(API_URL + '/api/marketplace/listings', {
+                headers: { ...headers, 'Authorization': `Bearer ${state.token}` }
+            });
+            
+            if (res.status === 304) {
+                if (marketplaceCache.data) {
+                    renderMarketplaceListings(marketplaceCache.data);
+                }
+                return marketplaceCache.data;
+            }
+            
+            const data = await res.json();
+            if (data.success) {
+                if (data.version) clientVersions.marketplace = data.version;
+                marketplaceCache = {
+                    data: data.listings,
+                    hash: getDataHash(data.listings),
+                    expiresAt: Date.now() + 30000
+                };
+                renderMarketplaceListings(data.listings);
+                return data.listings;
+            }
+            return null;
+        } catch (e) {
+            console.error('renderMarketplaceBuy error:', e);
+            return null;
+        } finally {
+            marketplaceLoadPromise = null;
+        }
+    })();
+    
+    await marketplaceLoadPromise;
+}
+
+// Загрузка лидерборда (раз в 5 минут)
+let leaderboardLoadPromise = null;
+let lastLeaderboardLoad = 0;
+const LEADERBOARD_COOLDOWN = 5 * 60 * 1000; // 5 минут
+
+async function renderLeaderboard(force = false) {
+    const list = document.getElementById('leaderboardList');
+    if (!list) return;
+    
+    if (!state.token) {
+        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Loading...</div>`;
+        return;
+    }
+    
+    const now = Date.now();
+    if (!force && now - lastLeaderboardLoad < LEADERBOARD_COOLDOWN && leaderboardCache.data) {
+        renderLeaderboardData(leaderboardCache.data);
+        return;
+    }
+    
+    if (leaderboardLoadPromise) {
+        const result = await leaderboardLoadPromise;
+        if (result) renderLeaderboardData(result);
+        return;
+    }
+    
+    leaderboardLoadPromise = (async () => {
+        try {
+            const headers = {};
+            if (clientVersions.leaderboard > 0) {
+                headers['If-None-Match'] = `"${clientVersions.leaderboard}"`;
+            }
+            
+            const res = await fetch(API_URL + '/api/user/leaderboard', {
+                headers: { ...headers, 'Authorization': `Bearer ${state.token}` }
+            });
+            
+            if (res.status === 304) {
+                if (leaderboardCache.data) {
+                    renderLeaderboardData(leaderboardCache.data);
+                }
+                return leaderboardCache.data;
+            }
+            
+            const data = await res.json();
+            if (data.success) {
+                if (data.version) clientVersions.leaderboard = data.version;
+                leaderboardCache = {
+                    data: data,
+                    expiresAt: now + LEADERBOARD_COOLDOWN
+                };
+                lastLeaderboardLoad = now;
+                renderLeaderboardData(data);
+                return data;
+            }
+            return null;
+        } catch (e) {
+            console.error('renderLeaderboard error:', e);
+            return null;
+        } finally {
+            leaderboardLoadPromise = null;
+        }
+    })();
+    
+    await leaderboardLoadPromise;
+}
+
+// ============================================================
 // TELEGRAM WEBAPP INIT
 // ============================================================
 function clearAllIntervals() {
@@ -279,6 +475,7 @@ function clearAllIntervals() {
     if (intervals.specialQuests) clearInterval(intervals.specialQuests);
     if (intervals.leaderboard) clearInterval(intervals.leaderboard);
     if (intervals.marketplace) clearInterval(intervals.marketplace);
+    if (intervals.inventory) clearInterval(intervals.inventory);
     if (state.visualTicker) state.visualTicker.cancel();
     if (collectIncomeTimer) clearInterval(collectIncomeTimer);
     collectIncomeTimer = null;
@@ -289,9 +486,24 @@ function clearAllIntervals() {
 }
 
 function startOptimizedIntervals() {
+    // Лидерборд раз в 5 МИНУТ
     intervals.leaderboard = setInterval(() => {
         if (!document.hidden) renderLeaderboard();
     }, 5 * 60 * 1000);
+    
+    // Маркетплейс раз в 10 секунд, но с проверкой изменений
+    intervals.marketplace = setInterval(() => {
+        if (!document.hidden && isMarketplaceTabActive) {
+            renderMarketplaceBuy();
+        }
+    }, 10 * 1000);
+    
+    // Инвентарь раз в 3 секунды (только если активна вкладка игры)
+    intervals.inventory = setInterval(() => {
+        if (!document.hidden && document.getElementById('tab-game').classList.contains('active')) {
+            loadInventory();
+        }
+    }, 3000);
     
     intervals.specialQuests = setInterval(() => {
         if (!document.hidden) {
@@ -300,19 +512,15 @@ function startOptimizedIntervals() {
         }
     }, 5 * 60 * 1000);
     
-    intervals.marketplace = setInterval(() => {
-        if (!document.hidden && isMarketplaceTabActive) {
-            renderMarketplaceBuy();
-        }
-    }, 10 * 1000);
-    
     intervals.adsTimer = setInterval(updateAdsTimer, 1000);
 }
 
 function handleVisibilityChange() {
     if (document.hidden) {
         if (intervals.marketplace) clearInterval(intervals.marketplace);
+        if (intervals.inventory) clearInterval(intervals.inventory);
         intervals.marketplace = null;
+        intervals.inventory = null;
     } else {
         apiRequest('POST', '/api/game/collect-income').then(res => {
             if (res && res.success) {
@@ -337,6 +545,13 @@ function handleVisibilityChange() {
                 }
             }, 10 * 1000);
         }
+        
+        // Возобновляем обновление инвентаря
+        intervals.inventory = setInterval(() => {
+            if (!document.hidden && document.getElementById('tab-game').classList.contains('active')) {
+                loadInventory();
+            }
+        }, 3000);
     }
 }
 
@@ -344,13 +559,12 @@ async function refreshUserProfile() {
     const res = await apiRequest('GET', '/api/user/profile');
     if (res && res.success) {
         state.user = res.user;
-        state.inventory = res.inventory || [];
         state.incomePerHour = res.incomePerHour || 0;
         
         updateServerSnapshot(state.user.balance, state.incomePerHour, res.lastPassiveIncome);
         
-        updateHeader();
-        renderCards();
+        // Загружаем инвентарь с версионированием
+        await loadInventory(true);
         updateFriendRewardButtons();
         
         const friendCountDisplay = document.getElementById('friendCountDisplay');
@@ -597,13 +811,15 @@ function updatePlayerInfo() {
     if (nameEl) nameEl.textContent = name.toUpperCase();
 }
 
-function renderAll() {
+async function renderAll() {
+    await Promise.all([
+        loadInventory(),
+        renderLeaderboard(),
+        renderSpecialQuests(),
+        updateFriendRewardButtons()
+    ]);
     updateHeader();
-    renderCards();
     updateUpgradeButton();
-    renderLeaderboard();
-    renderSpecialQuests();
-    updateFriendRewardButtons();
 }
 
 function updateHeader() {
@@ -1233,46 +1449,11 @@ function getDataHash(data) {
     return JSON.stringify(data);
 }
 
-async function renderMarketplaceBuy() {
+async function renderMarketplaceListings(listings) {
     const container = document.getElementById('marketplaceListings');
     if (!container) return;
     
-    if (Date.now() < marketplaceCache.expiresAt && marketplaceCache.data) {
-        renderMarketplaceListings(marketplaceCache.data);
-        return;
-    }
-    
-    container.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:20px;font-size:12px">Loading...</div>`;
-
-    const res = await apiRequest('GET', '/api/marketplace/listings');
-    if (!res || !res.success) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px;font-size:12px">Error loading listings</div>`;
-        return;
-    }
-
-    const listings = Array.isArray(res.listings) ? res.listings : [];
-    const newHash = getDataHash(listings);
-    
-    if (marketplaceCache.hash === newHash && marketplaceCache.data) {
-        marketplaceCache.expiresAt = Date.now() + 10000;
-        renderMarketplaceListings(marketplaceCache.data);
-        return;
-    }
-    
-    marketplaceCache = {
-        data: listings,
-        hash: newHash,
-        expiresAt: Date.now() + 10000
-    };
-    
-    renderMarketplaceListings(listings);
-}
-
-function renderMarketplaceListings(listings) {
-    const container = document.getElementById('marketplaceListings');
-    if (!container) return;
-    
-    if (!listings.length) {
+    if (!listings || !listings.length) {
         container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">No listings available</div>`;
         return;
     }
@@ -1474,48 +1655,6 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 // ============================================================
 // LEADERBOARD
 // ============================================================
-async function renderLeaderboard() {
-    const list = document.getElementById('leaderboardList');
-    if (!list) return;
-
-    if (!state.token) {
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Loading...</div>`;
-        return;
-    }
-    
-    if (Date.now() < leaderboardCache.expiresAt && leaderboardCache.data) {
-        renderLeaderboardData(leaderboardCache.data);
-        return;
-    }
-
-    if (currentLeaderboardController) {
-        currentLeaderboardController.abort();
-    }
-    currentLeaderboardController = new AbortController();
-
-    const res = await apiRequest('GET', '/api/user/leaderboard', null, currentLeaderboardController.signal);
-    if (!res || !res.success) {
-        if (res === null) return;
-        list.innerHTML = `<div style="text-align:center;color:#4a5568;padding:20px;font-size:12px">Ошибка сервера</div>`;
-        return;
-    }
-    
-    if (res.leaders) {
-        res.leaders = res.leaders.map(l => ({
-            ...l,
-            telegramId: l.telegramId
-        }));
-    }
-    
-    leaderboardCache = {
-        data: res,
-        expiresAt: Date.now() + 30 * 1000
-    };
-    
-    renderLeaderboardData(res);
-    currentLeaderboardController = null;
-}
-
 function renderLeaderboardData(data) {
     const list = document.getElementById('leaderboardList');
     if (!list) return;
