@@ -20,12 +20,12 @@
     --mythic: #ef4444;
 
     /* ===== ЕДИНЫЕ РАЗМЕРЫ СУЩЕСТВ ===== */
-    --creature-size: 78px;           /* размер в карточках */
-    --creature-popup: 128px;          /* размер в попапе */
-    --creature-merge: 32px;          /* размер в окне слияния */
-    --creature-encyclopedia: 28px;   /* размер в энциклопедии */
-    --capsule-size: 100px;            /* размер капсул */
-    --market-icon: 28px;             /* размер в маркете */
+    --creature-size: 78px;
+    --creature-popup: 128px;
+    --creature-merge: 32px;
+    --creature-encyclopedia: 28px;
+    --capsule-size: 100px;
+    --market-icon: 28px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -347,14 +347,6 @@ body {
     40% { transform: rotate(8deg) scale(1.15); }
     60% { transform: rotate(-5deg) scale(1.1); }
     80% { transform: rotate(5deg) scale(1.05); }
-}
-
-.capsule-icon.dna { color: var(--accent3); }
-.capsule-icon.premium-icon { color: var(--legendary); }
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
 }
 
 .capsule-name {
@@ -817,6 +809,30 @@ body {
 .marketplace-subtab { display: none; }
 .marketplace-subtab.active { display: block; }
 
+/* Marketplace Listings Container */
+.marketplace-listings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.marketplace-listings-container::-webkit-scrollbar {
+    width: 3px;
+}
+
+.marketplace-listings-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.marketplace-listings-container::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+/* Marketplace Listing (Buy tab) */
 .marketplace-listing {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -835,10 +851,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--market-icon);
     flex-shrink: 0;
     background: var(--bg2);
     border: 1px solid var(--border);
+}
+
+.marketplace-listing-icon img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
 }
 
 .marketplace-listing-info { flex: 1; }
@@ -891,6 +912,85 @@ body {
 
 .marketplace-buy-btn:active { transform: scale(0.95); }
 
+/* ============================================
+   MARKETPLACE MY LISTINGS (FIX)
+   ============================================ */
+.marketplace-my-listing {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+}
+
+.marketplace-my-listing:hover {
+    transform: translateX(4px);
+    border-color: var(--accent3);
+}
+
+.marketplace-my-listing-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+}
+
+.marketplace-my-listing-icon img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.marketplace-my-listing-info {
+    flex: 1;
+}
+
+.marketplace-my-listing-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.marketplace-my-listing-status {
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 4px;
+}
+
+.marketplace-my-listing-price {
+    text-align: right;
+}
+
+.marketplace-my-listing-amount {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent3);
+    margin-bottom: 4px;
+}
+
+/* Empty state */
+.empty-listings {
+    text-align: center;
+    color: var(--text3);
+    padding: 40px 20px;
+    font-size: 12px;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+/* Sell cards grid */
 .marketplace-sell-card {
     background: var(--surface);
     border-radius: 12px;
@@ -998,8 +1098,30 @@ body {
 .friends-reward-card[data-reward="50"] { border-top: 2px solid var(--epic); }
 .friends-reward-card[data-reward="150"] { border-top: 2px solid var(--legendary); }
 
-.reward-icon { font-size: 32px; margin-bottom: 2px; transition: all 0.3s ease; }
-.friends-reward-card:hover .reward-icon { transform: scale(1.05); }
+/* Friends reward icons as images */
+.friends-reward-card .reward-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+.friends-reward-card:hover .reward-icon {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 8px rgba(168,85,247,0.6));
+}
+
+.friends-reward-card .reward-icon img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
+}
 
 .reward-name {
     font-size: 11px;
@@ -1113,7 +1235,7 @@ body {
     font-size: 13px;
     font-weight: 700;
     color: var(--text3);
-    width: 22px;
+    width: 32px;
     text-align: center;
 }
 
@@ -1502,6 +1624,7 @@ body::after {
     pointer-events: none;
     z-index: 1000;
 }
+
 /* ============================================
    ЗАПРЕТ ВЫДЕЛЕНИЯ И КОНТЕКСТНОГО МЕНЮ
    ============================================ */
