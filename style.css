@@ -1664,3 +1664,15 @@ img {
 * {
     -webkit-touch-callout: none;
 }
+/* Friends rewards grid spacing */
+.friends-reward-card {
+    margin-bottom: 0;
+}
+
+#tab-friends .friends-reward-card {
+    margin-bottom: 0;
+}
+
+#tab-friends > div:first-of-type {
+    margin-bottom: 16px;
+}

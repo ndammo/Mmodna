@@ -57,19 +57,19 @@
         </div>
         
         <div style="display:flex;align-items:center;gap:10px">
-       <div class="balance-area">
-    <div class="balance-icon"><i class="fa-solid fa-dna"></i></div>
-    <div>
-        <div class="balance-amount" id="balanceDisplay">0</div>
-        <div class="income-inline" id="incomeInline" style="font-size:8px; color:var(--uncommon); margin-top:2px;">+0/hr</div>
-    </div>
-</div>
+            <div class="balance-area">
+                <div class="balance-icon"><i class="fa-solid fa-dna"></i></div>
+                <div>
+                    <div class="balance-amount" id="balanceDisplay">0</div>
+                    <div class="income-inline" id="incomeInline" style="font-size:8px; color:var(--uncommon); margin-top:2px;">+0/hr</div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="xp-bar-wrap">
         <div class="xp-label" id="xpLabel">XP 0/100</div>
         <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
-      </div>
+    </div>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -130,135 +130,147 @@
     </div>
 </div>
 
-    <!-- MARKETPLACE TAB -->
-    <div class="tab-content" id="tab-shop">
-        <div class="section-title"><i class="fa-solid fa-store" style="color:var(--accent2)"></i> <span data-i18n="marketplace.title">Marketplace</span></div>
-        <div class="marketplace-tabs">
-            <button class="marketplace-tab-btn active" onclick="switchMarketplaceTab('buy')">
-                <i class="fa-solid fa-shopping-bag"></i> <span data-i18n="marketplace.buy">Buy</span>
-            </button>
-            <button class="marketplace-tab-btn" onclick="switchMarketplaceTab('sell')">
-                <i class="fa-solid fa-tag"></i> <span data-i18n="marketplace.sell">Sell</span>
-            </button>
-            <button class="marketplace-tab-btn" onclick="switchMarketplaceTab('mylistings')">
-                <i class="fa-solid fa-list"></i> <span data-i18n="marketplace.myListings">My</span>
-            </button>
-        </div>
-        <div class="marketplace-subtab active" id="marketplace-buy">
-            <div id="marketplaceListings" style="display:flex;flex-direction:column;gap:10px"></div>
-        </div>
-        <div class="marketplace-subtab" id="marketplace-sell">
-            <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-hand-holding-heart" style="color:var(--uncommon)"></i> <span data-i18n="marketplace.yourCreatures">Your Creatures</span></div>
-            <div id="marketplaceSellCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
-        </div>
-        <div class="marketplace-subtab" id="marketplace-mylistings">
-            <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-list" style="color:var(--accent2)"></i> <span data-i18n="marketplace.yourListings">Your Listings</span></div>
-            <div id="marketplaceMyListings"></div>
-        </div>
+<!-- MARKETPLACE TAB -->
+<div class="tab-content" id="tab-shop">
+    <div class="section-title"><i class="fa-solid fa-store" style="color:var(--accent2)"></i> <span data-i18n="marketplace.title">Marketplace</span></div>
+    <div class="marketplace-tabs">
+        <button class="marketplace-tab-btn active" onclick="switchMarketplaceTab('buy')">
+            <i class="fa-solid fa-shopping-bag"></i> <span data-i18n="marketplace.buy">Buy</span>
+        </button>
+        <button class="marketplace-tab-btn" onclick="switchMarketplaceTab('sell')">
+            <i class="fa-solid fa-tag"></i> <span data-i18n="marketplace.sell">Sell</span>
+        </button>
+        <button class="marketplace-tab-btn" onclick="switchMarketplaceTab('mylistings')">
+            <i class="fa-solid fa-list"></i> <span data-i18n="marketplace.myListings">My</span>
+        </button>
     </div>
-
-    <!-- LEADERBOARD TAB -->
-    <div class="tab-content" id="tab-leaderboard">
-        <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast('🏆 Займи #1 и получи Black Pantera Mythic!', '🏆')">
-            <div style="position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:20px;border:1px solid rgba(255,255,255,0.18);background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(168,85,247,0.08) 40%,rgba(0,0,0,0) 100%)"></div>
-            <div style="position:absolute;top:0;left:-10%;width:40%;height:100%;z-index:3;pointer-events:none;background:linear-gradient(105deg,rgba(255,255,255,0) 40%,rgba(255,255,255,0.13) 50%,rgba(255,255,255,0) 60%);border-radius:20px"></div>
-            <div style="position:absolute;top:0;left:12%;width:76%;height:1.5px;z-index:4;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);border-radius:2px"></div>
-            <img src="https://storage.yandexcloud.net/timenote/tmp/824f3177814a9035c2d9d37847e9c169caa97f4123274f5630877aefe899602c.jpg"
-                 alt="Season 1 — Black Pantera Mythic"
-                 style="width:100%;display:block;border-radius:20px;object-fit:cover;max-height:160px;object-position:center top">
-        </div>
-        <div class="section-title"><i class="fa-solid fa-trophy" style="color:var(--legendary)"></i> <span data-i18n="leaderboard.title">Global Leaderboard</span></div>
-        <div class="leaderboard-list" id="leaderboardList"></div>
+    <div class="marketplace-subtab active" id="marketplace-buy">
+        <div id="marketplaceListings" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
-
-<!-- В FRIENDS TAB, замените блок с наградами на этот -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-    <!-- 10 Friends - Rare Wolf -->
-    <div class="friends-reward-card" id="reward-10" data-reward="10">
-        <div class="reward-icon">
-            <img src="https://ndammo.github.io/Mmodna/wr.png" alt="Rare Wolf" style="width:48px;height:48px;object-fit:contain">
-        </div>
-        <div class="reward-name rare">RARE WOLF</div>
-        <div class="reward-friends"><i class="fa-solid fa-users"></i> 10</div>
-        <div class="reward-income"><i class="fa-solid fa-bolt"></i> 25/hr</div>
-        <button class="reward-btn" id="reward-10-btn">🔒</button>
+    <div class="marketplace-subtab" id="marketplace-sell">
+        <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-hand-holding-heart" style="color:var(--uncommon)"></i> <span data-i18n="marketplace.yourCreatures">Your Creatures</span></div>
+        <div id="marketplaceSellCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
     </div>
-    
-    <!-- 50 Friends - Epic Wolf -->
-    <div class="friends-reward-card" id="reward-50" data-reward="50">
-        <div class="reward-icon">
-            <img src="https://ndammo.github.io/Mmodna/we.png" alt="Epic Wolf" style="width:48px;height:48px;object-fit:contain">
-        </div>
-        <div class="reward-name epic">EPIC WOLF</div>
-        <div class="reward-friends"><i class="fa-solid fa-users"></i> 50</div>
-        <div class="reward-income"><i class="fa-solid fa-bolt"></i> 80/hr</div>
-        <button class="reward-btn" id="reward-50-btn">🔒</button>
-    </div>
-    
-    <!-- 150 Friends - Legendary Wolf -->
-    <div class="friends-reward-card" id="reward-150" data-reward="150">
-        <div class="reward-icon">
-            <img src="https://ndammo.github.io/Mmodna/wl.png" alt="Legendary Wolf" style="width:48px;height:48px;object-fit:contain">
-        </div>
-        <div class="reward-name legendary">LEGENDARY WOLF</div>
-        <div class="reward-friends"><i class="fa-solid fa-users"></i> 150</div>
-        <div class="reward-income"><i class="fa-solid fa-bolt"></i> 250/hr</div>
-        <button class="reward-btn" id="reward-150-btn">🔒</button>
+    <div class="marketplace-subtab" id="marketplace-mylistings">
+        <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-list" style="color:var(--accent2)"></i> <span data-i18n="marketplace.yourListings">Your Listings</span></div>
+        <div id="marketplaceMyListings"></div>
     </div>
 </div>
-        <div class="section-title"><i class="fa-solid fa-heart" style="color:#f472b6"></i> <span data-i18n="friends.myFriends">My Friends</span></div>
-        <div class="leaderboard-list" id="friendsList"></div>
-    </div>
 
-    <!-- SPECIAL QUESTS TAB -->
-    <div class="tab-content" id="tab-special">
-        <div class="section-title"><i class="fa-solid fa-star" style="color:var(--legendary)"></i> <span data-i18n="specialQuests.title">Special Quests</span></div>
-        <div id="specialQuestsList"></div>
+<!-- LEADERBOARD TAB -->
+<div class="tab-content" id="tab-leaderboard">
+    <div style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:16px;cursor:pointer" onclick="showToast('🏆 Займи #1 и получи Black Pantera Mythic!', '🏆')">
+        <div style="position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:20px;border:1px solid rgba(255,255,255,0.18);background:linear-gradient(135deg,rgba(255,255,255,0.10) 0%,rgba(168,85,247,0.08) 40%,rgba(0,0,0,0) 100%)"></div>
+        <div style="position:absolute;top:0;left:-10%;width:40%;height:100%;z-index:3;pointer-events:none;background:linear-gradient(105deg,rgba(255,255,255,0) 40%,rgba(255,255,255,0.13) 50%,rgba(255,255,255,0) 60%);border-radius:20px"></div>
+        <div style="position:absolute;top:0;left:12%;width:76%;height:1.5px;z-index:4;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);border-radius:2px"></div>
+        <img src="https://storage.yandexcloud.net/timenote/tmp/824f3177814a9035c2d9d37847e9c169caa97f4123274f5630877aefe899602c.jpg"
+             alt="Season 1 — Black Pantera Mythic"
+             style="width:100%;display:block;border-radius:20px;object-fit:cover;max-height:160px;object-position:center top">
     </div>
+    <div class="section-title"><i class="fa-solid fa-trophy" style="color:var(--legendary)"></i> <span data-i18n="leaderboard.title">Global Leaderboard</span></div>
+    <div class="leaderboard-list" id="leaderboardList"></div>
+</div>
 
-    <!-- WALLET TAB -->
-    <div class="tab-content" id="tab-wallet">
-        <div class="wallet-hero">
-            <div class="wallet-label" data-i18n="wallet.totalBalance">Total Balance</div>
-            <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
-  
-        </div>
-        <div class="lang-switcher">
-            <button class="lang-btn" data-lang="ru" onclick="setLanguage('ru')">RU</button>
-            <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
-        </div>
-        <div class="wallet-stats">
-            <div class="wallet-stat">
-                <div class="wallet-stat-icon">⚡</div>
-                <div class="wallet-stat-val" id="walletIncome">0</div>
-                <div class="wallet-stat-label" data-i18n="wallet.mmoPerHour">MMO / Hour</div>
-            </div>
-            <div class="wallet-stat">
-                <div class="wallet-stat-icon">🧬</div>
-                <div class="wallet-stat-val" id="walletCards">0</div>
-                <div class="wallet-stat-label" data-i18n="wallet.creatures">Creatures</div>
-            </div>
-            <div class="wallet-stat">
-                <div class="wallet-stat-icon">🔀</div>
-                <div class="wallet-stat-val" id="walletMerges">0</div>
-                <div class="wallet-stat-label" data-i18n="wallet.totalMerges">Total Merges</div>
-            </div>
-            <div class="wallet-stat">
-                <div class="wallet-stat-icon">📦</div>
-                <div class="wallet-stat-val" id="walletStorage">0/10</div>
-                <div class="wallet-stat-label" data-i18n="wallet.storage">Storage</div>
-            </div>
-        </div>
-        <div class="wallet-actions">
-            <button class="wallet-action-btn deposit" onclick="showDepositModal()">
-                <i class="fa-solid fa-arrow-down"></i> <span data-i18n="wallet.deposit">DEPOSIT</span>
-            </button>
-            <button class="wallet-action-btn withdraw" onclick="showWithdrawModal()">
-                <i class="fa-solid fa-arrow-up"></i> <span data-i18n="wallet.withdraw">WITHDRAW</span>
-            </button>
-        </div>
-        <div id="pendingRequests"></div>
+<!-- FRIENDS TAB -->
+<div class="tab-content" id="tab-friends">
+    <div class="friends-hero">
+        <div class="friends-hero-icon">👥</div>
+        <div class="friends-hero-title" data-i18n="friends.inviteTitle">INVITE FRIENDS</div>
+        <div class="friends-hero-sub" id="friendCountDisplay">0 friends invited</div>
+        <button class="invite-btn" onclick="inviteFriend()">
+            <i class="fa-solid fa-user-plus"></i>
+            <span data-i18n="friends.inviteBtn">INVITE FRIEND</span>
+        </button>
     </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+        <!-- 10 Friends - Rare Wolf -->
+        <div class="friends-reward-card" id="reward-10" data-reward="10">
+            <div class="reward-icon">
+                <img src="https://ndammo.github.io/Mmodna/wr.png" alt="Rare Wolf" style="width:48px;height:48px;object-fit:contain">
+            </div>
+            <div class="reward-name rare">RARE WOLF</div>
+            <div class="reward-friends"><i class="fa-solid fa-users"></i> 10</div>
+            <div class="reward-income"><i class="fa-solid fa-bolt"></i> 25/hr</div>
+            <button class="reward-btn" id="reward-10-btn">🔒</button>
+        </div>
+        
+        <!-- 50 Friends - Epic Wolf -->
+        <div class="friends-reward-card" id="reward-50" data-reward="50">
+            <div class="reward-icon">
+                <img src="https://ndammo.github.io/Mmodna/we.png" alt="Epic Wolf" style="width:48px;height:48px;object-fit:contain">
+            </div>
+            <div class="reward-name epic">EPIC WOLF</div>
+            <div class="reward-friends"><i class="fa-solid fa-users"></i> 50</div>
+            <div class="reward-income"><i class="fa-solid fa-bolt"></i> 80/hr</div>
+            <button class="reward-btn" id="reward-50-btn">🔒</button>
+        </div>
+        
+        <!-- 150 Friends - Legendary Wolf -->
+        <div class="friends-reward-card" id="reward-150" data-reward="150">
+            <div class="reward-icon">
+                <img src="https://ndammo.github.io/Mmodna/wl.png" alt="Legendary Wolf" style="width:48px;height:48px;object-fit:contain">
+            </div>
+            <div class="reward-name legendary">LEGENDARY WOLF</div>
+            <div class="reward-friends"><i class="fa-solid fa-users"></i> 150</div>
+            <div class="reward-income"><i class="fa-solid fa-bolt"></i> 250/hr</div>
+            <button class="reward-btn" id="reward-150-btn">🔒</button>
+        </div>
+    </div>
+    
+    <div class="section-title"><i class="fa-solid fa-heart" style="color:#f472b6"></i> <span data-i18n="friends.myFriends">My Friends</span></div>
+    <div class="leaderboard-list" id="friendsList"></div>
+</div>
+
+<!-- SPECIAL QUESTS TAB -->
+<div class="tab-content" id="tab-special">
+    <div class="section-title"><i class="fa-solid fa-star" style="color:var(--legendary)"></i> <span data-i18n="specialQuests.title">Special Quests</span></div>
+    <div id="specialQuestsList"></div>
+</div>
+
+<!-- WALLET TAB -->
+<div class="tab-content" id="tab-wallet">
+    <div class="wallet-hero">
+        <div class="wallet-label" data-i18n="wallet.totalBalance">Total Balance</div>
+        <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
+    </div>
+    <div class="lang-switcher">
+        <button class="lang-btn" data-lang="ru" onclick="setLanguage('ru')">RU</button>
+        <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
+    </div>
+    <div class="wallet-stats">
+        <div class="wallet-stat">
+            <div class="wallet-stat-icon">⚡</div>
+            <div class="wallet-stat-val" id="walletIncome">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.mmoPerHour">MMO / Hour</div>
+        </div>
+        <div class="wallet-stat">
+            <div class="wallet-stat-icon">🧬</div>
+            <div class="wallet-stat-val" id="walletCards">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.creatures">Creatures</div>
+        </div>
+        <div class="wallet-stat">
+            <div class="wallet-stat-icon">🔀</div>
+            <div class="wallet-stat-val" id="walletMerges">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.totalMerges">Total Merges</div>
+        </div>
+        <div class="wallet-stat">
+            <div class="wallet-stat-icon">📦</div>
+            <div class="wallet-stat-val" id="walletStorage">0/10</div>
+            <div class="wallet-stat-label" data-i18n="wallet.storage">Storage</div>
+        </div>
+    </div>
+    <div class="wallet-actions">
+        <button class="wallet-action-btn deposit" onclick="showDepositModal()">
+            <i class="fa-solid fa-arrow-down"></i> <span data-i18n="wallet.deposit">DEPOSIT</span>
+        </button>
+        <button class="wallet-action-btn withdraw" onclick="showWithdrawModal()">
+            <i class="fa-solid fa-arrow-up"></i> <span data-i18n="wallet.withdraw">WITHDRAW</span>
+        </button>
+    </div>
+    <div id="pendingRequests"></div>
+</div>
+
 </div>
 
 <!-- BOTTOM NAV -->
