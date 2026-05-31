@@ -541,7 +541,7 @@ function showLoadingScreen(show) {
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
-            padding-bottom: 8vh;
+            padding-bottom: 12vh;
         `;
         
         el.innerHTML = `
