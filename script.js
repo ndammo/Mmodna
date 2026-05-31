@@ -1060,6 +1060,7 @@ async function upgradeInventory() {
 // ============================================================
 // ADS
 // ============================================================
+// Функция updateAdsStatus - добавьте принудительное обновление при возвращении на вкладку
 async function updateAdsStatus() {
     try {
         const res = await apiRequest('GET', '/api/game/ads-status');
@@ -1068,20 +1069,65 @@ async function updateAdsStatus() {
             if (adsRemainingEl) {
                 adsRemainingEl.textContent = `${res.adsRemaining}/${res.maxAdsPerDay}`;
             }
+            
+            // Сохраняем в state
+            state.adsRemaining = res.adsRemaining;
+            state.maxAdsPerDay = res.maxAdsPerDay;
+            state.adsToday = res.adsToday;
+            
             if (res.adsRemaining === 0) {
                 const adsBtn = document.getElementById('adsBtn');
                 if (adsBtn) {
                     adsBtn.style.opacity = '0.5';
                     adsBtn.disabled = true;
                 }
+            } else {
+                const adsBtn = document.getElementById('adsBtn');
+                if (adsBtn) {
+                    adsBtn.style.opacity = '1';
+                    adsBtn.disabled = false;
+                }
             }
+            
             if (res.cooldownSeconds > 0 && res.cooldownSeconds < 100) {
                 const timerEl = document.getElementById('adsTimer');
                 if (timerEl) timerEl.textContent = `${res.cooldownSeconds}s`;
+            } else if (res.cooldownSeconds === 0) {
+                const timerEl = document.getElementById('adsTimer');
+                if (timerEl) timerEl.textContent = 'Ready';
             }
         }
     } catch (e) {
         console.error('updateAdsStatus error:', e);
+    }
+}
+
+// Обновите updateAdsTimer для синхронизации с сервером
+function updateAdsTimer() {
+    if (!state.user) return;
+    
+    // Если кулдаун кончился, проверяем на сервере
+    if (state.adsCooldown <= 0) {
+        const timerEl = document.getElementById('adsTimer');
+        if (timerEl && timerEl.textContent !== 'Ready') {
+            // Запрашиваем актуальный статус
+            updateAdsStatus();
+        }
+        return;
+    }
+    
+    state.adsCooldown--;
+    const timerEl = document.getElementById('adsTimer');
+    if (timerEl) timerEl.textContent = `${state.adsCooldown}s`;
+    
+    const btn = document.getElementById('adsBtn');
+    if (btn && state.adsCooldown > 0) {
+        btn.style.opacity = '0.5';
+        btn.disabled = true;
+    }
+    
+    if (state.adsCooldown === 0) {
+        updateAdsStatus(); // Перепроверяем на сервере
     }
 }
 
