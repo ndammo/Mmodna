@@ -1210,27 +1210,6 @@ async function watchAd() {
     state.isLoading = false;
 }
 
-function updateAdsTimer() {
-    if (!state.user) return;
-    if (state.adsCooldown > 0) {
-        state.adsCooldown--;
-        const timerEl = document.getElementById('adsTimer');
-        if (timerEl) timerEl.textContent = `${state.adsCooldown}s`;
-        const btn = document.getElementById('adsBtn');
-        if (btn && state.adsCooldown > 0) {
-            btn.style.opacity = '0.5';
-            btn.disabled = true;
-        }
-    } else {
-        const timerEl = document.getElementById('adsTimer');
-        if (timerEl) timerEl.textContent = 'Ready';
-        const btn = document.getElementById('adsBtn');
-        if (btn) {
-            btn.style.opacity = '1';
-            btn.disabled = false;
-        }
-    }
-}
 
 // ============================================================
 // TRANSACTIONS
