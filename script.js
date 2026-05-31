@@ -522,29 +522,99 @@ async function initTelegramApp() {
 // ============================================================
 function showLoadingScreen(show) {
     let el = document.getElementById('loadingScreen');
+    
     if (!el && show) {
         el = document.createElement('div');
         el.id = 'loadingScreen';
         el.style.cssText = `
-            position:fixed;inset:0;background:#080b14;z-index:9999;
-            display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            background: url('load.webp') center/cover no-repeat;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 8vh;
         `;
+        
         el.innerHTML = `
-            <div style="font-size:48px;animation:float 1.5s ease-in-out infinite">🧬</div>
-            <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:#a855f7">DNA MMO</div>
-            <div style="font-size:12px;color:#94a3b8">Loading...</div>
-            <div style="width:120px;height:3px;background:#1e2d4a;border-radius:2px;overflow:hidden">
-                <div style="height:100%;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:2px;animation:loadBar 1.5s ease-in-out infinite"></div>
+            <style>
+                @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+                .loading-bar-container {
+                    width: 200px;
+                    height: 3px;
+                    background: rgba(168,85,247,0.2);
+                    border-radius: 3px;
+                    overflow: hidden;
+                }
+                .loading-bar-fill {
+                    width: 30%;
+                    height: 100%;
+                    background: linear-gradient(90deg, #a855f7, #06b6d4, #a855f7);
+                    background-size: 200% 100%;
+                    border-radius: 3px;
+                    animation: shimmer 1.5s ease-in-out infinite;
+                }
+                .loading-text {
+                    font-family: 'Orbitron', monospace;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #a855f7;
+                    text-transform: uppercase;
+                    letter-spacing: 3px;
+                    margin-top: 12px;
+                    opacity: 0.8;
+                }
+                .loading-percent {
+                    font-family: 'Orbitron', monospace;
+                    font-size: 10px;
+                    color: #94a3b8;
+                    margin-top: 6px;
+                }
+            </style>
+            
+            <div class="loading-bar-container">
+                <div class="loading-bar-fill"></div>
             </div>
+            <div class="loading-text">Loading</div>
+            <div class="loading-percent" id="loadingPercent">0%</div>
         `;
-        const style = document.createElement('style');
-        style.textContent = `@keyframes loadBar {0%{width:0%}50%{width:80%}100%{width:100%}}`;
-        document.head.appendChild(style);
+        
         document.body.appendChild(el);
-    } else if (el && !show) {
-        el.style.transition = 'opacity 0.4s';
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 400);
+        
+        // Анимация процентов
+        let percent = 0;
+        const interval = setInterval(() => {
+            if (percent < 90) {
+                percent += Math.random() * 8;
+                const percentEl = document.getElementById('loadingPercent');
+                if (percentEl) percentEl.textContent = Math.floor(Math.min(percent, 90)) + '%';
+            }
+        }, 300);
+        el.dataset.percentInterval = interval;
+    } 
+    else if (el && !show) {
+        if (el.dataset.percentInterval) {
+            clearInterval(parseInt(el.dataset.percentInterval));
+        }
+        const percentEl = document.getElementById('loadingPercent');
+        if (percentEl) percentEl.textContent = '100%';
+        
+        setTimeout(() => {
+            el.style.transition = 'opacity 0.5s ease';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        }, 200);
     }
 }
 
