@@ -546,68 +546,68 @@ function showLoadingScreen(show) {
         
         el.innerHTML = `
             <style>
-                @keyframes shimmer {
-                    0% { background-position: -200% 0; }
-                    100% { background-position: 200% 0; }
-                }
                 .loading-bar-container {
                     width: 200px;
-                    height: 3px;
+                    height: 4px;
                     background: rgba(168,85,247,0.2);
-                    border-radius: 3px;
+                    border-radius: 4px;
                     overflow: hidden;
                 }
                 .loading-bar-fill {
-                    width: 30%;
+                    width: 0%;
                     height: 100%;
-                    background: linear-gradient(90deg, #a855f7, #06b6d4, #a855f7);
-                    background-size: 200% 100%;
-                    border-radius: 3px;
-                    animation: shimmer 1.5s ease-in-out infinite;
+                    background: linear-gradient(90deg, #a855f7, #06b6d4);
+                    border-radius: 4px;
+                    transition: width 0.3s ease;
                 }
                 .loading-text {
                     font-family: 'Orbitron', monospace;
-                    font-size: 11px;
+                    font-size: 12px;
                     font-weight: 600;
                     color: #a855f7;
                     text-transform: uppercase;
                     letter-spacing: 3px;
-                    margin-top: 12px;
-                    opacity: 0.8;
+                    margin-top: 16px;
                 }
                 .loading-percent {
                     font-family: 'Orbitron', monospace;
-                    font-size: 10px;
+                    font-size: 11px;
                     color: #94a3b8;
                     margin-top: 6px;
                 }
             </style>
             
             <div class="loading-bar-container">
-                <div class="loading-bar-fill"></div>
+                <div class="loading-bar-fill" id="loadingBarFill"></div>
             </div>
-            <div class="loading-text">Loading</div>
+            <div class="loading-text">LOADING</div>
             <div class="loading-percent" id="loadingPercent">0%</div>
         `;
         
         document.body.appendChild(el);
         
-        // Анимация процентов
+        // Анимация роста полосы
         let percent = 0;
+        const fillEl = document.getElementById('loadingBarFill');
+        const percentEl = document.getElementById('loadingPercent');
+        
         const interval = setInterval(() => {
             if (percent < 90) {
-                percent += Math.random() * 8;
-                const percentEl = document.getElementById('loadingPercent');
-                if (percentEl) percentEl.textContent = Math.floor(Math.min(percent, 90)) + '%';
+                percent += Math.random() * 10;
+                percent = Math.min(percent, 90);
+                if (fillEl) fillEl.style.width = percent + '%';
+                if (percentEl) percentEl.textContent = Math.floor(percent) + '%';
             }
-        }, 300);
+        }, 200);
         el.dataset.percentInterval = interval;
     } 
     else if (el && !show) {
         if (el.dataset.percentInterval) {
             clearInterval(parseInt(el.dataset.percentInterval));
         }
+        const fillEl = document.getElementById('loadingBarFill');
         const percentEl = document.getElementById('loadingPercent');
+        if (fillEl) fillEl.style.width = '100%';
         if (percentEl) percentEl.textContent = '100%';
         
         setTimeout(() => {
