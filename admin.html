@@ -630,11 +630,6 @@
         main.innerHTML = html;
     }
 
-    async function refreshCache() {
-        const res = await apiRequest('/api/admin/refresh-cache', 'POST');
-        if (res?.success) showToast('Кэш обновлён');
-    }
-
     // ============================================================
     // ПОЛЬЗОВАТЕЛИ
     // ============================================================
@@ -753,8 +748,8 @@
         const u = res.user;
         const inv = res.inventory || [];
         const referrals = res.referrals || [];
-        const adsWatched = u.adsWatchedCount || 0;
-        const adsEarned = u.totalReferralBonus || 0;
+        const adsWatched = res.adsWatched || 0;
+        const adsEarned = res.adsEarned || 0;
         
         const modalHtml = `
             <div class="modal" id="userModal">
@@ -768,7 +763,7 @@
                         <div><strong>Рефералов:</strong> ${u.referralCount}</div>
                         <div><strong>Слияний:</strong> ${u.mergeCount}</div>
                         <div><strong>📺 Просмотров рекламы:</strong> ${adsWatched}</div>
-                        <div><strong>💰 Заработано с рефералов:</strong> ${formatNum(adsEarned)} MMO</div>
+                        <div><strong>💰 Заработано с рекламы:</strong> ${formatNum(adsEarned)} MMO</div>
                         <div><strong>Статус:</strong> ${u.isBanned ? '🔴 Забанен' : '🟢 Активен'}</div>
                     </div>
                     
@@ -956,115 +951,195 @@
     }
 
     // ============================================================
-    // РЕКЛАМА (НОВАЯ ВКЛАДКА)
+    // РЕКЛАМА (ИСПРАВЛЕННАЯ ВЕРСИЯ)
     // ============================================================
-    let AD_REWARD = 20;
-    let AD_COOLDOWN = 60;
 
     async function loadAdsPanel() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
-        const statsRes = await apiRequest('/api/admin/ads-stats?limit=50');
-        if (!statsRes) {
-            main.innerHTML = '<div class="spinner">Ошибка загрузки статистики</div>';
-            return;
+        try {
+            // Получаем статистику рекламы
+            const statsRes = await apiRequest('/api/admin/ads-stats?limit=50');
+            
+            // Получаем конфигурацию игры
+            const configRes = await apiRequest('/api/admin/config');
+            const config = configRes?.config || {};
+            
+            const AD_REWARD = config.adReward || 50;
+            const AD_COOLDOWN = config.adCooldown || 60;
+            const maxAds = 10;
+            
+            // Если ошибка при загрузке статистики
+            if (!statsRes || !statsRes.success) {
+                main.innerHTML = `
+                    <div class="user-card">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Ошибка загрузки статистики рекламы</h3>
+                        <div style="color:#ef4444; margin-top:10px;">
+                            ${statsRes?.message || 'Сервер не отвечает или эндпоинт не найден'}
+                        </div>
+                        <div style="margin-top:16px;">
+                            <button onclick="loadAdsPanel()" class="secondary"><i class="fas fa-sync"></i> Повторить</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><h3><i class="fas fa-eye"></i> Всего просмотров</h3><div class="value">${formatNum(statsRes.total?.totalAdsWatched || 0)}</div></div>
+                    <div class="stat-card"><h3><i class="fas fa-chart-line"></i> В среднем на игрока</h3><div class="value">${(statsRes.total?.avgAdsPerUser || 0).toFixed(1)}</div></div>
+                    <div class="stat-card"><h3><i class="fas fa-tv"></i> Макс. запас</h3><div class="value">${maxAds}</div></div>
+                    <div class="stat-card"><h3><i class="fas fa-coins"></i> Награда за просмотр</h3><div class="value" style="font-size:20px">${AD_REWARD} MMO</div></div>
+                </div>
+                
+                <div class="user-card">
+                    <h3><i class="fas fa-sliders-h"></i> Управление рекламой</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                        <button onclick="giveAdsToAll()" class="success"><i class="fas fa-gift"></i> Выдать +5 рекламы всем</button>
+                        <button onclick="resetAllAdsStats()" class="danger"><i class="fas fa-trash-alt"></i> Сбросить СТАТИСТИКУ (всем)</button>
+                        <button onclick="showAdsConfigModal()" class="warning"><i class="fas fa-cog"></i> Настройки рекламы</button>
+                        <button onclick="refreshCache()" class="secondary"><i class="fas fa-sync"></i> Обновить кэш</button>
+                    </div>
+                    <div style="background:#0d1120;border-radius:12px;padding:12px;margin-top:12px;">
+                        <div style="font-size:11px;color:#94a3b8;"><i class="fas fa-info-circle"></i> <strong>Механика:</strong> +1 просмотр каждый час (макс. ${maxAds}). Кулдаун между просмотрами: ${AD_COOLDOWN} сек. Награда: ${AD_REWARD} MMO</div>
+                    </div>
+                </div>
+                
+                <div class="user-card">
+                    <h3><i class="fas fa-ranking-star"></i> Топ пользователей по просмотрам рекламы</h3>
+                    <div class="data-table">
+                        <table style="width:100%">
+                            <thead><tr><th>#</th><th>Пользователь</th><th>Просмотров</th><th>Уровень</th><th>Доступно сейчас</th><th></th></tr></thead>
+                            <tbody>
+                                ${statsRes.stats && statsRes.stats.length > 0 ? statsRes.stats.map((u, idx) => `
+                                    <tr>
+                                        <td><b>${idx + 1}</b></td>
+                                        <td>${escapeHtml(u.username || u.firstName || u.telegramId)}</td>
+                                        <td><span style="color:#f59e0b;font-weight:700">${u.adsWatched || 0}</span></td>
+                                        <td>УР ${u.level}</td>
+                                        <td>${u.adsAvailable || 0}/${maxAds}</td>
+                                        <td><button onclick="resetUserAdsStats('${u._id}', '${escapeHtml(u.username || u.firstName)}')" class="danger" style="padding:4px 8px;font-size:10px"><i class="fas fa-undo"></i> Сброс</button></td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="6" style="text-align:center">Нет данных</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            main.innerHTML = html;
+        } catch (e) {
+            console.error('loadAdsPanel error:', e);
+            main.innerHTML = `<div class="user-card"><h3>❌ Ошибка загрузки</h3><div>${e.message}</div><button onclick="loadAdsPanel()" class="secondary" style="margin-top:10px">Повторить</button></div>`;
         }
-        
-        const configRes = await apiRequest('/api/admin/config');
-        const config = configRes?.config || {};
-        AD_REWARD = config.adReward || 20;
-        AD_COOLDOWN = config.adCooldown || 60;
-        const maxAds = 10;
-        
-        const html = `
-            <div class="stats-grid">
-                <div class="stat-card"><h3><i class="fas fa-eye"></i> Всего просмотров</h3><div class="value">${formatNum(statsRes.total?.totalAdsWatched || 0)}</div></div>
-                <div class="stat-card"><h3><i class="fas fa-chart-line"></i> В среднем на игрока</h3><div class="value">${(statsRes.total?.avgAdsPerUser || 0).toFixed(1)}</div></div>
-                <div class="stat-card"><h3><i class="fas fa-tv"></i> Макс. запас</h3><div class="value">${maxAds}</div></div>
-                <div class="stat-card"><h3><i class="fas fa-coins"></i> Награда за просмотр</h3><div class="value" style="font-size:20px">${AD_REWARD} MMO</div></div>
-            </div>
-            
-            <div class="user-card">
-                <h3><i class="fas fa-sliders-h"></i> Управление рекламой</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
-                    <button onclick="giveAdsToAll()" class="success"><i class="fas fa-gift"></i> Выдать +5 рекламы всем</button>
-                    <button onclick="resetAllAdsStats()" class="danger"><i class="fas fa-trash-alt"></i> Сбросить СТАТИСТИКУ (всем)</button>
-                    <button onclick="showAdsConfigModal()" class="warning"><i class="fas fa-cog"></i> Настройки рекламы</button>
-                </div>
-                <div style="background:#0d1120;border-radius:12px;padding:12px;margin-top:12px;">
-                    <div style="font-size:11px;color:#94a3b8;"><i class="fas fa-info-circle"></i> <strong>Механика:</strong> +1 просмотр каждый час (макс. ${maxAds}). Кулдаун между просмотрами: ${AD_COOLDOWN} сек. Награда: ${AD_REWARD} MMO</div>
-                </div>
-            </div>
-            
-            <div class="user-card">
-                <h3><i class="fas fa-ranking-star"></i> Топ пользователей по просмотрам рекламы</h3>
-                <div class="data-table">
-                    <table style="width:100%">
-                        <thead><tr><th>#</th><th>Пользователь</th><th>Просмотров</th><th>Уровень</th><th>Доступно сейчас</th><th></th></tr></thead>
-                        <tbody>
-                            ${statsRes.stats && statsRes.stats.length > 0 ? statsRes.stats.map((u, idx) => `<tr>
-                                <td><b>${idx + 1}</b></td>
-                                <td>${escapeHtml(u.username || u.firstName || u.telegramId)}</td>
-                                <td><span style="color:#f59e0b;font-weight:700">${u.adsWatched || 0}</span></td>
-                                <td>УР ${u.level}</td>
-                                <td>${u.adsAvailable || 0}/${maxAds}</td>
-                                <td><button onclick="resetUserAdsStats('${u._id}', '${escapeHtml(u.username || u.firstName)}')" class="danger" style="padding:4px 8px;font-size:10px"><i class="fas fa-undo"></i> Сброс</button></td>
-                            </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">Нет данных</td></table>'}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-        main.innerHTML = html;
     }
+
+    window.resetUserAdsStats = async function(userId, userName) {
+        if (!confirm(`Сбросить статистику рекламы у ${userName}?\n\nВсе записи о просмотрах будут удалены, а доступная реклама восстановлена до максимума.`)) return;
+        
+        const res = await apiRequest(`/api/admin/user/${userId}/reset-ads-stats`, 'POST');
+        if (res?.success) { 
+            showToast(res.message); 
+            loadAdsPanel(); 
+        } else {
+            showToast(res?.message || 'Ошибка', 'error');
+        }
+    };
 
     window.giveAdsToAll = async function() {
         const amount = prompt('Сколько просмотров рекламы выдать всем? (1-50)', '5');
         if (!amount) return;
+        
         const res = await apiRequest('/api/admin/give-ads-to-all', 'POST', { amount: parseInt(amount) });
-        if (res?.success) { showToast(res.message); loadAdsPanel(); }
-        else showToast(res?.message || 'Ошибка', 'error');
-    };
-
-    window.resetUserAdsStats = async function(userId, userName) {
-        if (!confirm(`Сбросить статистику рекламы у ${userName}?\n\nВсе записи о просмотрах будут удалены, а доступная реклама восстановлена до максимума.`)) return;
-        const res = await apiRequest(`/api/admin/users/${userId}/reset-ads-stats`, 'POST');
-        if (res?.success) { showToast(res.message); loadAdsPanel(); }
-        else showToast(res?.message || 'Ошибка', 'error');
+        if (res?.success) { 
+            showToast(res.message); 
+            loadAdsPanel(); 
+        } else {
+            showToast(res?.message || 'Ошибка', 'error');
+        }
     };
 
     window.resetAllAdsStats = async function() {
         if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЮ историю просмотров рекламы у ВСЕХ игроков!\n\nСтатистика обнулится, но баланс игроков не изменится.\n\nВы уверены?')) return;
+        
         const res = await apiRequest('/api/admin/reset-all-ads-stats', 'POST');
-        if (res?.success) { showToast(res.message); loadAdsPanel(); }
-        else showToast(res?.message || 'Ошибка', 'error');
+        if (res?.success) { 
+            showToast(res.message); 
+            loadAdsPanel(); 
+        } else {
+            showToast(res?.message || 'Ошибка', 'error');
+        }
     };
 
     window.showAdsConfigModal = function() {
-        const modalHtml = `
-            <div class="modal" id="adsConfigModal">
-                <div class="modal-content">
-                    <h3><i class="fas fa-tv"></i> Настройки рекламы</h3>
-                    <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Изменения применяются сразу для всех игроков</div>
-                    <div class="form-group"><label>💰 Награда за просмотр (MMO)</label><input type="number" id="cfgAdReward" value="${AD_REWARD}" step="5" min="10"></div>
-                    <div class="form-group"><label>⏱ Кулдаун между просмотрами (секунд)</label><input type="number" id="cfgAdCooldown" value="${AD_COOLDOWN}" step="5" min="10"></div>
-                    <div class="form-group"><label>📺 Максимальный запас рекламы (сейчас: 10)</label><input type="number" id="cfgMaxAds" value="10" step="1" min="5" max="50" disabled>
-                    <div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠️ Для изменения максимального запаса нужно править константу на сервере</div></div>
-                    <div class="modal-buttons"><button onclick="saveAdsConfig()" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div>
-                </div>
-            </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        fetch(`${API_URL}/api/admin/config`, {
+            headers: { 'X-Admin-Token': adminToken }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const config = data.config || {};
+            const adReward = config.adReward || 50;
+            const adCooldown = config.adCooldown || 60;
+            
+            const modalHtml = `
+                <div class="modal" id="adsConfigModal">
+                    <div class="modal-content">
+                        <h3><i class="fas fa-tv"></i> Настройки рекламы</h3>
+                        <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Изменения применяются сразу для всех игроков</div>
+                        <div class="form-group"><label>💰 Награда за просмотр (MMO)</label><input type="number" id="cfgAdReward" value="${adReward}" step="5" min="10"></div>
+                        <div class="form-group"><label>⏱ Кулдаун между просмотрами (секунд)</label><input type="number" id="cfgAdCooldown" value="${adCooldown}" step="5" min="10"></div>
+                        <div class="form-group"><label>📺 Максимальный запас рекламы (сейчас: 10)</label><input type="number" id="cfgMaxAds" value="10" step="1" min="5" max="50" disabled>
+                        <div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠️ Для изменения максимального запаса нужно править константу на сервере</div></div>
+                        <div class="modal-buttons"><button onclick="saveAdsConfig()" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        })
+        .catch(err => {
+            showToast('Ошибка загрузки настроек', 'error');
+        });
     };
 
     window.saveAdsConfig = async function() {
         const adReward = parseInt(document.getElementById('cfgAdReward')?.value);
         const adCooldown = parseInt(document.getElementById('cfgAdCooldown')?.value);
-        if (isNaN(adReward) || adReward < 10) { showToast('Награда должна быть минимум 10 MMO', 'error'); return; }
-        if (isNaN(adCooldown) || adCooldown < 10) { showToast('Кулдаун должен быть минимум 10 секунд', 'error'); return; }
-        const res = await apiRequest('/api/admin/ads-config', 'PUT', { adReward, adCooldownSeconds: adCooldown });
-        if (res?.success) { showToast('Настройки рекламы сохранены!'); closeModal(); loadAdsPanel(); }
-        else showToast(res?.message || 'Ошибка сохранения', 'error');
+        
+        if (isNaN(adReward) || adReward < 10) { 
+            showToast('Награда должна быть минимум 10 MMO', 'error'); 
+            return; 
+        }
+        if (isNaN(adCooldown) || adCooldown < 10) { 
+            showToast('Кулдаун должен быть минимум 10 секунд', 'error'); 
+            return; 
+        }
+        
+        const res = await apiRequest('/api/admin/ads-config', 'PUT', { 
+            adReward, 
+            adCooldownSeconds: adCooldown 
+        });
+        
+        if (res?.success) { 
+            showToast('Настройки рекламы сохранены!'); 
+            closeModal(); 
+            loadAdsPanel(); 
+        } else {
+            showToast(res?.message || 'Ошибка сохранения', 'error');
+        }
+    };
+
+    window.refreshCache = async function() {
+        showToast('Обновление кэша...', 'info');
+        const res = await apiRequest('/api/admin/refresh-cache', 'POST');
+        if (res?.success) {
+            showToast('Кэш обновлён!');
+            const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
+            if (activeTab === 'ads') loadAdsPanel();
+            if (activeTab === 'dashboard') loadDashboard();
+            if (activeTab === 'users') loadUsers(currentPage);
+        } else {
+            showToast('Ошибка обновления кэша', 'error');
+        }
     };
 
     // ============================================================
