@@ -88,6 +88,8 @@ const translations = {
         'wallet.creatures': 'Существа',
         'wallet.totalMerges': 'Всего Слияний',
         'wallet.storage': 'Склад',
+        'wallet.adsWatched': 'Просмотров рекламы',
+        'wallet.referralEarned': 'С рефералов',
         'wallet.deposit': 'ПОПОЛНИТЬ',
         'wallet.withdraw': 'ВЫВЕСТИ',
         'wallet.activeRequests': 'Активных заявок: {count}/{max}',
@@ -268,6 +270,8 @@ const translations = {
         'wallet.creatures': 'Creatures',
         'wallet.totalMerges': 'Total Merges',
         'wallet.storage': 'Storage',
+        'wallet.adsWatched': 'Ads Watched',
+        'wallet.referralEarned': 'From Referrals',
         'wallet.deposit': 'DEPOSIT',
         'wallet.withdraw': 'WITHDRAW',
         'wallet.activeRequests': 'Active requests: {count}/{max}',
@@ -562,7 +566,7 @@ function setLanguage(lang) {
     if (withdrawBtn) withdrawBtn.textContent = t('wallet.withdraw');
     
     const walletStatLabels = document.querySelectorAll('.wallet-stat-label');
-    const walletStatKeys = ['wallet.mmoPerHour', 'wallet.creatures', 'wallet.totalMerges', 'wallet.storage'];
+    const walletStatKeys = ['wallet.creatures', 'wallet.totalMerges', 'wallet.adsWatched', 'wallet.referralEarned'];
     walletStatLabels.forEach((label, i) => {
         if (walletStatKeys[i]) label.textContent = t(walletStatKeys[i]);
     });
