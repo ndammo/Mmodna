@@ -2,10 +2,8 @@
 // ЛОКАЛИЗАЦИЯ DNA MMO
 // ============================================================
 
-// Текущий язык
 let currentLocale = localStorage.getItem('locale') || 'ru';
 
-// Переводы
 const translations = {
     ru: {
         // Navigation
@@ -60,10 +58,9 @@ const translations = {
         'leaderboard.xp': 'ОП',
         'leaderboard.you': '(Вы)',
         
-        // Friends (обновлено)
+        // Friends
         'friends.inviteTitle': 'ПРИГЛАСИТЕ ДРУЗЕЙ',
         'friends.inviteBtn': 'ПРИГЛАСИТЬ ДРУГА',
-        'friends.milestones': 'Награды за друзей 5+ уровня',
         'friends.myFriends': 'Мои Друзья',
         'friends.noFriends': 'Нет друзей\nПригласите друзей и помогите им достичь 5 уровня!',
         'friends.friendsCount': '{count} друзей 5+ уровня из {total}',
@@ -73,7 +70,7 @@ const translations = {
         'friends.notQualified': '📈 нужно {left} ур.',
         'friends.levelRequirement': '🔥 ВАЖНО: Для получения наград друзья должны достичь 5 уровня!',
         
-        // Special Quests (обновлено)
+        // Special Quests
         'specialQuests.title': 'Особые Квесты',
         'specialQuests.noQuests': 'Нет активных спец-квестов',
         'specialQuests.comingSoon': 'Скоро появятся новые квесты!',
@@ -82,14 +79,14 @@ const translations = {
         'specialQuests.completed': 'ВЫПОЛНЕНО',
         'specialQuests.locked': 'НУЖНО {required} ДРУЗЕЙ 5+ УРОВНЯ ({current})',
         
-        // Wallet
+        // Wallet (ОБНОВЛЁННЫЙ)
         'wallet.totalBalance': 'Общий Баланс',
-        'wallet.mmoPerHour': 'MMO / Час',
-        'wallet.creatures': 'Существа',
-        'wallet.totalMerges': 'Всего Слияний',
-        'wallet.storage': 'Склад',
         'wallet.deposit': 'ПОПОЛНИТЬ',
         'wallet.withdraw': 'ВЫВЕСТИ',
+        'wallet.withdrawn': 'Выводы',
+        'wallet.referralEarned': 'С рефералов',
+        'wallet.adsWatched': 'Просмотров',
+        'wallet.adsEarned': 'С рекламы',
         'wallet.activeRequests': 'Активных заявок: {count}/{max}',
         'wallet.pending': 'ОЖИДАНИЕ',
         'wallet.depositAmount': 'Сумма (MMO)',
@@ -99,8 +96,6 @@ const translations = {
         'wallet.insufficientFunds': 'Недостаточно средств. Ваш баланс: {balance} MMO',
         'wallet.validWallet': 'Введите корректный TON адрес кошелька (минимум 20 символов)',
         'wallet.requestCreated': 'Заявка на {amount} MMO создана! Ожидайте подтверждения администратора.',
-        'wallet.requestDepositCreated': 'Заявка создана! Отправьте точную сумму на указанный кошелек TON с указанием мемо.',
-        'wallet.paymentConfirmed': 'Спасибо! Администратор проверит платеж и начислит средства.',
         'wallet.copied': 'Скопировано!',
         
         // Capsule Modal
@@ -125,7 +120,6 @@ const translations = {
         'merge.evolutionSuccess': '🎉 Эволюция успешна!',
         'merge.failComplete': '❌ Провал! Существо не изменилось',
         'merge.evolution': 'ЭВОЛЮЦИЯ!',
-        'merge.continue': 'ПРОДОЛЖИТЬ',
         'merge.close': 'ЗАКРЫТЬ',
         'merge.successResult': '+РЕДКОСТЬ',
         'merge.sameResult': '=РЕДКОСТЬ',
@@ -172,7 +166,7 @@ const translations = {
         'common.mmo': 'MMO',
         'common.hour': 'час',
         
-        // Friend Rewards (обновлено)
+        // Friend Rewards
         'friendReward.claimed': 'ПОЛУЧЕНО',
         'friendReward.claim': 'ЗАБРАТЬ',
         'friendReward.locked': '{friends} ДРУЗЕЙ 5+ УРОВНЯ',
@@ -240,10 +234,9 @@ const translations = {
         'leaderboard.xp': 'XP',
         'leaderboard.you': '(You)',
         
-        // Friends (updated)
+        // Friends
         'friends.inviteTitle': 'INVITE FRIENDS',
         'friends.inviteBtn': 'INVITE FRIEND',
-        'friends.milestones': 'Friend Milestones (Level 5+)',
         'friends.myFriends': 'My Friends',
         'friends.noFriends': 'No friends yet\nInvite friends and help them reach level 5!',
         'friends.friendsCount': '{count} friends level 5+ out of {total}',
@@ -253,7 +246,7 @@ const translations = {
         'friends.notQualified': '📈 need {left} lvl',
         'friends.levelRequirement': '🔥 IMPORTANT: Friends must reach level 5 to count for rewards!',
         
-        // Special Quests (updated)
+        // Special Quests
         'specialQuests.title': 'Special Quests',
         'specialQuests.noQuests': 'No active special quests',
         'specialQuests.comingSoon': 'New quests coming soon!',
@@ -262,14 +255,14 @@ const translations = {
         'specialQuests.completed': 'COMPLETED',
         'specialQuests.locked': 'NEED {required} FRIENDS LEVEL 5+ ({current})',
         
-        // Wallet
+        // Wallet (UPDATED)
         'wallet.totalBalance': 'Total Balance',
-        'wallet.mmoPerHour': 'MMO / Hour',
-        'wallet.creatures': 'Creatures',
-        'wallet.totalMerges': 'Total Merges',
-        'wallet.storage': 'Storage',
         'wallet.deposit': 'DEPOSIT',
         'wallet.withdraw': 'WITHDRAW',
+        'wallet.withdrawn': 'Withdrawn',
+        'wallet.referralEarned': 'From Referrals',
+        'wallet.adsWatched': 'Ads Watched',
+        'wallet.adsEarned': 'From Ads',
         'wallet.activeRequests': 'Active requests: {count}/{max}',
         'wallet.pending': 'PENDING',
         'wallet.depositAmount': 'Amount (MMO)',
@@ -279,8 +272,6 @@ const translations = {
         'wallet.insufficientFunds': 'Insufficient funds. Your balance: {balance} MMO',
         'wallet.validWallet': 'Enter a valid TON wallet address (min 20 characters)',
         'wallet.requestCreated': 'Withdraw request for {amount} MMO created! Wait for admin approval.',
-        'wallet.requestDepositCreated': 'Request created! Send exact amount to the TON wallet with memo.',
-        'wallet.paymentConfirmed': 'Thank you! Admin will check payment and add funds.',
         'wallet.copied': 'Copied!',
         
         // Capsule Modal
@@ -305,7 +296,6 @@ const translations = {
         'merge.evolutionSuccess': '🎉 Evolution successful!',
         'merge.failComplete': '❌ Fail! Creature unchanged',
         'merge.evolution': 'EVOLUTION!',
-        'merge.continue': 'CONTINUE',
         'merge.close': 'CLOSE',
         'merge.successResult': '+RARITY',
         'merge.sameResult': '=RARITY',
@@ -352,7 +342,7 @@ const translations = {
         'common.mmo': 'MMO',
         'common.hour': 'hr',
         
-        // Friend Rewards (updated)
+        // Friend Rewards
         'friendReward.claimed': 'CLAIMED',
         'friendReward.claim': 'CLAIM',
         'friendReward.locked': '{friends} FRIENDS LEVEL 5+',
@@ -369,7 +359,6 @@ const translations = {
     }
 };
 
-// Функция перевода
 function t(key, params = {}) {
     let text = translations[currentLocale]?.[key] || translations['en'][key] || key;
     Object.keys(params).forEach(p => {
@@ -378,7 +367,6 @@ function t(key, params = {}) {
     return text;
 }
 
-// Функция применения перевода к статическим элементам
 function applyLocaleStatic() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
@@ -392,12 +380,10 @@ function applyLocaleStatic() {
     });
 }
 
-// Функция переключения языка
 function setLanguage(lang) {
     currentLocale = lang;
     localStorage.setItem('locale', lang);
     
-    // Обновляем активный класс на кнопках
     document.querySelectorAll('.lang-btn').forEach(btn => {
         if (btn.getAttribute('data-lang') === lang) {
             btn.classList.add('active');
@@ -406,32 +392,13 @@ function setLanguage(lang) {
         }
     });
     
-    // Применяем перевод к статическим элементам
     applyLocaleStatic();
     
-    // Обновляем текст требования в разделе друзей
     const friendsHeroSub = document.querySelector('.friends-hero-sub');
     if (friendsHeroSub) {
         friendsHeroSub.innerHTML = `🔥 <strong>${t('friends.levelRequirement').replace('🔥 ', '')}</strong>`;
     }
     
-    // Обновляем текст на карточках наград
-    const rewardCards = document.querySelectorAll('.friends-reward-card');
-    const rewardsData = [
-        { card: rewardCards[0], friends: 10 },
-        { card: rewardCards[1], friends: 50 },
-        { card: rewardCards[2], friends: 150 }
-    ];
-    rewardsData.forEach(r => {
-        if (r.card) {
-            const friendsSpan = r.card.querySelector('.reward-friends');
-            if (friendsSpan) {
-                friendsSpan.textContent = `🎁 ${t('friendReward.locked', { friends: r.friends })}`;
-            }
-        }
-    });
-    
-    // Вызываем обновление динамических компонентов
     if (typeof window.updateHeader === 'function') window.updateHeader();
     if (typeof window.renderCards === 'function') window.renderCards();
     if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
@@ -441,139 +408,13 @@ function setLanguage(lang) {
     if (typeof window.renderMarketplaceBuy === 'function' && document.getElementById('marketplace-buy')?.classList.contains('active')) window.renderMarketplaceBuy();
     if (typeof window.renderMarketplaceSell === 'function' && document.getElementById('marketplace-sell')?.classList.contains('active')) window.renderMarketplaceSell();
     if (typeof window.renderMarketplaceMyListings === 'function' && document.getElementById('marketplace-mylistings')?.classList.contains('active')) window.renderMarketplaceMyListings();
+    if (typeof window.loadUserStats === 'function') window.loadUserStats();
     
-    // Обновляем текст в header
-    const xpLabel = document.getElementById('xpLabel');
-    if (xpLabel && window.state?.user) {
-        const u = window.state.user;
-        xpLabel.textContent = `${t('common.xp')} ${u.xp}/${u.level * 100}`;
-    }
-    
-    const playerLevelLabel = document.getElementById('playerLevelLabel');
-    if (playerLevelLabel && window.state?.user) {
-        const u = window.state.user;
-        playerLevelLabel.textContent = `${t('common.lvl')} ${u.level} · ${u.level >= 20 ? 'God Scientist' : u.level >= 15 ? 'DNA Master' : u.level >= 10 ? 'Geneticist' : u.level >= 5 ? 'Lab Expert' : u.level >= 3 ? 'Biologist' : 'Researcher'}`;
-    }
-    
-    const friendCountDisplay = document.getElementById('friendCountDisplay');
-    if (friendCountDisplay && window.state?.user) {
-        const totalFriends = window.state.user.referralTotalCount || 0;
-        friendCountDisplay.textContent = t('friends.friendsCount', { count: window.state.user.referralCount || 0, total: totalFriends });
-    }
-    
-    const walletIncome = document.getElementById('walletIncome');
-    if (walletIncome && window.state?.incomePerHour !== undefined) {
-        walletIncome.textContent = window.formatNum ? window.formatNum(window.state.incomePerHour) : window.state.incomePerHour;
-    }
-    
-    const walletLabel = document.querySelector('.wallet-label');
-    if (walletLabel) walletLabel.textContent = t('wallet.totalBalance');
-    
-    const walletSub = document.getElementById('walletSub');
-    if (walletSub && window.getVisualBalance) {
-        const visualBalance = window.getVisualBalance();
-        walletSub.textContent = `≈ ${(visualBalance * 0.001).toFixed(3)} USD`;
-    }
-    
-    // Обновляем текст на кнопках friend rewards
-    const rewardBtns = ['reward-10-btn', 'reward-50-btn', 'reward-150-btn'];
-    const rewards = [
-        { friends: 10, rarity: 'rare' },
-        { friends: 50, rarity: 'epic' },
-        { friends: 150, rarity: 'legendary' }
-    ];
-    
-    rewards.forEach((reward, idx) => {
-        const btn = document.getElementById(rewardBtns[idx]);
-        if (btn && window.state?.user) {
-            const currentFriends = window.state.user.referralCount || 0;
-            const completedQuests = new Set(window.state.user.completedSpecialQuests || []);
-            const alreadyClaimed = completedQuests.has(`friend_reward_${reward.friends}`);
-            
-            if (alreadyClaimed) {
-                btn.textContent = `✅ ${t('friendReward.claimed')}`;
-            } else if (currentFriends >= reward.friends) {
-                btn.textContent = `🎁 ${t('friendReward.claim')}`;
-            } else {
-                btn.textContent = `🔒 ${t('friendReward.locked', { friends: reward.friends })}`;
-            }
-        }
-    });
-    
-    // Обновляем плейсхолдеры
-    const sellPriceInput = document.getElementById('sellPriceInput');
-    if (sellPriceInput) sellPriceInput.placeholder = t('marketplace.price');
-    
-    const depositAmount = document.getElementById('depositAmount');
-    if (depositAmount) depositAmount.placeholder = t('wallet.depositAmount');
-    
-    const withdrawAmount = document.getElementById('withdrawAmount');
-    if (withdrawAmount) withdrawAmount.placeholder = t('wallet.withdrawAmount');
-    
-    const withdrawWallet = document.getElementById('withdrawWallet');
-    if (withdrawWallet) withdrawWallet.placeholder = t('wallet.tonWallet');
-    
-    // Обновляем статические элементы без data-i18n
-    const basicCapsuleName = document.querySelector('#basicCapsuleCard .capsule-name');
-    if (basicCapsuleName) basicCapsuleName.textContent = t('game.dnaCapsule');
-    const premiumCapsuleName = document.querySelector('#premiumCapsuleCard .capsule-name');
-    if (premiumCapsuleName) premiumCapsuleName.textContent = t('game.premiumCapsule');
-    
-    document.querySelectorAll('.capsule-btn').forEach(btn => {
-        btn.textContent = t('game.open');
-    });
-    
-    const adsBtnText = document.querySelector('#adsBtn span[style*="flex:1"]');
-    if (adsBtnText) adsBtnText.textContent = t('game.watchAd');
-    
-    const encTitle = document.querySelector('.enc-title');
-    if (encTitle) encTitle.textContent = t('encyclopedia.title');
-    const encSub = document.querySelector('.enc-sub');
-    if (encSub) encSub.textContent = t('encyclopedia.subtitle');
-    
-    const myCreatures = document.querySelector('.section-title span[data-i18n="inventory.myCreatures"]');
-    if (myCreatures) myCreatures.textContent = t('inventory.myCreatures');
-    
-    document.querySelectorAll('.bottom-nav .nav-item span').forEach(span => {
-        const key = span.getAttribute('data-i18n');
-        if (key) span.textContent = t(key);
-    });
-    
-    const leaderboardTitle = document.querySelector('#tab-leaderboard .section-title span');
-    if (leaderboardTitle && leaderboardTitle.getAttribute('data-i18n') === 'leaderboard.title') {
-        leaderboardTitle.textContent = t('leaderboard.title');
-    }
-    
-    const friendsTitle = document.querySelector('.friends-hero-title');
-    if (friendsTitle) friendsTitle.textContent = t('friends.inviteTitle');
-    const inviteBtn = document.querySelector('.invite-btn span');
-    if (inviteBtn) inviteBtn.textContent = t('friends.inviteBtn');
-    const myFriendsTitle = document.querySelector('#tab-friends .section-title span[data-i18n="friends.myFriends"]');
-    if (myFriendsTitle) myFriendsTitle.textContent = t('friends.myFriends');
-    
-    const specialTitle = document.querySelector('#tab-special .section-title span');
-    if (specialTitle && specialTitle.getAttribute('data-i18n') === 'specialQuests.title') {
-        specialTitle.textContent = t('specialQuests.title');
-    }
-    
-    const depositBtn = document.querySelector('.wallet-action-btn.deposit span');
-    if (depositBtn) depositBtn.textContent = t('wallet.deposit');
-    const withdrawBtn = document.querySelector('.wallet-action-btn.withdraw span');
-    if (withdrawBtn) withdrawBtn.textContent = t('wallet.withdraw');
-    
-    const walletStatLabels = document.querySelectorAll('.wallet-stat-label');
-    const walletStatKeys = ['wallet.mmoPerHour', 'wallet.creatures', 'wallet.totalMerges', 'wallet.storage'];
-    walletStatLabels.forEach((label, i) => {
-        if (walletStatKeys[i]) label.textContent = t(walletStatKeys[i]);
-    });
-    
-    // Уведомление о смене языка
     if (typeof window.showToast === 'function') {
         window.showToast(`🌐 Language: ${lang.toUpperCase()}`, '✅');
     }
 }
 
-// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     applyLocaleStatic();
     
@@ -588,7 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
-// Экспортируем функции в глобальную область
 window.t = t;
 window.setLanguage = setLanguage;
 window.currentLocale = currentLocale;

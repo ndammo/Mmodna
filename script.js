@@ -76,7 +76,7 @@ let RARITY_WEIGHTS = {
     basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
 };
-let AD_REWARD = 20;
+let AD_REWARD = 20;  // ИЗМЕНЕНО НА 20
 let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 300;
 let UPGRADE_MULTIPLIER = 1.5;
@@ -274,6 +274,32 @@ async function getCurrentIncome() {
 }
 
 // ============================================================
+// СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ (КОШЕЛЕК)
+// ============================================================
+async function loadUserStats() {
+    try {
+        const res = await apiRequest('GET', '/api/user/stats');
+        if (res && res.success) {
+            const stats = res.stats;
+            
+            const withdrawnEl = document.getElementById('walletWithdrawn');
+            if (withdrawnEl) withdrawnEl.textContent = formatNum(stats.totalWithdrawn || 0);
+            
+            const referralEl = document.getElementById('walletReferralEarned');
+            if (referralEl) referralEl.textContent = formatNum(stats.referralEarned || 0);
+            
+            const adsWatchedEl = document.getElementById('walletAdsWatched');
+            if (adsWatchedEl) adsWatchedEl.textContent = stats.adsWatched || 0;
+            
+            const adsEarnedEl = document.getElementById('walletAdsEarned');
+            if (adsEarnedEl) adsEarnedEl.textContent = formatNum(stats.adsEarned || 0);
+        }
+    } catch (e) {
+        console.error('loadUserStats error:', e);
+    }
+}
+
+// ============================================================
 // TELEGRAM WEBAPP INIT
 // ============================================================
 function clearAllIntervals() {
@@ -354,6 +380,7 @@ async function refreshUserProfile() {
         updateHeader();
         renderCards();
         updateFriendRewardButtons();
+        await loadUserStats();
         
         const friendCountDisplay = document.getElementById('friendCountDisplay');
         if (friendCountDisplay && state.user) {
@@ -461,7 +488,6 @@ async function initTelegramApp() {
     await loadGameConfig();
     await loadCreaturesFromServer();
     
-    // Загружаем сохраненные статусы квестов
     loadQuestStatusesFromStorage();
 
     updatePlayerInfo();
@@ -473,6 +499,7 @@ async function initTelegramApp() {
         state.incomePerHour = profileRes.incomePerHour || 0;
         
         updateServerSnapshot(state.user.balance, state.incomePerHour, profileRes.lastPassiveIncome);
+        await loadUserStats();
 
         if (profileRes.offlineEarned > 10) {
             setTimeout(() => showToast(`+${formatNum(profileRes.offlineEarned)} MMO offline!`, '💤'), 1000);
@@ -588,7 +615,6 @@ function showLoadingScreen(show) {
         
         document.body.appendChild(el);
         
-        // Анимация роста полосы
         let percent = 0;
         const fillEl = document.getElementById('loadingBarFill');
         const percentEl = document.getElementById('loadingPercent');
@@ -702,10 +728,8 @@ function updateHeader() {
     document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
     document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
 
-    document.getElementById('walletIncome').textContent = formatNum(state.incomePerHour);
     document.getElementById('walletCards').textContent = state.inventory.reduce((s, i) => s + i.count, 0);
     document.getElementById('walletMerges').textContent = u.mergeCount || 0;
-    document.getElementById('walletStorage').textContent = `${getUsedSlots()}/${u.inventorySlots}`;
 
     updateUpgradeButton();
     renderTransactions();
@@ -851,6 +875,7 @@ async function openCapsule(type) {
 
     updateHeader();
     renderCards();
+    await loadUserStats();
 
     setTimeout(() => showCapsulePopup(res.creature), 300);
 }
@@ -998,6 +1023,7 @@ async function executeMerge(creatureId) {
 
     updateHeader();
     renderCards();
+    await loadUserStats();
     showMergeResultPopup(res.fromCreature, res.resultCreature, res.upgraded);
 }
 
@@ -1059,7 +1085,7 @@ async function upgradeInventory() {
 }
 
 // ============================================================
-// ADS (ОБНОВЛЕННАЯ ВЕРСИЯ)
+// ADS (ОБНОВЛЕННАЯ ВЕРСИЯ С 20 MMO)
 // ============================================================
 async function updateAdsStatus() {
     try {
@@ -1068,10 +1094,6 @@ async function updateAdsStatus() {
             const adsRemainingEl = document.getElementById('adsRemaining');
             const adsTimerEl = document.getElementById('adsTimer');
             
-            // ПРОВЕРКА: какое поле приходит от сервера?
-            console.log('Ads status response:', res);
-            
-            // Используем правильное имя поля
             const available = res.adsAvailable !== undefined ? res.adsAvailable : (res.adsRemaining || 0);
             const maxAds = res.maxAdsPerDay || res.maxAdsAvailable || 10;
             
@@ -1083,7 +1105,6 @@ async function updateAdsStatus() {
             state.maxAdsPerDay = maxAds;
             state.adsCooldown = res.cooldownSeconds || 0;
             
-            // Обновляем текст с информацией о следующей рекламе
             if (available === 0 && res.nextRegenMinutes > 0) {
                 if (adsTimerEl) {
                     adsTimerEl.textContent = `+1 через ${res.nextRegenMinutes}м`;
@@ -1168,6 +1189,7 @@ async function watchAd() {
         
         updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
         updateHeader();
+        await loadUserStats();
         
         const nextRegenText = res.nextRegenMinutes > 0 ? ` (ещё ${res.nextRegenMinutes} мин до +1)` : '';
         showToast(`+${AD_REWARD} MMO! Осталось рекламы: ${res.adsAvailable}/${res.maxAdsPerDay}${nextRegenText}`, '🎉');
@@ -1563,6 +1585,7 @@ async function buyFromMarketplace(listingId, price, creatureId) {
     const c = getCreature(creatureId);
     updateHeader();
     renderCards();
+    await loadUserStats();
     marketplaceCache.expiresAt = 0;
     renderMarketplaceBuy();
     showToast(`Bought ${c?.name || 'creature'} for ${price} MMO!`, '✅');
@@ -1774,6 +1797,7 @@ async function claimFriendReward(requiredFriends, creatureId, creatureName, crea
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
     renderCards();
+    await loadUserStats();
     updateFriendRewardButtons();
     renderSpecialQuests();
     
@@ -2127,6 +2151,7 @@ async function claimSpecialQuest(questId) {
     state.user = res.user;
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
+    await loadUserStats();
     
     const existing = questStatuses.get(questId);
     if (existing && existing.timerId) {
@@ -2164,6 +2189,7 @@ async function claimSpecialQuestSilent(questId) {
     state.user = res.user;
     updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
     updateHeader();
+    await loadUserStats();
     
     const existing = questStatuses.get(questId);
     if (existing && existing.timerId) {
@@ -2570,6 +2596,7 @@ function switchTab(tab) {
     if (tab === 'wallet') {
         updateHeader();
         checkActiveRequests();
+        loadUserStats();
     }
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
@@ -2677,3 +2704,4 @@ window.showWithdrawModal = showWithdrawModal;
 window.createWithdrawRequest = createWithdrawRequest;
 window.copyToClipboard = copyToClipboard;
 window.checkActiveRequests = checkActiveRequests;
+window.loadUserStats = loadUserStats;

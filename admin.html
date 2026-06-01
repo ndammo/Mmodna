@@ -401,6 +401,7 @@
     <button class="nav-item" data-tab="users"><i class="fas fa-users"></i><span>Пользователи</span></button>
     <button class="nav-item" data-tab="transactions"><i class="fas fa-exchange-alt"></i><span>Заявки</span></button>
     <button class="nav-item" data-tab="market"><i class="fas fa-store"></i><span>Маркет</span></button>
+    <button class="nav-item" data-tab="ads"><i class="fas fa-tv"></i><span>Реклама</span></button>
     <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
     <button class="nav-item" data-tab="quests"><i class="fas fa-star"></i><span>Квесты</span></button>
 </div>
@@ -585,6 +586,7 @@
             if (tab === 'users') loadUsers(1);
             if (tab === 'transactions') loadTransactions();
             if (tab === 'market') loadMarketSection();
+            if (tab === 'ads') loadAdsPanel();
             if (tab === 'creatures') loadCreatures();
             if (tab === 'quests') loadSpecialQuests();
         });
@@ -743,99 +745,6 @@
     };
 
     // ============================================================
-    // МАРКЕТ (АКТИВНЫЕ ЛОТЫ + ИСТОРИЯ ПРОДАЖ)
-    // ============================================================
-    async function loadMarketSection() {
-        const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="spinner">Загрузка...</div>';
-        
-        // Загружаем существ
-        const creaturesRes = await apiRequest('/api/admin/creatures');
-        if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
-        
-        // Загружаем активные лоты
-        const listingsRes = await apiRequest('/api/marketplace/listings');
-        
-        // Загружаем историю продаж
-        const historyRes = await apiRequest('/api/admin/market-sales-history?limit=50');
-        
-        const listings = (listingsRes && listingsRes.listings) ? listingsRes.listings : [];
-        const history = (historyRes && historyRes.history) ? historyRes.history : [];
-        
-        const html = `
-            <div class="user-card">
-                <h3><i class="fas fa-store"></i> Активные лоты маркетплейса</h3>
-                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Текущие предложения на продажу</div>
-                <div class="data-table">
-                    <table style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>Продавец</th>
-                                <th>Существо</th>
-                                <th>Редкость</th>
-                                <th>Цена</th>
-                                <th>Комиссия (10%)</th>
-                                <th>Продавец получит</th>
-                                <th>Дата</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${listings.length > 0 ? listings.map(l => {
-                                const creature = creaturesList.find(c => c.id === l.creatureId);
-                                const fee = Math.floor(l.price * 0.1);
-                                const sellerGets = l.price - fee;
-                                const date = new Date(l.createdAt).toLocaleString();
-                                return `
-                                    <tr>
-                                        <td><code>${escapeHtml(l.sellerName || l.sellerTgId)}</code></td>
-                                        <td>${creature ? escapeHtml(creature.name) : l.creatureId}</td>
-                                        <td class="rarity-${creature?.rarity || 'common'}">${creature?.rarity || '?'}</td>
-                                        <td>${l.price.toLocaleString()} MMO</td>
-                                        <td style="color:#ef4444">-${fee.toLocaleString()} MMO</td>
-                                        <td style="color:#22c55e">${sellerGets.toLocaleString()} MMO</td>
-                                        <td><small>${date}</small></td>
-                                    </tr>
-                                `;
-                            }).join('') : '<tr><td colspan="7" style="text-align:center">Нет активных лотов</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="user-card">
-                <h3><i class="fas fa-history"></i> История продаж (последние 50)</h3>
-                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Успешно завершённые сделки</div>
-                ${history.length > 0 ? history.map(sale => {
-                    const creature = sale.creature || { name: sale.creatureId, rarity: 'common' };
-                    const date = new Date(sale.soldAt).toLocaleString();
-                    return `
-                        <div class="sale-history-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div>
-                                        <div style="font-weight: 600;">${escapeHtml(creature.name)}</div>
-                                        <div style="font-size: 10px; color: #94a3b8;">${creature.rarity}</div>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="color: #f59e0b; font-weight: 600;">${sale.price.toLocaleString()} MMO</div>
-                                    <div style="font-size: 10px;">${date}</div>
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; flex-wrap: wrap; gap: 8px;">
-                                <div>👤 Продавец: <span style="color: #a855f7;">${escapeHtml(sale.sellerName || sale.sellerTgId)}</span></div>
-                                <div>💰 Получил: <span style="color: #22c55e;">${sale.sellerEarns.toLocaleString()} MMO</span> (комиссия ${sale.fee.toLocaleString()})</div>
-                                <div>🛒 Покупатель: ${escapeHtml(sale.buyerName || sale.buyerTgId)}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('') : '<div style="text-align:center; padding: 20px;">История продаж пуста</div>'}
-            </div>
-        `;
-        main.innerHTML = html;
-    }
-
-    // ============================================================
     // ДЕТАЛИ ПОЛЬЗОВАТЕЛЯ
     // ============================================================
     window.showUserDetail = async function(userId) {
@@ -844,6 +753,8 @@
         const u = res.user;
         const inv = res.inventory || [];
         const referrals = res.referrals || [];
+        const adsWatched = res.adsWatched || 0;
+        const adsEarned = res.adsEarned || 0;
         
         const modalHtml = `
             <div class="modal" id="userModal">
@@ -856,6 +767,8 @@
                         <div><strong>XP:</strong> ${u.xp}/${u.level * 100}</div>
                         <div><strong>Рефералов:</strong> ${u.referralCount}</div>
                         <div><strong>Слияний:</strong> ${u.mergeCount}</div>
+                        <div><strong>📺 Просмотров рекламы:</strong> ${adsWatched}</div>
+                        <div><strong>💰 Заработано с рекламы:</strong> ${formatNum(adsEarned)} MMO</div>
                         <div><strong>Статус:</strong> ${u.isBanned ? '🔴 Забанен' : '🟢 Активен'}</div>
                     </div>
                     
@@ -899,6 +812,7 @@
                     <div class="modal-buttons">
                         <button onclick="toggleBan('${userId}', ${!u.isBanned})" class="warning">${u.isBanned ? 'Разбанить' : 'Забанить'}</button>
                         <button onclick="resetProgress('${userId}')" class="danger">Сброс прогресса</button>
+                        <button onclick="resetUserAdsStats('${userId}', '${escapeHtml(u.username || u.firstName)}')" class="warning">Сброс статистики рекламы</button>
                         <button onclick="closeModal()">Закрыть</button>
                     </div>
                 </div>
@@ -973,7 +887,186 @@
     };
 
     // ============================================================
-    // СУЩЕСТВА (с отображением иконок как ссылок, но не показываем картинки)
+    // МАРКЕТ
+    // ============================================================
+    async function loadMarketSection() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
+        const creaturesRes = await apiRequest('/api/admin/creatures');
+        if (creaturesRes?.creatures) creaturesList = creaturesRes.creatures;
+        
+        const listingsRes = await apiRequest('/api/marketplace/listings');
+        const historyRes = await apiRequest('/api/admin/market-sales-history?limit=50');
+        
+        const listings = (listingsRes && listingsRes.listings) ? listingsRes.listings : [];
+        const history = (historyRes && historyRes.history) ? historyRes.history : [];
+        
+        const html = `
+            <div class="user-card">
+                <h3><i class="fas fa-store"></i> Активные лоты маркетплейса</h3>
+                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Текущие предложения на продажу</div>
+                <div class="data-table">
+                    <table style="width:100%">
+                        <thead>
+                            <tr><th>Продавец</th><th>Существо</th><th>Редкость</th><th>Цена</th><th>Комиссия (10%)</th><th>Продавец получит</th><th>Дата</th></tr>
+                        </thead>
+                        <tbody>
+                            ${listings.length > 0 ? listings.map(l => {
+                                const creature = creaturesList.find(c => c.id === l.creatureId);
+                                const fee = Math.floor(l.price * 0.1);
+                                const sellerGets = l.price - fee;
+                                const date = new Date(l.createdAt).toLocaleString();
+                                return `<tr><td><code>${escapeHtml(l.sellerName || l.sellerTgId)}</code></td>
+                                    <td>${creature ? escapeHtml(creature.name) : l.creatureId}</td>
+                                    <td class="rarity-${creature?.rarity || 'common'}">${creature?.rarity || '?'}</td>
+                                    <td>${l.price.toLocaleString()} MMO</td>
+                                    <td style="color:#ef4444">-${fee.toLocaleString()} MMO</td>
+                                    <td style="color:#22c55e">${sellerGets.toLocaleString()} MMO</td>
+                                    <td><small>${date}</small></td></tr>`;
+                            }).join('') : '<tr><td colspan="7" style="text-align:center">Нет активных лотов</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="user-card">
+                <h3><i class="fas fa-history"></i> История продаж (последние 50)</h3>
+                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Успешно завершённые сделки</div>
+                ${history.length > 0 ? history.map(sale => {
+                    const creature = sale.creature || { name: sale.creatureId, rarity: 'common' };
+                    const date = new Date(sale.soldAt).toLocaleString();
+                    return `<div class="sale-history-item">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                            <div><div style="font-weight:600;">${escapeHtml(creature.name)}</div><div style="font-size:10px;color:#94a3b8;">${creature.rarity}</div></div>
+                            <div style="text-align:right;"><div style="color:#f59e0b;font-weight:600;">${sale.price.toLocaleString()} MMO</div><div style="font-size:10px;">${date}</div></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;flex-wrap:wrap;gap:8px;">
+                            <div>👤 Продавец: <span style="color:#a855f7;">${escapeHtml(sale.sellerName || sale.sellerTgId)}</span></div>
+                            <div>💰 Получил: <span style="color:#22c55e;">${sale.sellerEarns.toLocaleString()} MMO</span> (комиссия ${sale.fee.toLocaleString()})</div>
+                            <div>🛒 Покупатель: ${escapeHtml(sale.buyerName || sale.buyerTgId)}</div>
+                        </div>
+                    </div>`;
+                }).join('') : '<div style="text-align:center;padding:20px;">История продаж пуста</div>'}
+            </div>
+        `;
+        main.innerHTML = html;
+    }
+
+    // ============================================================
+    // РЕКЛАМА (НОВАЯ ВКЛАДКА)
+    // ============================================================
+    let AD_REWARD = 20;
+    let AD_COOLDOWN = 60;
+
+    async function loadAdsPanel() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="spinner">Загрузка...</div>';
+        
+        const statsRes = await apiRequest('/api/admin/ads-stats?limit=50');
+        if (!statsRes) {
+            main.innerHTML = '<div class="spinner">Ошибка загрузки статистики</div>';
+            return;
+        }
+        
+        const configRes = await apiRequest('/api/admin/config');
+        const config = configRes?.config || {};
+        AD_REWARD = config.adReward || 20;
+        AD_COOLDOWN = config.adCooldown || 60;
+        const maxAds = 10;
+        
+        const html = `
+            <div class="stats-grid">
+                <div class="stat-card"><h3><i class="fas fa-eye"></i> Всего просмотров</h3><div class="value">${formatNum(statsRes.total?.totalAdsWatched || 0)}</div></div>
+                <div class="stat-card"><h3><i class="fas fa-chart-line"></i> В среднем на игрока</h3><div class="value">${(statsRes.total?.avgAdsPerUser || 0).toFixed(1)}</div></div>
+                <div class="stat-card"><h3><i class="fas fa-tv"></i> Макс. запас</h3><div class="value">${maxAds}</div></div>
+                <div class="stat-card"><h3><i class="fas fa-coins"></i> Награда за просмотр</h3><div class="value" style="font-size:20px">${AD_REWARD} MMO</div></div>
+            </div>
+            
+            <div class="user-card">
+                <h3><i class="fas fa-sliders-h"></i> Управление рекламой</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                    <button onclick="giveAdsToAll()" class="success"><i class="fas fa-gift"></i> Выдать +5 рекламы всем</button>
+                    <button onclick="resetAllAdsStats()" class="danger"><i class="fas fa-trash-alt"></i> Сбросить СТАТИСТИКУ (всем)</button>
+                    <button onclick="showAdsConfigModal()" class="warning"><i class="fas fa-cog"></i> Настройки рекламы</button>
+                </div>
+                <div style="background:#0d1120;border-radius:12px;padding:12px;margin-top:12px;">
+                    <div style="font-size:11px;color:#94a3b8;"><i class="fas fa-info-circle"></i> <strong>Механика:</strong> +1 просмотр каждый час (макс. ${maxAds}). Кулдаун между просмотрами: ${AD_COOLDOWN} сек. Награда: ${AD_REWARD} MMO</div>
+                </div>
+            </div>
+            
+            <div class="user-card">
+                <h3><i class="fas fa-ranking-star"></i> Топ пользователей по просмотрам рекламы</h3>
+                <div class="data-table">
+                    <table style="width:100%">
+                        <thead><tr><th>#</th><th>Пользователь</th><th>Просмотров</th><th>Уровень</th><th>Доступно сейчас</th><th></th></tr></thead>
+                        <tbody>
+                            ${statsRes.stats && statsRes.stats.length > 0 ? statsRes.stats.map((u, idx) => `<tr>
+                                <td><b>${idx + 1}</b></td>
+                                <td>${escapeHtml(u.username || u.firstName || u.telegramId)}</td>
+                                <td><span style="color:#f59e0b;font-weight:700">${u.adsWatched || 0}</span></td>
+                                <td>УР ${u.level}</td>
+                                <td>${u.adsAvailable || 0}/${maxAds}</td>
+                                <td><button onclick="resetUserAdsStats('${u._id}', '${escapeHtml(u.username || u.firstName)}')" class="danger" style="padding:4px 8px;font-size:10px"><i class="fas fa-undo"></i> Сброс</button></td>
+                            </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">Нет данных</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        main.innerHTML = html;
+    }
+
+    window.giveAdsToAll = async function() {
+        const amount = prompt('Сколько просмотров рекламы выдать всем? (1-50)', '5');
+        if (!amount) return;
+        const res = await apiRequest('/api/admin/give-ads-to-all', 'POST', { amount: parseInt(amount) });
+        if (res?.success) { showToast(res.message); loadAdsPanel(); }
+        else showToast(res?.message || 'Ошибка', 'error');
+    };
+
+    window.resetUserAdsStats = async function(userId, userName) {
+        if (!confirm(`Сбросить статистику рекламы у ${userName}?\n\nВсе записи о просмотрах будут удалены, а доступная реклама восстановлена до максимума.`)) return;
+        const res = await apiRequest(`/api/admin/user/${userId}/reset-ads-stats`, 'POST');
+        if (res?.success) { showToast(res.message); loadAdsPanel(); }
+        else showToast(res?.message || 'Ошибка', 'error');
+    };
+
+    window.resetAllAdsStats = async function() {
+        if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЮ историю просмотров рекламы у ВСЕХ игроков!\n\nСтатистика обнулится, но баланс игроков не изменится.\n\nВы уверены?')) return;
+        const res = await apiRequest('/api/admin/reset-all-ads-stats', 'POST');
+        if (res?.success) { showToast(res.message); loadAdsPanel(); }
+        else showToast(res?.message || 'Ошибка', 'error');
+    };
+
+    window.showAdsConfigModal = function() {
+        const modalHtml = `
+            <div class="modal" id="adsConfigModal">
+                <div class="modal-content">
+                    <h3><i class="fas fa-tv"></i> Настройки рекламы</h3>
+                    <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Изменения применяются сразу для всех игроков</div>
+                    <div class="form-group"><label>💰 Награда за просмотр (MMO)</label><input type="number" id="cfgAdReward" value="${AD_REWARD}" step="5" min="10"></div>
+                    <div class="form-group"><label>⏱ Кулдаун между просмотрами (секунд)</label><input type="number" id="cfgAdCooldown" value="${AD_COOLDOWN}" step="5" min="10"></div>
+                    <div class="form-group"><label>📺 Максимальный запас рекламы (сейчас: 10)</label><input type="number" id="cfgMaxAds" value="10" step="1" min="5" max="50" disabled>
+                    <div style="font-size:10px;color:#f59e0b;margin-top:4px;">⚠️ Для изменения максимального запаса нужно править константу на сервере</div></div>
+                    <div class="modal-buttons"><button onclick="saveAdsConfig()" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.saveAdsConfig = async function() {
+        const adReward = parseInt(document.getElementById('cfgAdReward')?.value);
+        const adCooldown = parseInt(document.getElementById('cfgAdCooldown')?.value);
+        if (isNaN(adReward) || adReward < 10) { showToast('Награда должна быть минимум 10 MMO', 'error'); return; }
+        if (isNaN(adCooldown) || adCooldown < 10) { showToast('Кулдаун должен быть минимум 10 секунд', 'error'); return; }
+        const res = await apiRequest('/api/admin/ads-config', 'PUT', { adReward, adCooldownSeconds: adCooldown });
+        if (res?.success) { showToast('Настройки рекламы сохранены!'); closeModal(); loadAdsPanel(); }
+        else showToast(res?.message || 'Ошибка сохранения', 'error');
+    };
+
+    // ============================================================
+    // СУЩЕСТВА
     // ============================================================
     async function loadCreatures() {
         const main = document.getElementById('mainContent');
@@ -986,64 +1079,36 @@
             <div style="margin-bottom:16px;"><button onclick="showAddCreatureModal()"><i class="fas fa-plus"></i> Добавить существо</button></div>
             <div class="data-table">
                 <table style="width:100%">
-                    <thead><tr><th>ID иконки</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr></thead>
-                    <tbody>
-                        ${res.creatures.map(c => `
-                            <tr>
-                                <td><code style="font-size:11px;">${escapeHtml(c.icon)}</code></td>
-                                <td><small>${escapeHtml(c.id)}</small></td>
-                                <td>${escapeHtml(c.name)}</td>
-                                <td class="rarity-${c.rarity}">${c.rarity}</td>
-                                <td>${c.incomeBase}/hr</td>
-                                <td>${c.isActive ? '✅' : '❌'}</td>
-                                <td>
-                                    <button onclick="editCreature('${c.id}')"><i class="fas fa-edit"></i></button>
-                                    <button onclick="deleteCreature('${c.id}')" class="danger"><i class="fas fa-trash"></i></button>
-                                 </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
+                    <thead><tr><th>Иконка</th><th>ID</th><th>Название</th><th>Редкость</th><th>Доход</th><th>Статус</th><th></th></tr></thead>
+                    <tbody>${res.creatures.map(c => `<tr>
+                        <td><span style="font-size:20px">${c.icon}</span></td>
+                        <td><small>${escapeHtml(c.id)}</small></td>
+                        <td>${escapeHtml(c.name)}</td>
+                        <td class="rarity-${c.rarity}">${c.rarity}</td>
+                        <td>${c.incomeBase}/hr</td>
+                        <td>${c.isActive ? '✅' : '❌'}</td>
+                        <td><button onclick="editCreature('${c.id}')"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCreature('${c.id}')" class="danger"><i class="fas fa-trash"></i></button></td>
+                    </tr>`).join('')}</tbody>
                 </table>
-            </div>
-        `;
+            </div>`;
         main.innerHTML = html;
     }
 
     window.showAddCreatureModal = function() {
-        const modalHtml = `
-            <div class="modal" id="creatureModal">
-                <div class="modal-content">
-                    <h3>➕ Добавить существо</h3>
-                    <div class="form-group"><label>ID</label><input type="text" id="cId" placeholder="уникальный"></div>
-                    <div class="form-group"><label>Название</label><input type="text" id="cName"></div>
-                    <div class="form-group"><label>Редкость</label>
-                        <select id="cRarity">
-                            <option value="common">Common</option><option value="uncommon">Uncommon</option>
-                            <option value="rare">Rare</option><option value="epic">Epic</option>
-                            <option value="legendary">Legendary</option><option value="mythic">Mythic</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Иконка (ссылка на изображение или эмодзи)</label>
-                        <input type="text" id="cIcon" placeholder="https://... или 🧬" value="🧬">
-                        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Можно использовать URL картинки или эмодзи</div>
-                    </div>
-                    <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
-                    <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
-                    <div class="modal-buttons"><button onclick="createCreature()">Создать</button><button onclick="closeModal()">Отмена</button></div>
-                </div>
-            </div>`;
+        const modalHtml = `<div class="modal" id="creatureModal"><div class="modal-content"><h3>➕ Добавить существо</h3>
+            <div class="form-group"><label>ID</label><input type="text" id="cId" placeholder="уникальный"></div>
+            <div class="form-group"><label>Название</label><input type="text" id="cName"></div>
+            <div class="form-group"><label>Редкость</label><select id="cRarity"><option value="common">Common</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option><option value="mythic">Mythic</option></select></div>
+            <div class="form-group"><label>Иконка (ссылка или эмодзи)</label><input type="text" id="cIcon" value="🧬"></div>
+            <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="10"></div>
+            <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2"></textarea></div>
+            <div class="modal-buttons"><button onclick="createCreature()">Создать</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
 
     window.createCreature = async function() {
-        const data = {
-            id: document.getElementById('cId').value,
-            name: document.getElementById('cName').value,
-            rarity: document.getElementById('cRarity').value,
-            icon: document.getElementById('cIcon').value,
-            incomeBase: parseInt(document.getElementById('cIncome').value),
-            desc: document.getElementById('cDesc').value
-        };
+        const data = { id: document.getElementById('cId').value, name: document.getElementById('cName').value, rarity: document.getElementById('cRarity').value, icon: document.getElementById('cIcon').value, incomeBase: parseInt(document.getElementById('cIncome').value), desc: document.getElementById('cDesc').value };
         if (!data.id || !data.name || !data.incomeBase) { showToast('Заполните все поля', 'error'); return; }
         const res = await apiRequest('/api/admin/creatures', 'POST', data);
         if (res?.success) { showToast('Существо создано'); closeModal(); loadCreatures(); }
@@ -1052,34 +1117,19 @@
     window.editCreature = async function(creatureId) {
         const creature = creaturesList.find(c => c.id === creatureId);
         if (!creature) return;
-        const modalHtml = `
-            <div class="modal" id="creatureModal">
-                <div class="modal-content">
-                    <h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
-                    <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
-                    <div class="form-group"><label>Редкость</label><select id="cRarity">${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-                    <div class="form-group"><label>Иконка (ссылка на изображение или эмодзи)</label>
-                        <input type="text" id="cIcon" value="${escapeHtml(creature.icon)}">
-                        <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Можно использовать URL картинки или эмодзи</div>
-                    </div>
-                    <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
-                    <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
-                    <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
-                    <div class="modal-buttons"><button onclick="updateCreature('${creatureId}')">Сохранить</button><button onclick="closeModal()">Отмена</button></div>
-                </div>
-            </div>`;
+        const modalHtml = `<div class="modal" id="creatureModal"><div class="modal-content"><h3>✏️ Редактировать ${escapeHtml(creature.name)}</h3>
+            <div class="form-group"><label>Название</label><input type="text" id="cName" value="${escapeHtml(creature.name)}"></div>
+            <div class="form-group"><label>Редкость</label><select id="cRarity">${['common','uncommon','rare','epic','legendary','mythic'].map(r => `<option value="${r}" ${creature.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Иконка (ссылка или эмодзи)</label><input type="text" id="cIcon" value="${escapeHtml(creature.icon)}"></div>
+            <div class="form-group"><label>Доход в час</label><input type="number" id="cIncome" value="${creature.incomeBase}"></div>
+            <div class="form-group"><label>Описание</label><textarea id="cDesc" rows="2">${escapeHtml(creature.desc || '')}</textarea></div>
+            <div class="form-group"><label><input type="checkbox" id="cActive" ${creature.isActive ? 'checked' : ''}> Активен</label></div>
+            <div class="modal-buttons"><button onclick="updateCreature('${creatureId}')">Сохранить</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
 
     window.updateCreature = async function(creatureId) {
-        const data = {
-            name: document.getElementById('cName').value,
-            rarity: document.getElementById('cRarity').value,
-            icon: document.getElementById('cIcon').value,
-            incomeBase: parseInt(document.getElementById('cIncome').value),
-            desc: document.getElementById('cDesc').value,
-            isActive: document.getElementById('cActive').checked
-        };
+        const data = { name: document.getElementById('cName').value, rarity: document.getElementById('cRarity').value, icon: document.getElementById('cIcon').value, incomeBase: parseInt(document.getElementById('cIncome').value), desc: document.getElementById('cDesc').value, isActive: document.getElementById('cActive').checked };
         const res = await apiRequest(`/api/admin/creatures/${creatureId}`, 'PUT', data);
         if (res?.success) { showToast('Существо обновлено'); closeModal(); loadCreatures(); }
     };
@@ -1099,72 +1149,35 @@
         const res = await apiRequest('/api/admin/special-quests');
         if (!res) return;
         const quests = res.specialQuests || [];
-        const html = `
-            <div style="margin-bottom:16px;"><button onclick="showAddSpecialQuestModal()" class="success"><i class="fas fa-plus"></i> Добавить спец-квест</button></div>
-            ${quests.length === 0 ? '<div class="user-card" style="text-align:center">Нет спец-квестов</div>' : ''}
-            ${quests.map(q => `
-                <div class="user-card">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                        <div style="font-size:28px;">${escapeHtml(q.icon || '🎯')}</div>
-                        <div style="flex:1">
-                            <div class="value" style="font-size:16px;">${escapeHtml(q.title)}</div>
-                            <div style="font-size:11px;color:#94a3b8">${escapeHtml(q.description || '')}</div>
-                        </div>
-                        <div class="${q.isActive ? 'badge-active' : 'badge-inactive'}">${q.isActive ? 'Активен' : 'Отключён'}</div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;margin-bottom:12px;">
-                        <div><span style="color:#94a3b8">ID:</span> ${escapeHtml(q.id)}</div>
-                        <div><span style="color:#94a3b8">Тип:</span> ${escapeHtml(q.type)}</div>
-                        <div><span style="color:#94a3b8">Награда:</span> ${q.reward} MMO</div>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button onclick="editSpecialQuest('${q.id}')" class="secondary"><i class="fas fa-edit"></i> Редактировать</button>
-                        <button onclick="deleteSpecialQuest('${q.id}')" class="danger"><i class="fas fa-trash"></i> Удалить</button>
-                    </div>
-                </div>
-            `).join('')}
-        `;
+        const html = `<div style="margin-bottom:16px;"><button onclick="showAddSpecialQuestModal()" class="success"><i class="fas fa-plus"></i> Добавить спец-квест</button></div>
+            ${quests.length === 0 ? '<div class="user-card" style="text-align:center">Нет спец-квестов</div>' : quests.map(q => `<div class="user-card">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;"><div style="font-size:28px;">${escapeHtml(q.icon || '🎯')}</div>
+                <div style="flex:1;"><div class="value" style="font-size:16px;">${escapeHtml(q.title)}</div><div style="font-size:11px;color:#94a3b8">${escapeHtml(q.description || '')}</div></div>
+                <div class="${q.isActive ? 'badge-active' : 'badge-inactive'}">${q.isActive ? 'Активен' : 'Отключён'}</div></div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;margin-bottom:12px;"><div><span style="color:#94a3b8">ID:</span> ${escapeHtml(q.id)}</div>
+                <div><span style="color:#94a3b8">Тип:</span> ${escapeHtml(q.type)}</div><div><span style="color:#94a3b8">Награда:</span> ${q.reward} MMO</div></div>
+                <div style="display:flex;gap:8px;"><button onclick="editSpecialQuest('${q.id}')" class="secondary"><i class="fas fa-edit"></i> Редактировать</button>
+                <button onclick="deleteSpecialQuest('${q.id}')" class="danger"><i class="fas fa-trash"></i> Удалить</button></div></div>`).join('')}`;
         main.innerHTML = html;
     }
 
     window.showAddSpecialQuestModal = function() {
-        const modalHtml = `
-            <div class="modal" id="specialQuestModal">
-                <div class="modal-content">
-                    <h3>✨ Добавить спец-квест</h3>
-                    <div class="form-group"><label>ID</label><input type="text" id="sqId" placeholder="уникальный"></div>
-                    <div class="form-group"><label>Название</label><input type="text" id="sqTitle"></div>
-                    <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2"></textarea></div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="📢"></div>
-                    <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="100"></div>
-                    <div class="form-group"><label>Тип</label>
-                        <select id="sqType">
-                            <option value="telegram_channel">Telegram канал</option>
-                            <option value="custom_link">Переход по ссылке</option>
-                            <option value="referral_count">Привести друзей</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
-                    <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="1"></div>
-                    <div class="form-group"><label><input type="checkbox" id="sqIsActive" checked> Активен</label></div>
-                    <div class="modal-buttons"><button onclick="createSpecialQuest()" class="success">Создать</button><button onclick="closeModal()">Отмена</button></div>
-                </div>
-            </div>`;
+        const modalHtml = `<div class="modal" id="specialQuestModal"><div class="modal-content"><h3>✨ Добавить спец-квест</h3>
+            <div class="form-group"><label>ID</label><input type="text" id="sqId" placeholder="уникальный"></div>
+            <div class="form-group"><label>Название</label><input type="text" id="sqTitle"></div>
+            <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2"></textarea></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="📢"></div>
+            <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="100"></div>
+            <div class="form-group"><label>Тип</label><select id="sqType"><option value="telegram_channel">Telegram канал</option><option value="custom_link">Переход по ссылке</option><option value="referral_count">Привести друзей</option></select></div>
+            <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" placeholder="https://t.me/..."></div>
+            <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="1"></div>
+            <div class="form-group"><label><input type="checkbox" id="sqIsActive" checked> Активен</label></div>
+            <div class="modal-buttons"><button onclick="createSpecialQuest()" class="success">Создать</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
 
     window.createSpecialQuest = async function() {
-        const data = {
-            id: document.getElementById('sqId').value,
-            title: document.getElementById('sqTitle').value,
-            description: document.getElementById('sqDesc').value,
-            icon: document.getElementById('sqIcon').value,
-            reward: parseInt(document.getElementById('sqReward').value),
-            type: document.getElementById('sqType').value,
-            link: document.getElementById('sqLink').value,
-            required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1,
-            isActive: document.getElementById('sqIsActive').checked
-        };
+        const data = { id: document.getElementById('sqId').value, title: document.getElementById('sqTitle').value, description: document.getElementById('sqDesc').value, icon: document.getElementById('sqIcon').value, reward: parseInt(document.getElementById('sqReward').value), type: document.getElementById('sqType').value, link: document.getElementById('sqLink').value, required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1, isActive: document.getElementById('sqIsActive').checked };
         if (!data.id || !data.title || !data.reward) { showToast('Заполните ID, название и награду', 'error'); return; }
         const res = await apiRequest('/api/admin/special-quests', 'POST', data);
         if (res?.success) { showToast('Спец-квест создан'); closeModal(); loadSpecialQuests(); }
@@ -1175,41 +1188,21 @@
         if (!res) return;
         const quest = res.specialQuests.find(q => q.id === questId);
         if (!quest) return;
-        const modalHtml = `
-            <div class="modal" id="specialQuestModal">
-                <div class="modal-content">
-                    <h3>✏️ Редактировать: ${escapeHtml(quest.title)}</h3>
-                    <div class="form-group"><label>Название</label><input type="text" id="sqTitle" value="${escapeHtml(quest.title)}"></div>
-                    <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2">${escapeHtml(quest.description || '')}</textarea></div>
-                    <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${escapeHtml(quest.icon || '🎯')}"></div>
-                    <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="${quest.reward}"></div>
-                    <div class="form-group"><label>Тип</label>
-                        <select id="sqType">
-                            <option value="telegram_channel" ${quest.type === 'telegram_channel' ? 'selected' : ''}>Telegram канал</option>
-                            <option value="custom_link" ${quest.type === 'custom_link' ? 'selected' : ''}>Переход по ссылке</option>
-                            <option value="referral_count" ${quest.type === 'referral_count' ? 'selected' : ''}>Привести друзей</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" value="${escapeHtml(quest.link || '')}"></div>
-                    <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="${quest.required_count || 1}"></div>
-                    <div class="form-group"><label><input type="checkbox" id="sqIsActive" ${quest.isActive ? 'checked' : ''}> Активен</label></div>
-                    <div class="modal-buttons"><button onclick="updateSpecialQuest('${quest.id}')" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div>
-                </div>
-            </div>`;
+        const modalHtml = `<div class="modal" id="specialQuestModal"><div class="modal-content"><h3>✏️ Редактировать: ${escapeHtml(quest.title)}</h3>
+            <div class="form-group"><label>Название</label><input type="text" id="sqTitle" value="${escapeHtml(quest.title)}"></div>
+            <div class="form-group"><label>Описание</label><textarea id="sqDesc" rows="2">${escapeHtml(quest.description || '')}</textarea></div>
+            <div class="form-group"><label>Иконка</label><input type="text" id="sqIcon" value="${escapeHtml(quest.icon || '🎯')}"></div>
+            <div class="form-group"><label>Награда (MMO)</label><input type="number" id="sqReward" value="${quest.reward}"></div>
+            <div class="form-group"><label>Тип</label><select id="sqType"><option value="telegram_channel" ${quest.type === 'telegram_channel' ? 'selected' : ''}>Telegram канал</option><option value="custom_link" ${quest.type === 'custom_link' ? 'selected' : ''}>Переход по ссылке</option><option value="referral_count" ${quest.type === 'referral_count' ? 'selected' : ''}>Привести друзей</option></select></div>
+            <div class="form-group"><label>Ссылка</label><input type="text" id="sqLink" value="${escapeHtml(quest.link || '')}"></div>
+            <div class="form-group"><label>Необходимое количество</label><input type="number" id="sqRequiredCount" value="${quest.required_count || 1}"></div>
+            <div class="form-group"><label><input type="checkbox" id="sqIsActive" ${quest.isActive ? 'checked' : ''}> Активен</label></div>
+            <div class="modal-buttons"><button onclick="updateSpecialQuest('${quest.id}')" class="success">Сохранить</button><button onclick="closeModal()">Отмена</button></div></div></div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     };
 
     window.updateSpecialQuest = async function(questId) {
-        const data = {
-            title: document.getElementById('sqTitle').value,
-            description: document.getElementById('sqDesc').value,
-            icon: document.getElementById('sqIcon').value,
-            reward: parseInt(document.getElementById('sqReward').value),
-            type: document.getElementById('sqType').value,
-            link: document.getElementById('sqLink').value,
-            required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1,
-            isActive: document.getElementById('sqIsActive').checked
-        };
+        const data = { title: document.getElementById('sqTitle').value, description: document.getElementById('sqDesc').value, icon: document.getElementById('sqIcon').value, reward: parseInt(document.getElementById('sqReward').value), type: document.getElementById('sqType').value, link: document.getElementById('sqLink').value, required_count: parseInt(document.getElementById('sqRequiredCount').value) || 1, isActive: document.getElementById('sqIsActive').checked };
         const res = await apiRequest(`/api/admin/special-quests/${questId}`, 'PUT', data);
         if (res?.success) { showToast('Спец-квест обновлён'); closeModal(); loadSpecialQuests(); }
     };
@@ -1221,55 +1214,25 @@
     };
 
     // ============================================================
-    // ЗАЯВКИ НА ДЕПОЗИТ / ВЫВОД
+    // ЗАЯВКИ
     // ============================================================
     async function loadTransactions() {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="spinner">Загрузка заявок...</div>';
-
         const statsRes = await apiRequest('/api/admin/stats');
         const stats = statsRes?.stats || {};
-
-        const html = `
-            <div class="user-card">
-                <h3><i class="fas fa-exchange-alt"></i> Заявки на депозит и вывод</h3>
-                <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">
-                    Заявки обрабатываются через Telegram-бота (кнопки ✅/❌ в уведомлениях).
-                    Ниже — ручная обработка по ID заявки.
-                </div>
-                <div style="background:#0d1120;border-radius:12px;padding:16px;margin-bottom:16px;">
-                    <h4 style="margin-bottom:12px;color:#a855f7;">⚡ Ручная обработка заявки</h4>
-                    <div class="form-group">
-                        <label>ID заявки (MongoDB ObjectId)</label>
-                        <input type="text" id="txRequestId" placeholder="Вставьте ID заявки из Telegram...">
-                    </div>
-                    <div class="form-group">
-                        <label>Действие</label>
-                        <select id="txAction">
-                            <option value="approve">✅ Подтвердить</option>
-                            <option value="reject">❌ Отклонить</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Примечание (опционально)</label>
-                        <input type="text" id="txNote" placeholder="Причина отклонения и т.д.">
-                    </div>
-                    <button onclick="processTransaction()" class="success">
-                        <i class="fas fa-check"></i> Применить
-                    </button>
-                </div>
-
-                <div style="background:#0d1120;border-radius:12px;padding:16px;">
-                    <h4 style="margin-bottom:12px;color:#a855f7;">📊 Общая статистика</h4>
-                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:13px;">
-                        <div><span style="color:#94a3b8">Всего игроков:</span> <strong>${stats.totalUsers || 0}</strong></div>
-                        <div><span style="color:#94a3b8">Общий баланс:</span> <strong>${formatNum(stats.totalBalance || 0)} MMO</strong></div>
-                        <div><span style="color:#94a3b8">Активные сегодня:</span> <strong>${stats.activeToday || 0}</strong></div>
-                        <div><span style="color:#94a3b8">Забанено:</span> <strong>${stats.bannedUsers || 0}</strong></div>
-                    </div>
-                </div>
-            </div>
-        `;
+        const html = `<div class="user-card"><h3><i class="fas fa-exchange-alt"></i> Заявки на депозит и вывод</h3>
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Заявки обрабатываются через Telegram-бота (кнопки ✅/❌ в уведомлениях). Ниже — ручная обработка по ID заявки.</div>
+            <div style="background:#0d1120;border-radius:12px;padding:16px;margin-bottom:16px;"><h4 style="margin-bottom:12px;color:#a855f7;">⚡ Ручная обработка заявки</h4>
+            <div class="form-group"><label>ID заявки (MongoDB ObjectId)</label><input type="text" id="txRequestId" placeholder="Вставьте ID заявки из Telegram..."></div>
+            <div class="form-group"><label>Действие</label><select id="txAction"><option value="approve">✅ Подтвердить</option><option value="reject">❌ Отклонить</option></select></div>
+            <div class="form-group"><label>Примечание (опционально)</label><input type="text" id="txNote" placeholder="Причина отклонения и т.д."></div>
+            <button onclick="processTransaction()" class="success"><i class="fas fa-check"></i> Применить</button></div>
+            <div style="background:#0d1120;border-radius:12px;padding:16px;"><h4 style="margin-bottom:12px;color:#a855f7;">📊 Общая статистика</h4>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:13px;"><div><span style="color:#94a3b8">Всего игроков:</span> <strong>${stats.totalUsers || 0}</strong></div>
+            <div><span style="color:#94a3b8">Общий баланс:</span> <strong>${formatNum(stats.totalBalance || 0)} MMO</strong></div>
+            <div><span style="color:#94a3b8">Активные сегодня:</span> <strong>${stats.activeToday || 0}</strong></div>
+            <div><span style="color:#94a3b8">Забанено:</span> <strong>${stats.bannedUsers || 0}</strong></div></div></div></div>`;
         main.innerHTML = html;
     }
 
@@ -1277,20 +1240,11 @@
         const id = document.getElementById('txRequestId')?.value?.trim();
         const action = document.getElementById('txAction')?.value;
         const note = document.getElementById('txNote')?.value?.trim();
-
         if (!id) { showToast('Введите ID заявки', 'error'); return; }
-        if (!action) { showToast('Выберите действие', 'error'); return; }
-
         if (!confirm(`${action === 'approve' ? 'Подтвердить' : 'Отклонить'} заявку ${id}?`)) return;
-
         const res = await apiRequest(`/api/admin/transaction-request/${id}`, 'POST', { action, note });
-        if (res?.success) {
-            showToast(res.message || `Заявка ${action === 'approve' ? 'подтверждена' : 'отклонена'}`);
-            document.getElementById('txRequestId').value = '';
-            document.getElementById('txNote').value = '';
-        } else {
-            showToast(res?.message || 'Ошибка обработки заявки', 'error');
-        }
+        if (res?.success) { showToast(res.message || `Заявка ${action === 'approve' ? 'подтверждена' : 'отклонена'}`); document.getElementById('txRequestId').value = ''; document.getElementById('txNote').value = ''; }
+        else showToast(res?.message || 'Ошибка обработки заявки', 'error');
     };
 
     // ============================================================

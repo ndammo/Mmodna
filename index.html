@@ -103,7 +103,7 @@
             <i class="fa-solid fa-tv" style="font-size:16px"></i>
             <span style="flex:1;text-align:left" data-i18n="game.watchAd">Watch Ad</span>
             <span style="color:var(--uncommon);font-size:13px;min-width:50px;text-align:right" id="adsTimer">Ready</span>
-            <span style="color:var(--uncommon);font-weight:700" id="adsReward">+100</span>
+            <span style="color:var(--uncommon);font-weight:700" id="adsReward">+20</span>
             <span style="color:var(--text3);font-size:9px;margin-left:4px" id="adsRemaining">0/10</span>
         </button>
         <div class="encyclopedia-btn" onclick="showEncyclopedia()">
@@ -184,7 +184,6 @@
     </div>
     
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
-        <!-- 10 Friends - Rare Wolf -->
         <div class="friends-reward-card" id="reward-10" data-reward="10">
             <div class="reward-icon">
                 <img src="https://ndammo.github.io/Mmodna/wr.png" alt="Rare Wolf" style="width:48px;height:48px;object-fit:contain">
@@ -195,7 +194,6 @@
             <button class="reward-btn" id="reward-10-btn">🔒</button>
         </div>
         
-        <!-- 50 Friends - Epic Wolf -->
         <div class="friends-reward-card" id="reward-50" data-reward="50">
             <div class="reward-icon">
                 <img src="https://ndammo.github.io/Mmodna/we.png" alt="Epic Wolf" style="width:48px;height:48px;object-fit:contain">
@@ -206,7 +204,6 @@
             <button class="reward-btn" id="reward-50-btn">🔒</button>
         </div>
         
-        <!-- 150 Friends - Legendary Wolf -->
         <div class="friends-reward-card" id="reward-150" data-reward="150">
             <div class="reward-icon">
                 <img src="https://ndammo.github.io/Mmodna/wl.png" alt="Legendary Wolf" style="width:48px;height:48px;object-fit:contain">
@@ -228,38 +225,42 @@
     <div id="specialQuestsList"></div>
 </div>
 
-<!-- WALLET TAB -->
+<!-- WALLET TAB (ОБНОВЛЁННЫЙ) -->
 <div class="tab-content" id="tab-wallet">
     <div class="wallet-hero">
         <div class="wallet-label" data-i18n="wallet.totalBalance">Total Balance</div>
         <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
     </div>
+    
     <div class="lang-switcher">
         <button class="lang-btn" data-lang="ru" onclick="setLanguage('ru')">RU</button>
         <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
     </div>
+    
+    <!-- СТАТИСТИКА: только 4 показателя -->
     <div class="wallet-stats">
         <div class="wallet-stat">
-            <div class="wallet-stat-icon">⚡</div>
-            <div class="wallet-stat-val" id="walletIncome">0</div>
-            <div class="wallet-stat-label" data-i18n="wallet.mmoPerHour">MMO / Hour</div>
+            <div class="wallet-stat-icon">📤</div>
+            <div class="wallet-stat-val" id="walletWithdrawn">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.withdrawn">Выводы</div>
         </div>
         <div class="wallet-stat">
-            <div class="wallet-stat-icon">🧬</div>
-            <div class="wallet-stat-val" id="walletCards">0</div>
-            <div class="wallet-stat-label" data-i18n="wallet.creatures">Creatures</div>
+            <div class="wallet-stat-icon">🎁</div>
+            <div class="wallet-stat-val" id="walletReferralEarned">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.referralEarned">С рефералов</div>
         </div>
         <div class="wallet-stat">
-            <div class="wallet-stat-icon">🔀</div>
-            <div class="wallet-stat-val" id="walletMerges">0</div>
-            <div class="wallet-stat-label" data-i18n="wallet.totalMerges">Total Merges</div>
+            <div class="wallet-stat-icon">📺</div>
+            <div class="wallet-stat-val" id="walletAdsWatched">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.adsWatched">Просмотров</div>
         </div>
         <div class="wallet-stat">
-            <div class="wallet-stat-icon">📦</div>
-            <div class="wallet-stat-val" id="walletStorage">0/10</div>
-            <div class="wallet-stat-label" data-i18n="wallet.storage">Storage</div>
+            <div class="wallet-stat-icon">💰</div>
+            <div class="wallet-stat-val" id="walletAdsEarned">0</div>
+            <div class="wallet-stat-label" data-i18n="wallet.adsEarned">С рекламы</div>
         </div>
     </div>
+    
     <div class="wallet-actions">
         <button class="wallet-action-btn deposit" onclick="showDepositModal()">
             <i class="fa-solid fa-arrow-down"></i> <span data-i18n="wallet.deposit">DEPOSIT</span>
@@ -268,6 +269,7 @@
             <i class="fa-solid fa-arrow-up"></i> <span data-i18n="wallet.withdraw">WITHDRAW</span>
         </button>
     </div>
+    
     <div id="pendingRequests"></div>
 </div>
 
