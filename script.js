@@ -1068,16 +1068,23 @@ async function updateAdsStatus() {
             const adsRemainingEl = document.getElementById('adsRemaining');
             const adsTimerEl = document.getElementById('adsTimer');
             
+            // ПРОВЕРКА: какое поле приходит от сервера?
+            console.log('Ads status response:', res);
+            
+            // Используем правильное имя поля
+            const available = res.adsAvailable !== undefined ? res.adsAvailable : (res.adsRemaining || 0);
+            const maxAds = res.maxAdsPerDay || res.maxAdsAvailable || 10;
+            
             if (adsRemainingEl) {
-                adsRemainingEl.textContent = `${res.adsAvailable}/${res.maxAdsPerDay}`;
+                adsRemainingEl.textContent = `${available}/${maxAds}`;
             }
             
-            state.adsAvailable = res.adsAvailable;
-            state.maxAdsPerDay = res.maxAdsPerDay;
+            state.adsAvailable = available;
+            state.maxAdsPerDay = maxAds;
             state.adsCooldown = res.cooldownSeconds || 0;
             
             // Обновляем текст с информацией о следующей рекламе
-            if (res.adsAvailable === 0 && res.nextRegenMinutes > 0) {
+            if (available === 0 && res.nextRegenMinutes > 0) {
                 if (adsTimerEl) {
                     adsTimerEl.textContent = `+1 через ${res.nextRegenMinutes}м`;
                     adsTimerEl.style.color = '#f59e0b';
@@ -1096,10 +1103,12 @@ async function updateAdsStatus() {
             
             const adsBtn = document.getElementById('adsBtn');
             if (adsBtn) {
-                const canWatch = res.adsAvailable > 0 && state.adsCooldown === 0;
+                const canWatch = available > 0 && state.adsCooldown === 0;
                 adsBtn.style.opacity = canWatch ? '1' : '0.5';
                 adsBtn.disabled = !canWatch;
             }
+        } else {
+            console.error('Ads status error:', res);
         }
     } catch (e) {
         console.error('updateAdsStatus error:', e);
