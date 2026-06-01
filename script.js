@@ -74,7 +74,7 @@ let RARITY_WEIGHTS = {
     basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
 };
-let AD_REWARD = 20;
+let AD_REWARD = 50;
 let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 300;
 let UPGRADE_MULTIPLIER = 1.2;
@@ -241,9 +241,9 @@ async function loadGameConfig() {
     const res = await apiRequest('GET', '/api/game/config');
     if (res && res.success) {
         const cfg = res.config;
-        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 500, premium: 2000 };
+        CAPSULE_COSTS = cfg.capsuleCosts || { basic: 1000, premium: 8000 };
         RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
-        AD_REWARD = cfg.adReward || 20;
+        AD_REWARD = cfg.adReward || 50;
         AD_COOLDOWN = cfg.adCooldown || 60;
         UPGRADE_BASE_COST = cfg.upgradeBaseCost || 300;
         UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
@@ -2413,52 +2413,53 @@ async function getPaymentDetails() {
 }
 
 function showPaymentDetails(wallet, memo, amount) {
-    const amountInTON = (amount / 1000).toFixed(2);
-    
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <div class="popup-title">💎 Оплатите депозит</div>
-        <div class="popup-subtitle">Сумма: ${amount.toLocaleString()} MMO</div>
         
-        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:16px;padding:16px;margin-bottom:16px">
-            <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">💰 Сумма в TON (примерно)</div>
-                <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:#f59e0b">≈ ${amountInTON} TON</div>
+        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:16px;padding:20px;margin-bottom:16px">
+            <div style="text-align:center;margin-bottom:16px">
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Сумма к оплате</div>
+                <div style="font-family:'Orbitron',monospace;font-size:32px;font-weight:900;color:#f59e0b">${amount.toLocaleString()} <span style="font-size:16px">MMO</span></div>
             </div>
             
-            <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">🏦 Кошелек TON</div>
-                <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;word-break:break-all;border:1px solid #1e2d4a">
+            <div style="margin-bottom:16px">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">🏦 Кошелек для оплаты</div>
+                <div style="background:#080b14;padding:12px;border-radius:10px;font-family:monospace;font-size:11px;word-break:break-all;border:1px solid #1e2d4a">
                     ${wallet}
                 </div>
-                <button onclick="copyToClipboard('${wallet}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
-                    <i class="fa-regular fa-copy"></i> Копировать кошелек
+                <button onclick="copyToClipboard('${wallet}')" style="margin-top:8px;padding:5px 12px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;width:100%">
+                    <i class="fa-regular fa-copy"></i> Скопировать кошелек
                 </button>
             </div>
             
-            <div style="margin-bottom:12px">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">📝 Мемо (ОБЯЗАТЕЛЬНО!)</div>
-                <div style="background:#080b14;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;border:1px solid #1e2d4a">
+            <div style="margin-bottom:16px">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">📝 Мемо (ОБЯЗАТЕЛЬНО!)</div>
+                <div style="background:#080b14;padding:12px;border-radius:10px;font-family:monospace;font-size:13px;font-weight:700;color:#06b6d4;border:1px solid #1e2d4a;text-align:center">
                     ${memo}
                 </div>
-                <button onclick="copyToClipboard('${memo}')" style="margin-top:6px;padding:4px 10px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:10px;cursor:pointer">
-                    <i class="fa-regular fa-copy"></i> Копировать мемо
+                <button onclick="copyToClipboard('${memo}')" style="margin-top:8px;padding:5px 12px;background:#1a2540;border:none;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;width:100%">
+                    <i class="fa-regular fa-copy"></i> Скопировать мемо
                 </button>
             </div>
             
-            <div style="font-size:10px;color:#ef4444;background:rgba(239,68,68,0.1);padding:8px;border-radius:8px;margin-top:8px">
-                ⚠️ <b>Важно!</b> Укажите мемо в комментарии к переводу!\nПосле оплаты нажмите "Я ОПЛАТИЛ".
+            <div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px">
+                <div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:6px">⚠️ ВАЖНО!</div>
+                <div style="font-size:10px;color:#94a3b8">
+                    • Отправьте ровно <b>${amount.toLocaleString()} MMO</b><br>
+                    • <b>Обязательно укажите мемо</b> в комментарии к переводу<br>
+                    • Без мемо платеж не будет зачислен<br>
+                    • После перевода нажмите кнопку ниже
+                </div>
             </div>
         </div>
         
-        <div style="display:flex;gap:10px">
-            <button class="popup-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a)" onclick="createDepositRequestAfterPayment()">
-                <i class="fa-solid fa-check"></i> Я ОПЛАТИЛ
-            </button>
-            <button class="popup-btn" style="flex:1;background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">
-                <i class="fa-solid fa-times"></i> ОТМЕНИТЬ
-            </button>
-        </div>
+        <button class="popup-btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);margin-bottom:8px" onclick="createDepositRequestAfterPayment()">
+            <i class="fa-solid fa-check-circle"></i> Я ОПЛАТИЛ ${amount.toLocaleString()} MMO
+        </button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">
+            <i class="fa-solid fa-times"></i> ОТМЕНА
+        </button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
