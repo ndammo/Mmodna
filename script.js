@@ -1,5 +1,5 @@
 // ============================================================
-// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С СОХРАНЕНИЕМ СТАТУСА КВЕСТОВ)
+// DNA MMO - ПОЛНАЯ КЛИЕНТСКАЯ ЧАСТЬ (С ПОЧАСОВОЙ РЕКЛАМОЙ)
 // ============================================================
 
 // ============================================================
@@ -34,6 +34,8 @@ let state = {
     inventory: [],
     incomePerHour: 0,
     adsCooldown: 0,
+    adsAvailable: 10,
+    maxAdsPerDay: 10,
     isLoading: false,
     serverBalance: 0,
     lastServerSync: 0,
@@ -618,7 +620,6 @@ function showLoadingScreen(show) {
     }
 }
 
-
 // ============================================================
 // PARTICLES
 // ============================================================
@@ -1058,43 +1059,46 @@ async function upgradeInventory() {
 }
 
 // ============================================================
-// ADS
+// ADS (ОБНОВЛЕННАЯ ВЕРСИЯ)
 // ============================================================
-// Функция updateAdsStatus - добавьте принудительное обновление при возвращении на вкладку
 async function updateAdsStatus() {
     try {
         const res = await apiRequest('GET', '/api/game/ads-status');
         if (res && res.success) {
             const adsRemainingEl = document.getElementById('adsRemaining');
+            const adsTimerEl = document.getElementById('adsTimer');
+            
             if (adsRemainingEl) {
-                adsRemainingEl.textContent = `${res.adsRemaining}/${res.maxAdsPerDay}`;
+                adsRemainingEl.textContent = `${res.adsAvailable}/${res.maxAdsPerDay}`;
             }
             
-            // Сохраняем в state
-            state.adsRemaining = res.adsRemaining;
+            state.adsAvailable = res.adsAvailable;
             state.maxAdsPerDay = res.maxAdsPerDay;
-            state.adsToday = res.adsToday;
+            state.adsCooldown = res.cooldownSeconds || 0;
             
-            if (res.adsRemaining === 0) {
-                const adsBtn = document.getElementById('adsBtn');
-                if (adsBtn) {
-                    adsBtn.style.opacity = '0.5';
-                    adsBtn.disabled = true;
+            // Обновляем текст с информацией о следующей рекламе
+            if (res.adsAvailable === 0 && res.nextRegenMinutes > 0) {
+                if (adsTimerEl) {
+                    adsTimerEl.textContent = `+1 через ${res.nextRegenMinutes}м`;
+                    adsTimerEl.style.color = '#f59e0b';
+                }
+            } else if (state.adsCooldown > 0) {
+                if (adsTimerEl) {
+                    adsTimerEl.textContent = `${state.adsCooldown}s`;
+                    adsTimerEl.style.color = '#94a3b8';
                 }
             } else {
-                const adsBtn = document.getElementById('adsBtn');
-                if (adsBtn) {
-                    adsBtn.style.opacity = '1';
-                    adsBtn.disabled = false;
+                if (adsTimerEl) {
+                    adsTimerEl.textContent = 'Ready';
+                    adsTimerEl.style.color = '#22c55e';
                 }
             }
             
-            if (res.cooldownSeconds > 0 && res.cooldownSeconds < 100) {
-                const timerEl = document.getElementById('adsTimer');
-                if (timerEl) timerEl.textContent = `${res.cooldownSeconds}s`;
-            } else if (res.cooldownSeconds === 0) {
-                const timerEl = document.getElementById('adsTimer');
-                if (timerEl) timerEl.textContent = 'Ready';
+            const adsBtn = document.getElementById('adsBtn');
+            if (adsBtn) {
+                const canWatch = res.adsAvailable > 0 && state.adsCooldown === 0;
+                adsBtn.style.opacity = canWatch ? '1' : '0.5';
+                adsBtn.disabled = !canWatch;
             }
         }
     } catch (e) {
@@ -1102,17 +1106,86 @@ async function updateAdsStatus() {
     }
 }
 
-// Обновите updateAdsTimer для синхронизации с сервером
+async function watchAd() {
+    if (state.isLoading) return;
+
+    if (state.adsCooldown > 0) {
+        showToast(`Реклама доступна через ${state.adsCooldown}с`, '⏳');
+        return;
+    }
+    
+    if (state.adsAvailable <= 0) {
+        showToast(`Нет доступной рекламы. Восстановление через час.`, '📺');
+        return;
+    }
+
+    const btn = document.getElementById('adsBtn');
+    const timer = document.getElementById('adsTimer');
+    
+    if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
+    if (timer) timer.textContent = '...';
+
+    showToast('Загрузка рекламы...', '📺');
+
+    try {
+        let waited = 0;
+        while (typeof window.showGiga !== 'function' && waited < 3000) {
+            await new Promise(r => setTimeout(r, 100));
+            waited += 100;
+        }
+
+        if (typeof window.showGiga !== 'function') {
+            throw new Error('Рекламный SDK не загружен');
+        }
+
+        await window.showGiga();
+        
+        const res = await apiRequest('POST', '/api/game/watch-ad');
+
+        if (!res.success) {
+            if (res.adsAvailable === 0 && res.nextRegenMinutes) {
+                showToast(`Нет рекламы. Следующая через ${res.nextRegenMinutes} мин.`, '⚠️');
+            } else {
+                showToast(res.message || 'Ошибка', '❌');
+            }
+            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+            if (timer) timer.textContent = 'Ready';
+            return;
+        }
+
+        state.user = res.user;
+        state.adsCooldown = res.cooldownSeconds || AD_COOLDOWN;
+        state.adsAvailable = res.adsAvailable;
+        
+        updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
+        updateHeader();
+        
+        const nextRegenText = res.nextRegenMinutes > 0 ? ` (ещё ${res.nextRegenMinutes} мин до +1)` : '';
+        showToast(`+${AD_REWARD} MMO! Осталось рекламы: ${res.adsAvailable}/${res.maxAdsPerDay}${nextRegenText}`, '🎉');
+        spawnFloatingMMO(AD_REWARD);
+        
+        updateAdsStatus();
+        
+        if (btn && res.adsAvailable > 0 && state.adsCooldown === 0) {
+            btn.style.opacity = '1';
+            btn.disabled = false;
+        }
+        
+    } catch (e) {
+        console.error('Ad error:', e);
+        showToast('Реклама не загрузилась, попробуйте ещё раз', '❌');
+        if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+        if (timer) timer.textContent = 'Ready';
+    }
+
+    state.isLoading = false;
+}
+
 function updateAdsTimer() {
     if (!state.user) return;
     
-    // Если кулдаун кончился, проверяем на сервере
     if (state.adsCooldown <= 0) {
-        const timerEl = document.getElementById('adsTimer');
-        if (timerEl && timerEl.textContent !== 'Ready') {
-            // Запрашиваем актуальный статус
-            updateAdsStatus();
-        }
+        updateAdsStatus();
         return;
     }
     
@@ -1127,89 +1200,9 @@ function updateAdsTimer() {
     }
     
     if (state.adsCooldown === 0) {
-        updateAdsStatus(); // Перепроверяем на сервере
+        updateAdsStatus();
     }
 }
-
-async function watchAd() {
-    if (state.isLoading) return;
-
-    if (state.adsCooldown > 0) {
-        showToast(`Ad available in ${state.adsCooldown}s`, '⏳');
-        return;
-    }
-
-    const btn = document.getElementById('adsBtn');
-    const timer = document.getElementById('adsTimer');
-    const reward = document.getElementById('adsReward');
-    
-    if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
-    if (timer) timer.textContent = '...';
-    if (reward) reward.textContent = '';
-
-    showToast('Loading ad...', '📺');
-
-    try {
-        let waited = 0;
-        while (typeof window.showGiga !== 'function' && waited < 3000) {
-            await new Promise(r => setTimeout(r, 100));
-            waited += 100;
-        }
-
-        if (typeof window.showGiga !== 'function') {
-            throw new Error('Giga Pub not loaded');
-        }
-
-        await window.showGiga();
-        
-        const res = await apiRequest('POST', '/api/game/watch-ad');
-
-        if (!res.success) {
-            if (res.dailyLimitReached) {
-                showToast(res.message, '⚠️');
-                if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
-                if (timer) timer.textContent = 'Limit';
-                state.isLoading = false;
-                return;
-            }
-            throw new Error(res.message || 'Failed');
-        }
-
-        state.user = res.user;
-        state.adsCooldown = res.cooldownSeconds || AD_COOLDOWN;
-        
-        const adsRemainingEl = document.getElementById('adsRemaining');
-        if (adsRemainingEl && res.adsRemaining !== undefined) {
-            adsRemainingEl.textContent = `${res.adsRemaining}/${res.maxAdsPerDay}`;
-        }
-        
-        updateServerSnapshot(state.user.balance, state.incomePerHour, state.user.lastPassiveIncome || null);
-        updateHeader();
-        showToast(`+${AD_REWARD} MMO! (${res.adsToday}/${res.maxAdsPerDay} today)`, '🎉');
-        spawnFloatingMMO(AD_REWARD);
-        
-        if (res.adsRemaining === 0) {
-            if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
-            if (timer) timer.textContent = 'Limit';
-        } else {
-            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-            if (timer) timer.textContent = 'Ready';
-        }
-        
-    } catch (e) {
-        console.error('Ad error:', e);
-        showToast('Ad failed, try again', '❌');
-        
-        if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-        if (timer) timer.textContent = 'Ready';
-        if (reward) reward.textContent = `+${AD_REWARD}`;
-        state.isLoading = false;
-        return;
-    }
-
-    state.isLoading = false;
-}
-
 
 // ============================================================
 // TRANSACTIONS
@@ -1654,7 +1647,7 @@ function renderLeaderboardData(data) {
 }
 
 // ============================================================
-// FRIENDS (ОБНОВЛЕНО - ТРЕБОВАНИЕ 5+ УРОВНЯ)
+// FRIENDS
 // ============================================================
 async function inviteFriend() {
     const res = await apiRequest('GET', '/api/user/referrals');
@@ -1731,7 +1724,7 @@ async function renderFriendsList() {
 }
 
 // ============================================================
-// РЕФЕРАЛЬНЫЕ НАГРАДЫ (ТРЕБОВАНИЕ 5+ УРОВНЯ)
+// РЕФЕРАЛЬНЫЕ НАГРАДЫ
 // ============================================================
 async function claimFriendReward(requiredFriends, creatureId, creatureName, creatureIcon) {
     if (state.isLoading) return;
@@ -1846,7 +1839,6 @@ function updateFriendRewardButtons() {
 // SPECIAL QUESTS (С СОХРАНЕНИЕМ В localStorage)
 // ============================================================
 
-// Функция загрузки статусов квестов из localStorage
 function loadQuestStatusesFromStorage() {
     const saved = localStorage.getItem(QUESTS_STORAGE_KEY);
     if (saved) {
@@ -1877,7 +1869,6 @@ function loadQuestStatusesFromStorage() {
     }
 }
 
-// Функция сохранения статусов квестов в localStorage
 function saveQuestStatusesToStorage() {
     const toSave = {};
     for (const [questId, data] of questStatuses.entries()) {
@@ -1889,7 +1880,6 @@ function saveQuestStatusesToStorage() {
     localStorage.setItem(QUESTS_STORAGE_KEY, JSON.stringify(toSave));
 }
 
-// Функция перезапуска таймера квеста
 function restartQuestTimer(questId, remainingSeconds) {
     if (remainingSeconds <= 0) return;
     
@@ -1914,7 +1904,6 @@ function restartQuestTimer(questId, remainingSeconds) {
     }
 }
 
-// Функция очистки всех таймеров квестов
 function clearAllQuestTimers() {
     for (const [questId, data] of questStatuses.entries()) {
         if (data.timerId) {
@@ -1925,13 +1914,11 @@ function clearAllQuestTimers() {
     localStorage.removeItem(QUESTS_STORAGE_KEY);
 }
 
-// Функция получения названия квеста
 function getQuestTitle(questId) {
     const quest = SPECIAL_QUESTS.find(q => q.id === questId);
     return quest ? quest.title : 'квест';
 }
 
-// Функция обновления кнопки квеста в зависимости от статуса
 function updateQuestButton(questId, status) {
     const questCard = document.querySelector(`.special-quest-card[data-quest-id="${questId}"]`);
     if (!questCard) return;
@@ -2200,7 +2187,6 @@ async function renderSpecialQuests() {
         return;
     }
     
-    // Обновляем статусы из localStorage при рендере
     for (const [questId, data] of questStatuses.entries()) {
         if (data.status === 'pending' && data.expiresAt && data.expiresAt <= Date.now()) {
             questStatuses.set(questId, { status: 'available', expiresAt: null, timerId: null });
@@ -2267,7 +2253,6 @@ async function renderSpecialQuests() {
         </div>`;
     }).join('');
     
-    // Запускаем обновление таймеров каждую секунду для отображения обратного отсчета
     if (window.questTimerInterval) clearInterval(window.questTimerInterval);
     window.questTimerInterval = setInterval(() => {
         const pendingButtons = document.querySelectorAll('.special-quest-btn.pending');
