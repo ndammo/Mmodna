@@ -69,15 +69,15 @@ const QUESTS_STORAGE_KEY = 'dna_mmo_quests_status';
 // GAME DATA
 // ============================================================
 let CREATURES = [];
-let CAPSULE_COSTS = { basic: 500, premium: 2000 };
+let CAPSULE_COSTS = { basic: 1000, premium: 8000 };
 let RARITY_WEIGHTS = {
-    basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
-    premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
+    basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
+    premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
 };
 let AD_REWARD = 20;
 let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 300;
-let UPGRADE_MULTIPLIER = 1.5;
+let UPGRADE_MULTIPLIER = 1.2;
 let MAX_INVENTORY_SLOTS = 50;
 let SPECIAL_QUESTS = [];
 
