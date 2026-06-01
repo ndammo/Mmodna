@@ -369,6 +369,15 @@
             border-radius: 8px;
         }
 
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .button-row input {
+            flex: 1;
+        }
+
         @media (min-width: 768px) {
             .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
@@ -404,6 +413,7 @@
     <button class="nav-item" data-tab="ads"><i class="fas fa-tv"></i><span>Реклама</span></button>
     <button class="nav-item" data-tab="creatures"><i class="fas fa-paw"></i><span>Существа</span></button>
     <button class="nav-item" data-tab="quests"><i class="fas fa-star"></i><span>Квесты</span></button>
+    <button class="nav-item" data-tab="broadcast"><i class="fas fa-bullhorn"></i><span>Рассылка</span></button>
 </div>
 
 <script>
@@ -589,6 +599,7 @@
             if (tab === 'ads') loadAdsPanel();
             if (tab === 'creatures') loadCreatures();
             if (tab === 'quests') loadSpecialQuests();
+            if (tab === 'broadcast') loadBroadcastTab();
         });
     });
 
@@ -951,7 +962,7 @@
     }
 
     // ============================================================
-    // РЕКЛАМА (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+    // РЕКЛАМА
     // ============================================================
 
     async function loadAdsPanel() {
@@ -959,10 +970,7 @@
         main.innerHTML = '<div class="spinner">Загрузка...</div>';
         
         try {
-            // Получаем статистику рекламы
             const statsRes = await apiRequest('/api/admin/ads-stats?limit=50');
-            
-            // Получаем конфигурацию игры
             const configRes = await apiRequest('/api/admin/config');
             const config = configRes?.config || {};
             
@@ -970,7 +978,6 @@
             const AD_COOLDOWN = config.adCooldown || 60;
             const maxAds = 10;
             
-            // Если ошибка при загрузке статистики
             if (!statsRes || !statsRes.success) {
                 main.innerHTML = `
                     <div class="user-card">
@@ -1125,20 +1132,6 @@
             loadAdsPanel(); 
         } else {
             showToast(res?.message || 'Ошибка сохранения', 'error');
-        }
-    };
-
-    window.refreshCache = async function() {
-        showToast('Обновление кэша...', 'info');
-        const res = await apiRequest('/api/admin/refresh-cache', 'POST');
-        if (res?.success) {
-            showToast('Кэш обновлён!');
-            const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
-            if (activeTab === 'ads') loadAdsPanel();
-            if (activeTab === 'dashboard') loadDashboard();
-            if (activeTab === 'users') loadUsers(currentPage);
-        } else {
-            showToast('Ошибка обновления кэша', 'error');
         }
     };
 
@@ -1344,6 +1337,230 @@
         if (res?.success) showToast(res.message);
         else showToast('Ошибка при массовой выдаче', 'error');
     }
+
+    // ============================================================
+    // РАССЫЛКА
+    // ============================================================
+    let buttonRows = 1;
+
+    function addButtonRow() {
+        if (buttonRows >= 3) {
+            showToast('Максимум 3 кнопки', 'error');
+            return;
+        }
+        
+        const container = document.getElementById('buttonsContainer');
+        const row = document.createElement('div');
+        row.className = 'button-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Текст кнопки" class="btn-text" style="flex: 1;">
+            <input type="text" placeholder="URL ссылки" class="btn-url" style="flex: 2;">
+            <button onclick="removeButtonRow(this)" class="danger" style="padding: 6px 12px;">✖</button>
+        `;
+        container.appendChild(row);
+        buttonRows++;
+    }
+
+    function removeButtonRow(btn) {
+        const row = btn.closest('.button-row');
+        row.remove();
+        buttonRows--;
+    }
+
+    function getButtons() {
+        const buttons = [];
+        const rows = document.querySelectorAll('#buttonsContainer .button-row');
+        
+        for (const row of rows) {
+            const text = row.querySelector('.btn-text')?.value.trim();
+            const url = row.querySelector('.btn-url')?.value.trim();
+            
+            if (text && url) {
+                buttons.push({ text, url });
+            }
+        }
+        
+        return buttons;
+    }
+
+    async function sendBroadcast(testMode = false) {
+        const message = document.getElementById('broadcastMessage')?.value.trim();
+        const imageUrl = document.getElementById('broadcastImage')?.value.trim();
+        const buttons = getButtons();
+        
+        if (!message) {
+            showToast('Введите текст сообщения', 'error');
+            return;
+        }
+        
+        const confirmMsg = testMode 
+            ? 'Отправить ТЕСТОВУЮ рассылку только АДМИНАМ?' 
+            : `Отправить рассылку ВСЕМ ИГРОКАМ?\n\nЭто действие нельзя отменить!`;
+        
+        if (!confirm(confirmMsg)) return;
+        
+        showToast('Рассылка запущена...', 'info');
+        
+        const res = await apiRequest('/api/admin/broadcast/create', 'POST', {
+            message,
+            imageUrl: imageUrl || null,
+            buttons,
+            parseMode: 'HTML',
+            testMode
+        });
+        
+        if (res?.success) {
+            showToast(res.message, 'success');
+            document.getElementById('broadcastMessage').value = '';
+            document.getElementById('broadcastImage').value = '';
+            document.querySelectorAll('#buttonsContainer .button-row').forEach((row, idx) => {
+                if (idx > 0) row.remove();
+            });
+            buttonRows = 1;
+            loadBroadcastHistory();
+        } else {
+            showToast(res?.message || 'Ошибка', 'error');
+        }
+    }
+
+    async function loadBroadcastHistory() {
+        const container = document.getElementById('broadcastHistory');
+        if (!container) return;
+        
+        const res = await apiRequest('/api/admin/broadcast/history');
+        if (!res?.success) {
+            container.innerHTML = '<div class="spinner">Ошибка загрузки</div>';
+            return;
+        }
+        
+        const broadcasts = res.broadcasts || [];
+        
+        if (broadcasts.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 20px; color: #4a5568;">Нет отправленных рассылок</div>';
+            return;
+        }
+        
+        container.innerHTML = broadcasts.map(b => {
+            const statusColor = b.status === 'completed' ? '#22c55e' : b.status === 'pending' ? '#f59e0b' : '#ef4444';
+            const statusText = b.status === 'completed' ? '✅ Завершена' : b.status === 'pending' ? '⏳ В процессе' : '❌ Отменена';
+            const date = new Date(b.createdAt).toLocaleString();
+            
+            return `
+                <div style="background: #0d1120; border: 1px solid #1e2d4a; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <span style="color: ${statusColor}; font-weight: 700;">${statusText}</span>
+                            <span style="color: #4a5568; font-size: 11px; margin-left: 8px;">#${b._id.slice(-8)}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #4a5568;">${date}</div>
+                    </div>
+                    
+                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">
+                        <strong>Отправитель:</strong> ${escapeHtml(b.createdBy || 'admin')}
+                    </div>
+                    
+                    <div style="background: #080b14; border-radius: 8px; padding: 8px; margin: 8px 0; font-size: 12px; max-height: 100px; overflow-y: auto;">
+                        ${escapeHtml(b.message.substring(0, 200))}${b.message.length > 200 ? '...' : ''}
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; font-size: 11px; margin-top: 8px;">
+                        <div style="color: #22c55e;">✅ Отправлено: ${b.sentCount || 0}</div>
+                        <div style="color: #ef4444;">❌ Ошибок: ${b.failedCount || 0}</div>
+                        <div style="color: #a855f7;">👥 Всего: ${b.totalUsers || 0}</div>
+                    </div>
+                    
+                    ${b.imageUrl ? `<div style="margin-top: 8px; font-size: 10px; color: #06b6d4;">🖼️ С изображением</div>` : ''}
+                    ${b.buttons && b.buttons.length ? `<div style="margin-top: 8px; font-size: 10px; color: #f59e0b;">🔘 Кнопок: ${b.buttons.length}</div>` : ''}
+                    
+                    ${b.status === 'pending' ? `
+                        <button onclick="cancelBroadcast('${b._id}')" class="danger" style="margin-top: 8px; padding: 4px 12px; font-size: 10px;">
+                            <i class="fas fa-ban"></i> Отменить
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function cancelBroadcast(broadcastId) {
+        if (!confirm('Отменить рассылку? Отправленные сообщения не будут удалены.')) return;
+        
+        const res = await apiRequest(`/api/admin/broadcast/cancel/${broadcastId}`, 'POST');
+        if (res?.success) {
+            showToast('Рассылка отменена', 'success');
+            loadBroadcastHistory();
+        } else {
+            showToast(res?.message || 'Ошибка', 'error');
+        }
+    }
+
+    async function loadBroadcastTab() {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = `
+            <div class="user-card">
+                <h3><i class="fas fa-bullhorn"></i> Создать рассылку</h3>
+                
+                <div class="form-group">
+                    <label>📝 Текст сообщения (HTML поддерживается)</label>
+                    <textarea id="broadcastMessage" rows="6" placeholder="Введите текст сообщения...&#10;&#10;Поддерживается HTML:&#10;&lt;b&gt;жирный&lt;/b&gt; &lt;i&gt;курсив&lt;/i&gt; &lt;a href=&quot;https://...&quot;&gt;ссылка&lt;/a&gt;"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>🖼️ URL изображения (опционально)</label>
+                    <input type="text" id="broadcastImage" placeholder="https://example.com/image.jpg">
+                    <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">
+                        Поддерживается: JPG, PNG, GIF. Максимум 5MB
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔘 Кнопки (до 3-х)</label>
+                    <div id="buttonsContainer">
+                        <div class="button-row">
+                            <input type="text" placeholder="Текст кнопки" class="btn-text" style="flex: 1;">
+                            <input type="text" placeholder="URL ссылки" class="btn-url" style="flex: 2;">
+                            <button onclick="removeButtonRow(this)" class="danger" style="padding: 6px 12px;">✖</button>
+                        </div>
+                    </div>
+                    <button onclick="addButtonRow()" class="secondary" style="margin-top: 8px;">
+                        <i class="fas fa-plus"></i> Добавить кнопку
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                    <button onclick="sendBroadcast(false)" class="success" style="flex: 1;">
+                        <i class="fas fa-paper-plane"></i> ОТПРАВИТЬ ВСЕМ
+                    </button>
+                    <button onclick="sendBroadcast(true)" class="warning" style="flex: 1;">
+                        <i class="fas fa-flask"></i> ТЕСТ (только админам)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="user-card">
+                <h3><i class="fas fa-history"></i> История рассылок</h3>
+                <div id="broadcastHistory">
+                    <div class="spinner">Загрузка...</div>
+                </div>
+            </div>
+        `;
+        
+        loadBroadcastHistory();
+    }
+
+    window.refreshCache = async function() {
+        showToast('Обновление кэша...', 'info');
+        const res = await apiRequest('/api/admin/refresh-cache', 'POST');
+        if (res?.success) {
+            showToast('Кэш обновлён!');
+            const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
+            if (activeTab === 'ads') loadAdsPanel();
+            if (activeTab === 'dashboard') loadDashboard();
+            if (activeTab === 'users') loadUsers(currentPage);
+        } else {
+            showToast('Ошибка обновления кэша', 'error');
+        }
+    };
 
     // ============================================================
     // INIT
