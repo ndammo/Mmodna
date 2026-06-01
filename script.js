@@ -117,17 +117,19 @@ function formatBalance(n) {
 }
 
 function getVisualBalance() {
-    if (!state.user || !state.lastServerSync) return state.serverBalance;
+    if (!state.user) return 0;
+    if (!state.lastServerSync) return state.serverBalance || 0;
     const elapsedSeconds = (Date.now() - state.lastServerSync) / 1000;
     const earned = (state.incomePerHour / 3600) * elapsedSeconds;
-    return state.serverBalance + earned;
+    return (state.serverBalance || 0) + earned;
 }
 
 function updateServerSnapshot(newBalance, newIncomePerHour, newLastPassiveIncome) {
-    state.serverBalance = newBalance;
-    state.incomePerHour = newIncomePerHour;
+    console.log('📊 updateServerSnapshot:', { newBalance, newIncomePerHour, newLastPassiveIncome });
+    state.serverBalance = newBalance !== undefined ? newBalance : state.serverBalance;
+    state.incomePerHour = newIncomePerHour !== undefined ? newIncomePerHour : state.incomePerHour;
     state.lastServerSync = newLastPassiveIncome ? new Date(newLastPassiveIncome).getTime() : Date.now();
-    if (state.user) state.user.balance = newBalance;
+    if (state.user) state.user.balance = state.serverBalance;
 }
 
 let collectIncomeTimer = null;
@@ -483,7 +485,28 @@ async function initTelegramApp() {
     state.user = loginRes.user;
     state.inventory = loginRes.inventory || [];
 
-    console.log('📦 Получен инвентарь при логине:', state.inventory.length, 'предметов');
+    // ========== ГЛАВНОЕ ИСПРАВЛЕНИЕ ==========
+    // ИНИЦИАЛИЗИРУЕМ serverBalance и lastServerSync СРАЗУ
+    state.serverBalance = state.user.balance;
+    state.lastServerSync = Date.now();
+    state.incomePerHour = 0;
+    
+    console.log('📦 Логин успешен:');
+    console.log('   - Баланс:', state.user.balance);
+    console.log('   - serverBalance:', state.serverBalance);
+    console.log('   - Инвентарь:', state.inventory.length, 'предметов');
+
+    // ЗАГРУЖАЕМ ПРОФИЛЬ ДЛЯ ПОЛУЧЕНИЯ incomePerHour
+    const profileRes = await apiRequest('GET', '/api/user/profile');
+    if (profileRes && profileRes.success) {
+        state.user = profileRes.user;
+        state.inventory = profileRes.inventory || [];
+        state.incomePerHour = profileRes.incomePerHour || 0;
+        state.serverBalance = state.user.balance;
+        state.lastServerSync = Date.now();
+        console.log('   - После профиля, баланс:', state.user.balance);
+        console.log('   - serverBalance:', state.serverBalance);
+    }
 
     await loadGameConfig();
     await loadCreaturesFromServer();
