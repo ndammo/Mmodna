@@ -76,7 +76,7 @@ let RARITY_WEIGHTS = {
     basic: { common: 80, uncommon: 20, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 60, uncommon: 30, rare: 10, epic: 2, legendary: 1 }
 };
-let AD_REWARD = 100;
+let AD_REWARD = 20;
 let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 300;
 let UPGRADE_MULTIPLIER = 1.5;
@@ -243,7 +243,7 @@ async function loadGameConfig() {
         const cfg = res.config;
         CAPSULE_COSTS = cfg.capsuleCosts || { basic: 500, premium: 2000 };
         RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
-        AD_REWARD = cfg.adReward || 100;
+        AD_REWARD = cfg.adReward || 20;
         AD_COOLDOWN = cfg.adCooldown || 60;
         UPGRADE_BASE_COST = cfg.upgradeBaseCost || 300;
         UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.5;
