@@ -332,7 +332,7 @@ function startOptimizedIntervals() {
         if (!document.hidden && isMarketplaceTabActive) {
             renderMarketplaceBuy();
         }
-    }, 10 * 1000);
+    }, 60 * 1000);
     
     intervals.adsTimer = setInterval(updateAdsTimer, 1000);
 }
@@ -363,7 +363,7 @@ function handleVisibilityChange() {
                 if (!document.hidden && isMarketplaceTabActive) {
                     renderMarketplaceBuy();
                 }
-            }, 10 * 1000);
+            }, 60 * 1000);
         }
     }
 }
