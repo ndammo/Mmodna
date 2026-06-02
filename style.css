@@ -1700,3 +1700,12 @@ img {
 .special-quest-btn.claim:hover {
     transform: scale(1.02);
 }
+/* Уже есть, но убедитесь что работает */
+.capsule-icon img {
+    pointer-events: auto;  /* Это для кликов */
+    -webkit-touch-callout: none;  /* Запрет долгого нажатия на iOS */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+}

@@ -2357,7 +2357,7 @@ async function updateSpecialQuests() {
 // ДЕПОЗИТЫ И ВЫВОДЫ
 // ============================================================
 
-const MIN_TRANSACTION_AMOUNT = 5000;
+const MIN_TRANSACTION_AMOUNT = 10000;
 const MAX_ACTIVE_REQUESTS = 2;
 
 async function showDepositModal() {
