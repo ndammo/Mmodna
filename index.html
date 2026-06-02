@@ -118,9 +118,9 @@
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div class="section-title" style="margin-bottom:0"><i class="fa-solid fa-layer-group" style="color:var(--accent3)"></i> <span data-i18n="inventory.myCreatures">My Creatures</span> <span id="inventorySlots" style="font-size:10px;color:var(--text2);font-weight:400;letter-spacing:0">0/10</span></div>
-        <button style="padding:6px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-size:10px;font-weight:700;font-family:'Orbitron',monospace;cursor:pointer;transition:all 0.2s;white-space:nowrap" onclick="event.stopPropagation(); upgradeInventory()" id="quickUpgradeBtn">
-            <i class="fa-solid fa-plus"></i> <span id="upgradeSlotCost">100</span> <span data-i18n="game.mmo">MMO</span>
-        </button>
+ <button style="padding:6px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-size:10px;font-weight:700;font-family:'Orbitron',monospace;cursor:pointer;transition:all 0.2s;white-space:nowrap" onclick="event.stopPropagation(); upgradeInventory()" id="quickUpgradeBtn">
+    <i class="fa-solid fa-plus"></i> +1 слот (<span id="upgradeSlotCost">100</span>)
+</button>
     </div>
     <div class="cards-grid" id="cardsGrid">
         <div class="empty-grid">
