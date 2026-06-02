@@ -69,7 +69,7 @@ const QUESTS_STORAGE_KEY = 'dna_mmo_quests_status';
 // GAME DATA
 // ============================================================
 let CREATURES = [];
-let CAPSULE_COSTS = { basic: 1000, premium: 8000 };
+let CAPSULE_COSTS = { basic: 1000, premium: 6000 };
 let RARITY_WEIGHTS = {
     basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
@@ -258,7 +258,6 @@ async function loadCreaturesFromServer() {
     const res = await apiRequest('GET', '/api/game/creatures');
     if (res && res.success && res.creatures) {
         CREATURES = res.creatures;
-        console.log(`✅ Загружено ${CREATURES.length} существ`);
         return true;
     }
     return false;
