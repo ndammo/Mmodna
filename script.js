@@ -1307,7 +1307,7 @@ function renderLeaderboardData(data) {
             <div class="lb-avatar" style="background:${isMe ? '#a855f7' : '#4a5568'}33;border:1px solid ${isMe ? '#a855f7' : '#4a5568'}44;color:${isMe ? '#a855f7' : '#fff'}">${l.username[0]?.toUpperCase() || '?'}</div>
             <div class="lb-info">
                 <div class="lb-name">${escapeHtml(l.username)} ${isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
-                <div class="lb-level">УР ${l.level} · ${getLevelTitle(l.level)}</div>
+                <div class="lb-level" style="color:#22c55e">УР ${l.level} · ${getLevelTitle(l.level)}</div>
                 <div class="lb-xp" style="font-size:9px;color:#22c55e">ОП: ${l.xp}/${l.level * 100}</div>
             </div>
             <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
@@ -3078,6 +3078,19 @@ async function renderArenaHistory() {
 // NAVIGATION
 // ============================================================
 function switchTab(tab) {
+    // Проверки ПЕРЕД переключением DOM
+    if (tab === 'arena') {
+        const userLevel = state.user?.level || 1;
+        if (userLevel < 5) {
+            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
+            return;
+        }
+        if (!isArenaOpenClient()) {
+            showArenaClosedModal();
+            return;
+        }
+    }
+
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
@@ -3090,16 +3103,6 @@ function switchTab(tab) {
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
     if (tab === 'arena') {
-        const userLevel = state.user?.level || 1;
-        if (userLevel < 5) {
-            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
-            switchTab('game');
-            return;
-        }
-        if (!isArenaOpenClient()) {
-            showArenaClosedModal();
-            return;
-        }
         if (arenaClient && state.token && !arenaClient.isConnected()) {
             arenaClient.connectSocket(state.token, API_URL);
         }
