@@ -128,6 +128,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 async function createIndexes() {
     try {
         await User.collection.createIndex({ level: -1, xp: -1 });
+        await User.collection.createIndex({ telegramId: 1 });
         await User.collection.createIndex({ referralCode: 1 });
         await User.collection.createIndex({ referredBy: 1 });
         await User.collection.createIndex({ lastLogin: -1 });
@@ -1537,7 +1538,9 @@ app.post('/api/game/merge', authMiddleware, async (req, res) => {
         }
 
         const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
-        const success = Math.random() < 0.3;
+        const MERGE_CHANCES = { common: 0.3, uncommon: 0.3, rare: 0.3, epic: 0.10, legendary: 0.05 };
+        const mergeChance = MERGE_CHANCES[creature.rarity] ?? 0.3;
+        const success = Math.random() < mergeChance;
 
         let resultCreature;
         if (success && currentRarityIdx < RARITY_ORDER.length - 2) {
@@ -2701,12 +2704,11 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
         if (result.finished) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
-                const prizePool = battle.prizePool || arenaManager.getPrizePool(battle.league) || 0;
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: result.winnerId?.toString(),
                     lastMove: result.lastMove,
-                    prizePool
+                    prizePool: battle.prizePool
                 });
             }
         } else {
@@ -2751,7 +2753,6 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
-                    prizePool: battle.prizePool || 0,
                     surrendered: true
                 });
             }
