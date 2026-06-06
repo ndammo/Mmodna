@@ -171,6 +171,10 @@ class ArenaBattleManager {
         this.searchQueue = []; // резерв
     }
 
+    getPrizePool(league) {
+        return LEAGUE_CONFIG[league]?.prizePool || 0;
+    }
+
     async createBattle(player1Id, teamIds, userLevel, league) {
         const leagueConfig = LEAGUE_CONFIG[league];
         const team = await buildTeamFromIds(teamIds, userLevel, player1Id, this.getCreature);
@@ -369,7 +373,7 @@ class ArenaBattleManager {
         battle.markModified('player1Team');
         battle.markModified('player2Team');
         await this.finishBattle(battle);
-        return { success: true, finished: true, winnerId: battle.winnerId };
+        return { success: true, finished: true, winnerId: battle.winnerId?.toString() };
     }
     
     let targetIndex = -1;
@@ -385,7 +389,7 @@ class ArenaBattleManager {
         battle.status = 'finished';
         battle.winnerId = isPlayer1 ? battle.player1Id : battle.player2Id;
         await this.finishBattle(battle);
-        return { success: true, finished: true, winnerId: battle.winnerId };
+        return { success: true, finished: true, winnerId: battle.winnerId?.toString() };
     }
     
     const target = enemyTeam[targetIndex];
