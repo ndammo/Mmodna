@@ -171,10 +171,6 @@ class ArenaBattleManager {
         this.searchQueue = []; // резерв
     }
 
-    getPrizePool(league) {
-        return LEAGUE_CONFIG[league]?.prizePool || 0;
-    }
-
     async createBattle(player1Id, teamIds, userLevel, league) {
         const leagueConfig = LEAGUE_CONFIG[league];
         const team = await buildTeamFromIds(teamIds, userLevel, player1Id, this.getCreature);
@@ -373,7 +369,7 @@ class ArenaBattleManager {
         battle.markModified('player1Team');
         battle.markModified('player2Team');
         await this.finishBattle(battle);
-        return { success: true, finished: true, winnerId: battle.winnerId?.toString() };
+        return { success: true, finished: true, winnerId: battle.winnerId };
     }
     
     let targetIndex = -1;
@@ -389,7 +385,7 @@ class ArenaBattleManager {
         battle.status = 'finished';
         battle.winnerId = isPlayer1 ? battle.player1Id : battle.player2Id;
         await this.finishBattle(battle);
-        return { success: true, finished: true, winnerId: battle.winnerId?.toString() };
+        return { success: true, finished: true, winnerId: battle.winnerId };
     }
     
     const target = enemyTeam[targetIndex];
@@ -686,20 +682,29 @@ class ArenaBattleManager {
             await battle.save();
             expiredCount++;
             
-            // Возвращаем взнос player1
+            // Возвращаем взнос + попытку player1 (бой не начался)
             if (player1Id) {
                 await this.User.findByIdAndUpdate(player1Id, {
                     $inc: { balance: entryFee },
                     $set: { currentBattleId: null, arenaCooldownUntil: null }
                 });
+                // Возвращаем попытку не превышая максимум
+                await this.User.updateOne(
+                    { _id: player1Id, arenaBattlesLeft: { $lt: 10 } },
+                    { $inc: { arenaBattlesLeft: 1 } }
+                );
             }
             
-            // Возвращаем взнос player2 если он уже был найден (pending_confirmation)
+            // Возвращаем взнос + попытку player2 если он уже был найден (pending_confirmation)
             if (player2Id && wasPendingConfirmation) {
                 await this.User.findByIdAndUpdate(player2Id, {
                     $inc: { balance: entryFee },
                     $set: { currentBattleId: null, arenaCooldownUntil: null }
                 });
+                await this.User.updateOne(
+                    { _id: player2Id, arenaBattlesLeft: { $lt: 10 } },
+                    { $inc: { arenaBattlesLeft: 1 } }
+                );
             } else if (player2Id) {
                 await this.User.updateOne({ _id: player2Id }, { $set: { currentBattleId: null, arenaCooldownUntil: null } });
             }

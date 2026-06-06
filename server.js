@@ -128,7 +128,6 @@ mongoose.connect(process.env.MONGODB_URI, {
 async function createIndexes() {
     try {
         await User.collection.createIndex({ level: -1, xp: -1 });
-        await User.collection.createIndex({ referralCode: 1 });
         await User.collection.createIndex({ referredBy: 1 });
         await User.collection.createIndex({ lastLogin: -1 });
         await Inventory.collection.createIndex({ telegramId: 1, creatureId: 1 });
@@ -2428,7 +2427,15 @@ app.post('/api/arena/cancel-search', authMiddleware, async (req, res) => {
         if (user.currentBattleId) {
             const battle = await ArenaBattle.findById(user.currentBattleId);
             if (battle && battle.status === 'waiting') {
-                await User.findByIdAndUpdate(user._id, { $inc: { balance: battle.entryFee }, $set: { currentBattleId: null } });
+                // Возвращаем взнос И попытку — бой так и не начался
+                await User.findByIdAndUpdate(user._id, {
+                    $inc: { balance: battle.entryFee },
+                    $set: { currentBattleId: null }
+                });
+                await User.updateOne(
+                    { _id: user._id, arenaBattlesLeft: { $lt: MAX_ARENA_BATTLES } },
+                    { $inc: { arenaBattlesLeft: 1 } }
+                );
                 battle.status = 'expired';
                 await battle.save();
             } else {
@@ -2490,9 +2497,13 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             return res.status(400).json(result);
         }
 
-        // Списываем бой после успешного входа в очередь
-        await User.updateOne({ _id: user._id }, { $inc: { arenaBattlesLeft: -1 } });
-        const battlesLeftAfter = battlesLeft - 1;
+        // Списываем попытку ТОЛЬКО когда найден соперник (бой начинается)
+        // Если игрок просто встал в очередь (isNew=true) — не списываем
+        let battlesLeftAfter = battlesLeft;
+        if (!result.isNew) {
+            await User.updateOne({ _id: user._id }, { $inc: { arenaBattlesLeft: -1 } });
+            battlesLeftAfter = battlesLeft - 1;
+        }
         
         if (!result.isNew) {
             arenaSocketManager.send(result.battle.player1Id, 'match_found', {
@@ -2548,7 +2559,14 @@ app.get('/api/arena/battle/status', authMiddleware, async (req, res) => {
         if (['waiting', 'pending_confirmation'].includes(battle.status) && battle.expiresAt < new Date()) {
             battle.status = 'expired';
             await battle.save();
-            await User.updateOne({ _id: user._id }, { $set: { currentBattleId: null, arenaCooldownUntil: null } });
+            // Возвращаем попытку — бой истёк до начала
+            await User.updateOne({ _id: user._id }, {
+                $set: { currentBattleId: null, arenaCooldownUntil: null }
+            });
+            await User.updateOne(
+                { _id: user._id, arenaBattlesLeft: { $lt: MAX_ARENA_BATTLES } },
+                { $inc: { arenaBattlesLeft: 1 } }
+            );
             return res.json({ success: true, hasBattle: false, expired: true });
         }
         
