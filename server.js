@@ -3577,6 +3577,91 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
     }
 });
 
+// ============================================================
+// ADMIN SPECIAL QUESTS CRUD
+// ============================================================
+app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const config = await GameConfig.findOne();
+        res.json({ success: true, specialQuests: config?.specialQuests || [] });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { id, title, description, icon, reward, type, link, required_count, isActive } = req.body;
+        if (!id || !title || !type) return res.status(400).json({ success: false, message: 'id, title и type обязательны' });
+
+        let config = await GameConfig.findOne();
+        if (!config) config = new GameConfig();
+
+        if (config.specialQuests.find(q => q.id === id)) {
+            return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
+        }
+
+        config.specialQuests.push({ id, title, description, icon, reward: Number(reward) || 0, type, link, required_count: Number(required_count) || 0, isActive: isActive !== false });
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: config.specialQuests });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
+
+        let config = await GameConfig.findOne();
+        if (!config) return res.status(404).json({ success: false, message: 'Config не найден' });
+
+        const idx = config.specialQuests.findIndex(q => q.id === questId);
+        if (idx === -1) return res.status(404).json({ success: false, message: 'Квест не найден' });
+
+        const q = config.specialQuests[idx];
+        if (title !== undefined) q.title = title;
+        if (description !== undefined) q.description = description;
+        if (icon !== undefined) q.icon = icon;
+        if (reward !== undefined) q.reward = Number(reward);
+        if (type !== undefined) q.type = type;
+        if (link !== undefined) q.link = link;
+        if (required_count !== undefined) q.required_count = Number(required_count);
+        if (isActive !== undefined) q.isActive = isActive;
+
+        config.markModified('specialQuests');
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: config.specialQuests });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        let config = await GameConfig.findOne();
+        if (!config) return res.status(404).json({ success: false, message: 'Config не найден' });
+
+        const before = config.specialQuests.length;
+        config.specialQuests = config.specialQuests.filter(q => q.id !== questId);
+        if (config.specialQuests.length === before) return res.status(404).json({ success: false, message: 'Квест не найден' });
+
+        config.markModified('specialQuests');
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: config.specialQuests });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 app.post('/api/admin/give-to-all', adminAuthMiddleware, async (req, res) => {
     try {
         const { type, amount, creatureId } = req.body;
