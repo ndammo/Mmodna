@@ -3582,7 +3582,7 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
 // ============================================================
 app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
     try {
-        const config = await GameConfig.findOne();
+        const config = await getGameConfig();
         res.json({ success: true, specialQuests: config?.specialQuests || [] });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
@@ -3594,19 +3594,22 @@ app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
         const { id, title, description, icon, reward, type, link, required_count, isActive } = req.body;
         if (!id || !title || !type) return res.status(400).json({ success: false, message: 'id, title и type обязательны' });
 
+        // Берём живой документ из БД (не кэш)
         let config = await GameConfig.findOne();
-        if (!config) config = new GameConfig();
+        if (!config) config = await GameConfig.create({ specialQuests: [], capsuleCosts: { basic: 1000, premium: 6000 }, adReward: 50, adCooldown: 60, upgradeBaseCost: 300, upgradeMultiplier: 1.4, limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 } });
 
         if (config.specialQuests.find(q => q.id === id)) {
             return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
         }
 
-        config.specialQuests.push({ id, title, description, icon, reward: Number(reward) || 0, type, link, required_count: Number(required_count) || 0, isActive: isActive !== false });
+        config.specialQuests.push({ id, title: title.trim(), description: description || '', icon: icon || '🎯', reward: Number(reward) || 0, type, link: link || '', required_count: Number(required_count) || 0, isActive: isActive !== false });
+        config.markModified('specialQuests');
         config.updatedAt = new Date();
         await config.save();
         await invalidateConfigCache();
         res.json({ success: true, specialQuests: config.specialQuests });
     } catch (e) {
+        console.error('special-quests POST error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -3638,6 +3641,7 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         await invalidateConfigCache();
         res.json({ success: true, specialQuests: config.specialQuests });
     } catch (e) {
+        console.error('special-quests PUT error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -3658,6 +3662,7 @@ app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req
         await invalidateConfigCache();
         res.json({ success: true, specialQuests: config.specialQuests });
     } catch (e) {
+        console.error('special-quests DELETE error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
