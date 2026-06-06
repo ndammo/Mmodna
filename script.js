@@ -25,6 +25,8 @@ let state = {
     adsCooldown: 0,
     adsAvailable: 10,
     maxAdsPerDay: 10,
+    arenaBattlesLeft: 10,
+    maxArenaBattles: 10,
     isLoading: false,
     serverBalance: 0,
     lastServerSync: 0,
@@ -429,6 +431,21 @@ function updatePlayerInfo() {
     if (nameEl) nameEl.textContent = name.toUpperCase();
 }
 
+// ============================================================
+// ARENA LOCK
+// ============================================================
+function updateArenaLock() {
+    const lock = document.getElementById('arenaNavLock');
+    if (!lock) return;
+    const level = state.user?.level || 1;
+    if (level >= 5) {
+        lock.style.display = 'none';
+    } else {
+        lock.style.display = 'inline';
+        lock.title = `Доступно с 5 уровня (ваш: ${level})`;
+    }
+}
+
 function updateHeader() {
     if (!state.user) return;
     const u = state.user;
@@ -455,6 +472,7 @@ function updateHeader() {
 
     updateUpgradeButton();
     renderTransactions();
+    updateArenaLock();
 
     const friendCountDisplay = document.getElementById('friendCountDisplay');
     if (friendCountDisplay && state.user) friendCountDisplay.textContent = `${state.user.referralCount || 0} друзей 5+ уровня`;
@@ -1943,11 +1961,8 @@ function showBattleConfirmationModal(battleData) {
     modal.id = 'matchFoundModal';
     modal.className = 'match-found-modal';
     
-    const opponentName = battleData.opponent?.name || 'Игрок';
-    const opponentLevel = battleData.opponent?.level || '?';
-    const firstLetter = opponentName.charAt(0).toUpperCase();
+    // Соперник скрыт до начала боя
     const leagueIcons = { bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎', diamond: '🏆' };
-    const opponentLeagueIcon = leagueIcons[battleData.opponentLeague] || '⚔️';
 
     const isPlayer1 = battleData.isPlayer1;
     const myConfirmed = isPlayer1 ? battleData.player1Confirmed : battleData.player2Confirmed;
@@ -1961,12 +1976,12 @@ function showBattleConfirmationModal(battleData) {
             </div>
             <div class="match-found-content">
                 <div class="opponent-info">
-                    <div class="opponent-avatar">${firstLetter}</div>
+                    <div class="opponent-avatar" style="letter-spacing:2px;font-size:14px;">???</div>
                     <div class="opponent-details">
-                        <div class="opponent-name">${escapeHtml(opponentName)}</div>
+                        <div class="opponent-name">?????</div>
                         <div class="opponent-level">
-                            <span>Уровень ${opponentLevel}</span>
-                            <span>${opponentLeagueIcon} ${getLeagueName(battleData.opponentLeague)} лига</span>
+                            <span>Уровень ???</span>
+                            <span>⚔️ Соперник найден</span>
                         </div>
                     </div>
                 </div>
@@ -1977,7 +1992,7 @@ function showBattleConfirmationModal(battleData) {
                         <span id="myConfirmStatus" class="${myConfirmed ? 'confirm-yes' : 'confirm-wait'}">${myConfirmed ? '✅ Принял' : '⏳ Ожидание'}</span>
                     </div>
                     <div class="confirm-row">
-                        <span>${escapeHtml(opponentName)}:</span>
+                        <span>Соперник:</span>
                         <span id="opponentConfirmStatus" class="${opponentConfirmed ? 'confirm-yes' : 'confirm-wait'}">${opponentConfirmed ? '✅ Принял' : '⏳ Ожидание'}</span>
                     </div>
                 </div>
@@ -2252,6 +2267,16 @@ async function findMatch() {
         showToast('Сначала сохраните команду из 3 питомцев', '⚠️'); 
         return; 
     }
+
+    if ((state.user?.level || 1) < 5) {
+        showToast('Арена доступна с 5 уровня', '🔒');
+        return;
+    }
+
+    if (state.arenaBattlesLeft <= 0) {
+        showToast('Нет доступных боёв. Восстановление через час.', '⚔️');
+        return;
+    }
     
     findingMatch = true;
     try {
@@ -2273,8 +2298,17 @@ async function findMatch() {
                 findBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Найти бой'; 
             }
             if (searchStatus) searchStatus.innerHTML = '';
-        } else if (res.isNew && searchStatus) {
-            searchStatus.innerHTML = '⏳ В очереди поиска... <button onclick="cancelBattleSearch()" style="margin-left:8px;background:#ef4444;color:#fff;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;">✕ Отменить</button>';
+        } else {
+            // Обновляем счётчик боёв из ответа сервера
+            if (res.battlesLeft !== undefined) {
+                state.arenaBattlesLeft = res.battlesLeft;
+                state.maxArenaBattles = res.maxArenaBattles || 10;
+                const battlesEl = document.getElementById('arenaBattlesLeft');
+                if (battlesEl) battlesEl.textContent = `${state.arenaBattlesLeft}/${state.maxArenaBattles}`;
+            }
+            if (res.isNew && searchStatus) {
+                searchStatus.innerHTML = '⏳ В очереди поиска... <button onclick="cancelBattleSearch()" style="margin-left:8px;background:#ef4444;color:#fff;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px;">✕ Отменить</button>';
+            }
         }
     } finally {
         findingMatch = false;
@@ -2520,6 +2554,17 @@ async function renderArenaFightTab() {
             } catch (err) {
                 console.error('Ошибка получения лиги:', err);
             }
+
+            // Счётчик боёв арены
+            try {
+                const battlesRes = await apiRequest('GET', '/api/arena/battles-status');
+                if (battlesRes?.success) {
+                    state.arenaBattlesLeft = battlesRes.battlesLeft;
+                    state.maxArenaBattles = battlesRes.maxArenaBattles || 10;
+                }
+            } catch (err) { /* тихо, некритично */ }
+            const battlesEl = document.getElementById('arenaBattlesLeft');
+            if (battlesEl) battlesEl.textContent = `${state.arenaBattlesLeft}/${state.maxArenaBattles}`;
             
             const teamRes = await apiRequest('GET', '/api/arena/team');
             if (teamRes?.success && teamRes.team) {
@@ -2992,6 +3037,12 @@ function switchTab(tab) {
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
     if (tab === 'arena') {
+        const userLevel = state.user?.level || 1;
+        if (userLevel < 5) {
+            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
+            switchTab('game');
+            return;
+        }
         if (arenaClient && state.token && !arenaClient.isConnected()) {
             arenaClient.connectSocket(state.token, API_URL);
         }

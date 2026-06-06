@@ -40,6 +40,19 @@
     l();
   }();
 </script>
+    <style>
+        .nav-lock {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 10px;
+            line-height: 1;
+            pointer-events: none;
+        }
+        #nav-arena {
+            position: relative;
+        }
+    </style>
 </head>
 
 <body ondragstart="return false" oncontextmenu="return false" onselectstart="return false">
@@ -523,6 +536,7 @@
     <div class="nav-item" onclick="switchTab('arena')" id="nav-arena">
         <i class="fa-solid fa-shield-halved"></i>
         <span>Арена</span>
+        <span class="nav-lock" id="arenaNavLock">🔒</span>
     </div>
     <div class="nav-item" onclick="switchTab('wallet')" id="nav-wallet">
         <i class="fa-solid fa-wallet"></i>

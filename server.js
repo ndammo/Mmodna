@@ -58,6 +58,9 @@ const MIN_MARKETPLACE_PRICE = 500;
 const MAX_COMMON_PRICE = 1100;  // ЗАЩИТА ОТ ФАРМА
 const MAX_ADS_AVAILABLE = 10;
 const ADS_REGEN_INTERVAL = 60 * 60 * 1000;
+
+const MAX_ARENA_BATTLES = 10;
+const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000; // +1 бой каждый час
 const REFERRAL_BONUS_PERCENT = 2;
 
 // ============================================
@@ -169,6 +172,8 @@ const UserSchema = new mongoose.Schema({
     }],
     adsAvailable: { type: Number, default: MAX_ADS_AVAILABLE },
     adsLastRegen: { type: Date, default: Date.now },
+    arenaBattlesLeft: { type: Number, default: MAX_ARENA_BATTLES },
+    arenaLastBattleRegen: { type: Date, default: Date.now },
     adsCooldownUntil: { type: Date, default: null },
     lastPassiveIncome: { type: Date, default: Date.now },
     referralCode: { type: String, unique: true, sparse: true },
@@ -929,6 +934,31 @@ async function regenerateAds(user) {
     user.adsAvailable = newCount;
     user.adsLastRegen = newLastRegen;
     
+    return newCount;
+}
+
+// ============================================
+// РЕГЕНЕРАЦИЯ БОЁВ АРЕНЫ
+// ============================================
+async function regenerateArenaBattles(user) {
+    const now = Date.now();
+    const lastRegen = user.arenaLastBattleRegen ? new Date(user.arenaLastBattleRegen).getTime() : now;
+    const hoursPassed = Math.floor((now - lastRegen) / ARENA_BATTLE_REGEN_INTERVAL);
+
+    if (hoursPassed <= 0) return user.arenaBattlesLeft ?? MAX_ARENA_BATTLES;
+
+    const current = user.arenaBattlesLeft ?? MAX_ARENA_BATTLES;
+    const newCount = Math.min(MAX_ARENA_BATTLES, current + hoursPassed);
+    const newLastRegen = new Date(lastRegen + (hoursPassed * ARENA_BATTLE_REGEN_INTERVAL));
+
+    await User.updateOne(
+        { _id: user._id },
+        { $set: { arenaBattlesLeft: newCount, arenaLastBattleRegen: newLastRegen } }
+    );
+
+    user.arenaBattlesLeft = newCount;
+    user.arenaLastBattleRegen = newLastRegen;
+
     return newCount;
 }
 
@@ -2419,6 +2449,10 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
         if (arenaTeam.length !== 3) {
             return res.status(400).json({ success: false, message: 'Сначала выберите команду из 3 питомцев' });
         }
+
+        if ((user.level || 1) < 5) {
+            return res.status(403).json({ success: false, message: 'Арена доступна с 5 уровня' });
+        }
         
         if (user.currentBattleId) {
             const existingBattle = await ArenaBattle.findById(user.currentBattleId);
@@ -2431,37 +2465,51 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             const secondsLeft = Math.ceil((new Date(user.arenaCooldownUntil) - new Date()) / 1000);
             return res.status(400).json({ success: false, message: `Подождите ${secondsLeft} секунд перед следующим боем` });
         }
-        
+
+        // --- ЛИМИТ БОЁВ АРЕНЫ ---
+        await regenerateArenaBattles(user);
+        const battlesLeft = user.arenaBattlesLeft ?? MAX_ARENA_BATTLES;
+        if (battlesLeft <= 0) {
+            const now = Date.now();
+            const lastRegen = user.arenaLastBattleRegen ? new Date(user.arenaLastBattleRegen).getTime() : now;
+            const msUntilNext = ARENA_BATTLE_REGEN_INTERVAL - ((now - lastRegen) % ARENA_BATTLE_REGEN_INTERVAL);
+            const minsLeft = Math.ceil(msUntilNext / 60000);
+            return res.status(400).json({
+                success: false,
+                message: `Нет доступных боёв. Следующий через ${minsLeft} мин.`,
+                battlesLeft: 0,
+                nextRegenMinutes: minsLeft
+            });
+        }
+        // --- /ЛИМИТ БОЁВ АРЕНЫ ---
+
         const result = await arenaManager.findMatch(user, arenaTeam);
-        
+
         if (!result.success) {
             return res.status(400).json(result);
         }
-        
-        const player1 = await User.findById(result.battle.player1Id).select('username firstName level');
-        const player2 = result.battle.player2Id ? await User.findById(result.battle.player2Id).select('username firstName level') : null;
+
+        // Списываем бой после успешного входа в очередь
+        await User.updateOne({ _id: user._id }, { $inc: { arenaBattlesLeft: -1 } });
+        const battlesLeftAfter = battlesLeft - 1;
         
         if (!result.isNew) {
             arenaSocketManager.send(result.battle.player1Id, 'match_found', {
                 battleId: result.battle._id,
                 status: 'pending_confirmation',
                 isPlayer1: true,
-                opponent: { name: player2?.username || player2?.firstName || 'Игрок', level: player2?.level },
                 prizePool: result.battle.prizePool,
                 entryFee: result.entryFee,
-                myTeam: result.battle.player1Team,
-                opponentTeam: result.battle.player2Team
+                myTeam: result.battle.player1Team
             });
             
             arenaSocketManager.send(result.battle.player2Id, 'match_found', {
                 battleId: result.battle._id,
                 status: 'pending_confirmation',
                 isPlayer1: false,
-                opponent: { name: player1?.username || player1?.firstName || 'Игрок', level: player1?.level },
                 prizePool: result.battle.prizePool,
                 entryFee: result.entryFee,
-                myTeam: result.battle.player2Team,
-                opponentTeam: result.battle.player1Team
+                myTeam: result.battle.player2Team
             });
         }
         
@@ -2469,6 +2517,8 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             success: true,
             battle: result.battle,
             isNew: result.isNew,
+            battlesLeft: battlesLeftAfter,
+            maxArenaBattles: MAX_ARENA_BATTLES,
             message: result.isNew ? 'Поиск соперника...' : 'Соперник найден! Ожидайте подтверждения.'
         });
     } catch (e) {
@@ -2503,6 +2553,8 @@ app.get('/api/arena/battle/status', authMiddleware, async (req, res) => {
         
         const isPlayer1 = battle.player1Id.toString() === user._id.toString();
         
+        const isActive = battle.status === 'active';
+
         const response = {
             success: true,
             hasBattle: true,
@@ -2518,15 +2570,22 @@ app.get('/api/arena/battle/status', authMiddleware, async (req, res) => {
             turnCount: battle.turnCount,
             lastMoveAt: battle.lastMoveAt,
             myTeam: isPlayer1 ? battle.player1Team : battle.player2Team,
-            opponentTeam: isPlayer1 ? battle.player2Team : battle.player1Team,
+            // opponentTeam и opponent раскрываем только когда бой активен
+            opponentTeam: isActive ? (isPlayer1 ? battle.player2Team : battle.player1Team) : undefined,
             battleLog: battle.battleLog ? battle.battleLog.slice(-20) : []
         };
-        
-        if (battle.status === 'active') {
+
+        if (isActive) {
             const timeSinceLastMove = (Date.now() - new Date(battle.lastMoveAt).getTime()) / 1000;
             response.timeLeft = Math.max(0, 30 - Math.floor(timeSinceLastMove));
+            // Имя соперника только в активном бою
+            const opponentId = isPlayer1 ? battle.player2Id : battle.player1Id;
+            if (opponentId) {
+                const opp = await User.findById(opponentId).select('username firstName level').lean();
+                response.opponent = { name: opp?.username || opp?.firstName || 'Соперник', level: opp?.level };
+            }
         }
-        
+
         return res.json(response);
         
     } catch (e) {
@@ -2557,7 +2616,7 @@ app.post('/api/arena/accept-match', authMiddleware, async (req, res) => {
                 currentTurn: battle.currentTurn,
                 myTeam: battle.player1Team,
                 opponentTeam: battle.player2Team,
-                opponent: { name: player2?.username || player2?.firstName, level: player2?.level },
+                opponent: { name: player2?.username || player2?.firstName || 'Соперник', level: player2?.level },
                 prizePool: battle.prizePool,
                 entryFee: battle.entryFee,
                 battleLog: battle.battleLog,
@@ -2571,7 +2630,7 @@ app.post('/api/arena/accept-match', authMiddleware, async (req, res) => {
                 currentTurn: battle.currentTurn,
                 myTeam: battle.player2Team,
                 opponentTeam: battle.player1Team,
-                opponent: { name: player1?.username || player1?.firstName, level: player1?.level },
+                opponent: { name: player1?.username || player1?.firstName || 'Соперник', level: player1?.level },
                 prizePool: battle.prizePool,
                 entryFee: battle.entryFee,
                 battleLog: battle.battleLog,
@@ -2700,6 +2759,25 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
         res.json(result);
     } catch (e) {
         console.error('arena surrender error:', e);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.get('/api/arena/battles-status', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user;
+        await regenerateArenaBattles(user);
+        const battlesLeft = user.arenaBattlesLeft ?? MAX_ARENA_BATTLES;
+        const now = Date.now();
+        const lastRegen = user.arenaLastBattleRegen ? new Date(user.arenaLastBattleRegen).getTime() : now;
+        const msUntilNext = ARENA_BATTLE_REGEN_INTERVAL - ((now - lastRegen) % ARENA_BATTLE_REGEN_INTERVAL);
+        res.json({
+            success: true,
+            battlesLeft,
+            maxArenaBattles: MAX_ARENA_BATTLES,
+            nextRegenMinutes: battlesLeft < MAX_ARENA_BATTLES ? Math.ceil(msUntilNext / 60000) : 0
+        });
+    } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
