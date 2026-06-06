@@ -434,6 +434,28 @@ function updatePlayerInfo() {
 // ============================================================
 // ARENA LOCK
 // ============================================================
+function showArenaClosedModal() {
+    const overlay = document.getElementById('overlay');
+    const popup = document.getElementById('popup');
+    if (!overlay || !popup) return;
+    popup.innerHTML = `
+        <div style="text-align:center;padding:8px">
+            <div style="font-size:48px;margin-bottom:12px">⏰</div>
+            <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">Арена закрыта</div>
+            <div style="font-size:14px;color:#94a3b8;margin-bottom:16px;line-height:1.5">
+                Арена работает по расписанию<br>
+                <span style="color:#a78bfa;font-weight:600">10:00 – 11:00</span> и <span style="color:#a78bfa;font-weight:600">20:00 – 21:00</span><br>(UTC+3)
+            </div>
+            <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:12px;margin-bottom:20px">
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">До открытия</div>
+                <div style="font-size:24px;font-weight:700;color:#a78bfa">${arenaNextOpenText()}</div>
+            </div>
+            <button onclick="closeOverlay()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Понятно</button>
+        </div>
+    `;
+    overlay.style.display = 'flex';
+}
+
 // Расписание арены (UTC+3)
 const ARENA_SCHEDULE_CLIENT = [[10, 11], [20, 21]];
 
@@ -2301,7 +2323,7 @@ async function findMatch() {
     }
 
     if (!isArenaOpenClient()) {
-        showToast(`Арена закрыта. До открытия: ${arenaNextOpenText()}`, '⏰');
+        showArenaClosedModal();
         return;
     }
 
@@ -3076,8 +3098,7 @@ function switchTab(tab) {
             return;
         }
         if (!isArenaOpenClient()) {
-            showToast(`Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3). До открытия: ${arenaNextOpenText()}`, '⏰');
-            switchTab('game');
+            showArenaClosedModal();
             return;
         }
         if (arenaClient && state.token && !arenaClient.isConnected()) {
