@@ -85,9 +85,8 @@ function nextArenaOpenIn() {
     const mins = Math.min(...minutesUntil);
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    return h > 0 ? \`\${h}ч \${m}мин\` : \`\${m}мин\`;
+    return h > 0 ? (h + 'ч ' + m + 'мин') : (m + 'мин');
 }
-const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000; // +1 бой каждый час
 const REFERRAL_BONUS_PERCENT = 2;
 
 // ============================================
