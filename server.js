@@ -726,9 +726,11 @@ async function getGameConfig() {
         return cachedConfig;
     }
     
-    let config = await GameConfig.findOne();
-    if (!config) {
-        config = await GameConfig.create({
+    // Читаем через нативный драйвер — видим все изменения включая сделанные нативным driver
+    const col = mongoose.connection.db.collection('gameconfigs');
+    let doc = await col.findOne({});
+    if (!doc) {
+        await col.insertOne({
             capsuleCosts: { basic: 1000, premium: 6000 },
             capsuleRarities: {
                 basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
@@ -739,14 +741,16 @@ async function getGameConfig() {
             upgradeBaseCost: 300,
             upgradeMultiplier: 1.4,
             specialQuests: [],
-            limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 }
+            limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 },
+            updatedAt: new Date()
         });
-        console.log('✅ Созданы настройки игры по умолчанию (как в первой версии)');
+        doc = await col.findOne({});
+        console.log('✅ Созданы настройки игры по умолчанию');
     }
-    
-    cachedConfig = config;
+
+    cachedConfig = doc;
     configCacheTime = now;
-    return config;
+    return doc;
 }
 
 async function invalidateConfigCache() {
@@ -3604,8 +3608,10 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
 // ============================================================
 app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
     try {
-        const config = await getGameConfig();
-        res.json({ success: true, specialQuests: config?.specialQuests || [] });
+        // Читаем напрямую из БД — минуя кэш и Mongoose
+        const col = mongoose.connection.db.collection('gameconfigs');
+        const doc = await col.findOne({});
+        res.json({ success: true, specialQuests: doc?.specialQuests || [] });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
