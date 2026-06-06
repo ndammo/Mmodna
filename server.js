@@ -1064,7 +1064,7 @@ app.get('/api/game/config', async (req, res) => {
                 upgradeBaseCost: config.upgradeBaseCost,
                 upgradeMultiplier: config.upgradeMultiplier,
                 limits: config.limits,
-                specialQuests: config.specialQuests.filter(q => q.isActive),
+                specialQuests: (config.specialQuests || []).filter(q => q && typeof q === 'object' && q.isActive),
                 marketplace: { minPrice: MIN_MARKETPLACE_PRICE, maxActiveListings: MAX_ACTIVE_LISTINGS }
             }
         });
