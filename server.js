@@ -128,7 +128,6 @@ mongoose.connect(process.env.MONGODB_URI, {
 async function createIndexes() {
     try {
         await User.collection.createIndex({ level: -1, xp: -1 });
-        await User.collection.createIndex({ telegramId: 1 });
         await User.collection.createIndex({ referralCode: 1 });
         await User.collection.createIndex({ referredBy: 1 });
         await User.collection.createIndex({ lastLogin: -1 });
