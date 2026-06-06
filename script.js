@@ -3079,6 +3079,19 @@ async function renderArenaHistory() {
 // NAVIGATION
 // ============================================================
 function switchTab(tab) {
+    // Проверки ПЕРЕД переключением DOM
+    if (tab === 'arena') {
+        const userLevel = state.user?.level || 1;
+        if (userLevel < 5) {
+            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
+            return;
+        }
+        if (!isArenaOpenClient()) {
+            showArenaClosedModal();
+            return;
+        }
+    }
+
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
@@ -3091,16 +3104,6 @@ function switchTab(tab) {
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
     if (tab === 'arena') {
-        const userLevel = state.user?.level || 1;
-        if (userLevel < 5) {
-            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
-            switchTab('game');
-            return;
-        }
-        if (!isArenaOpenClient()) {
-            showArenaClosedModal();
-            return;
-        }
         if (arenaClient && state.token && !arenaClient.isConnected()) {
             arenaClient.connectSocket(state.token, API_URL);
         }
