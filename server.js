@@ -3594,20 +3594,31 @@ app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
         const { id, title, description, icon, reward, type, link, required_count, isActive } = req.body;
         if (!id || !title || !type) return res.status(400).json({ success: false, message: 'id, title и type обязательны' });
 
-        // Берём живой документ из БД (не кэш)
-        let config = await GameConfig.findOne();
-        if (!config) config = await GameConfig.create({ specialQuests: [], capsuleCosts: { basic: 1000, premium: 6000 }, adReward: 50, adCooldown: 60, upgradeBaseCost: 300, upgradeMultiplier: 1.4, limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 } });
+        const newQuest = {
+            id: String(id),
+            title: String(title).trim(),
+            description: String(description || ''),
+            icon: String(icon || '🎯'),
+            reward: Number(reward) || 0,
+            type: String(type),
+            link: String(link || ''),
+            required_count: Number(required_count) || 0,
+            isActive: isActive !== false
+        };
 
-        if (config.specialQuests.find(q => q.id === id)) {
-            return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
-        }
+        // Проверяем дубликат
+        const existing = await GameConfig.findOne({ 'specialQuests.id': newQuest.id });
+        if (existing) return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
 
-        config.specialQuests.push({ id, title: title.trim(), description: description || '', icon: icon || '🎯', reward: Number(reward) || 0, type, link: link || '', required_count: Number(required_count) || 0, isActive: isActive !== false });
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
+        // Используем $push напрямую — обходим проблемы с кастом
+        const updated = await GameConfig.findOneAndUpdate(
+            {},
+            { $push: { specialQuests: newQuest }, $set: { updatedAt: new Date() } },
+            { new: true, upsert: true }
+        );
+
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: config.specialQuests });
+        res.json({ success: true, specialQuests: updated.specialQuests });
     } catch (e) {
         console.error('special-quests POST error:', e);
         res.status(500).json({ success: false, message: e.message });
@@ -3619,27 +3630,26 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         const { questId } = req.params;
         const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
 
-        let config = await GameConfig.findOne();
-        if (!config) return res.status(404).json({ success: false, message: 'Config не найден' });
+        const setFields = {};
+        if (title !== undefined) setFields['specialQuests.$.title'] = String(title);
+        if (description !== undefined) setFields['specialQuests.$.description'] = String(description);
+        if (icon !== undefined) setFields['specialQuests.$.icon'] = String(icon);
+        if (reward !== undefined) setFields['specialQuests.$.reward'] = Number(reward);
+        if (type !== undefined) setFields['specialQuests.$.type'] = String(type);
+        if (link !== undefined) setFields['specialQuests.$.link'] = String(link);
+        if (required_count !== undefined) setFields['specialQuests.$.required_count'] = Number(required_count);
+        if (isActive !== undefined) setFields['specialQuests.$.isActive'] = Boolean(isActive);
+        setFields['updatedAt'] = new Date();
 
-        const idx = config.specialQuests.findIndex(q => q.id === questId);
-        if (idx === -1) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const updated = await GameConfig.findOneAndUpdate(
+            { 'specialQuests.id': questId },
+            { $set: setFields },
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
 
-        const q = config.specialQuests[idx];
-        if (title !== undefined) q.title = title;
-        if (description !== undefined) q.description = description;
-        if (icon !== undefined) q.icon = icon;
-        if (reward !== undefined) q.reward = Number(reward);
-        if (type !== undefined) q.type = type;
-        if (link !== undefined) q.link = link;
-        if (required_count !== undefined) q.required_count = Number(required_count);
-        if (isActive !== undefined) q.isActive = isActive;
-
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: config.specialQuests });
+        res.json({ success: true, specialQuests: updated.specialQuests });
     } catch (e) {
         console.error('special-quests PUT error:', e);
         res.status(500).json({ success: false, message: e.message });
@@ -3649,18 +3659,16 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
 app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
     try {
         const { questId } = req.params;
-        let config = await GameConfig.findOne();
-        if (!config) return res.status(404).json({ success: false, message: 'Config не найден' });
 
-        const before = config.specialQuests.length;
-        config.specialQuests = config.specialQuests.filter(q => q.id !== questId);
-        if (config.specialQuests.length === before) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const updated = await GameConfig.findOneAndUpdate(
+            { 'specialQuests.id': questId },
+            { $pull: { specialQuests: { id: questId } }, $set: { updatedAt: new Date() } },
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
 
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: config.specialQuests });
+        res.json({ success: true, specialQuests: updated.specialQuests });
     } catch (e) {
         console.error('special-quests DELETE error:', e);
         res.status(500).json({ success: false, message: e.message });
