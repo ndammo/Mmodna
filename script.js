@@ -453,7 +453,7 @@ function showArenaClosedModal() {
             <button onclick="closeOverlay()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Понятно</button>
         </div>
     `;
-    overlay.style.display = 'flex';
+    document.getElementById('overlay').classList.add('show');
 }
 
 // Расписание арены (UTC+3)
