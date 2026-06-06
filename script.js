@@ -687,7 +687,7 @@ function showMergePreview(creatureId) {
     const nextCreature = CREATURES.find(c => c.name === creature.name && c.rarity === nextRarity) || creature;
     const color = RARITY_COLORS[creature.rarity];
 
-    const MERGE_CHANCES = { common: 30, uncommon: 30, rare: 30, epic: 10, legendary: 5 };
+    const MERGE_CHANCES = { common: 30, uncommon: 30, rare: 10, epic: 5, legendary: 5 };
     const successChance = MERGE_CHANCES[creature.rarity] ?? 30;
     const failChance = 100 - successChance;
 
@@ -858,15 +858,36 @@ async function watchAd() {
     showToast('Загрузка рекламы...', '📺');
 
     try {
+        // Ждём SDK до 8 секунд (медленный интернет)
         let waited = 0;
-        while (typeof window.showGiga !== 'function' && waited < 3000) {
-            await new Promise(r => setTimeout(r, 100));
-            waited += 100;
+        while (typeof window.showGiga !== 'function' && waited < 8000) {
+            await new Promise(r => setTimeout(r, 200));
+            waited += 200;
         }
 
-        if (typeof window.showGiga !== 'function') throw new Error('Рекламный SDK не загружен');
+        if (typeof window.showGiga !== 'function') {
+            showToast('Реклама недоступна. Отключите блокировщик рекламы.', '❌');
+            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+            if (timer) timer.textContent = 'Ready';
+            state.isLoading = false;
+            return;
+        }
 
-        await window.showGiga();
+        let adWatched = false;
+        try {
+            await window.showGiga();
+            adWatched = true;
+        } catch (adErr) {
+            console.error('showGiga error:', adErr);
+            // Пользователь закрыл рекламу или она не загрузилась
+            showToast('Реклама не загрузилась, попробуйте позже', '❌');
+            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+            if (timer) timer.textContent = 'Ready';
+            state.isLoading = false;
+            return;
+        }
+
+        if (!adWatched) return;
         
         const res = await apiRequest('POST', '/api/game/watch-ad');
 
@@ -896,7 +917,7 @@ async function watchAd() {
         
     } catch (e) {
         console.error('Ad error:', e);
-        showToast('Реклама не загрузилась, попробуйте ещё раз', '❌');
+        showToast('Ошибка рекламы, попробуйте позже', '❌');
         if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
         if (timer) timer.textContent = 'Ready';
     }
