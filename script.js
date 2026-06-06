@@ -434,15 +434,42 @@ function updatePlayerInfo() {
 // ============================================================
 // ARENA LOCK
 // ============================================================
+// Расписание арены (UTC+3)
+const ARENA_SCHEDULE_CLIENT = [[10, 11], [20, 21]];
+
+function isArenaOpenClient() {
+    const nowUTC = new Date();
+    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
+    return ARENA_SCHEDULE_CLIENT.some(([s, e]) => hourUTC3 >= s && hourUTC3 < e);
+}
+
+function arenaNextOpenText() {
+    const nowUTC = new Date();
+    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
+    const minUTC3 = nowUTC.getUTCMinutes();
+    const mins = Math.min(...ARENA_SCHEDULE_CLIENT.map(([s]) => {
+        let d = (s - hourUTC3) * 60 - minUTC3;
+        if (d <= 0) d += 24 * 60;
+        return d;
+    }));
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h > 0 ? `${h}ч ${m}мин` : `${m}мин`;
+}
+
 function updateArenaLock() {
     const lock = document.getElementById('arenaNavLock');
     if (!lock) return;
     const level = state.user?.level || 1;
-    if (level >= 5) {
-        lock.style.display = 'none';
-    } else {
+    if (level < 5) {
         lock.style.display = 'inline';
+        lock.textContent = '🔒';
         lock.title = `Доступно с 5 уровня (ваш: ${level})`;
+    } else if (!isArenaOpenClient()) {
+        lock.style.display = 'inline';
+        lock.textContent = '⏰';
+        lock.title = `Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3)`;
+    } else {
+        lock.style.display = 'none';
     }
 }
 
@@ -687,10 +714,6 @@ function showMergePreview(creatureId) {
     const nextCreature = CREATURES.find(c => c.name === creature.name && c.rarity === nextRarity) || creature;
     const color = RARITY_COLORS[creature.rarity];
 
-    const MERGE_CHANCES = { common: 30, uncommon: 30, rare: 10, epic: 5, legendary: 5 };
-    const successChance = MERGE_CHANCES[creature.rarity] ?? 30;
-    const failChance = 100 - successChance;
-
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <div class="popup-title" style="margin-bottom:4px">Предпросмотр Слияния</div>
@@ -704,10 +727,10 @@ function showMergePreview(creatureId) {
             <div style="border-top:1px solid #1e2d4a;padding-top:14px">
                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Возможные результаты</div>
                 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
-                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(nextCreature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#22c55e">${successChance}% Успех</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#22c55e">▲ ПОВЫШЕНИЕ</div></div>
+                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(nextCreature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#22c55e">30% Успех</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#22c55e">▲ ПОВЫШЕНИЕ</div></div>
                 </div>
                 <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px">
-                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(creature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#ef4444">${failChance}% Провал</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#ef4444">= БЕЗ ИЗМЕНЕНИЙ</div></div>
+                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(creature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#ef4444">70% Провал</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#ef4444">= БЕЗ ИЗМЕНЕНИЙ</div></div>
                 </div>
             </div>
         </div>
@@ -858,36 +881,15 @@ async function watchAd() {
     showToast('Загрузка рекламы...', '📺');
 
     try {
-        // Ждём SDK до 8 секунд (медленный интернет)
         let waited = 0;
-        while (typeof window.showGiga !== 'function' && waited < 8000) {
-            await new Promise(r => setTimeout(r, 200));
-            waited += 200;
+        while (typeof window.showGiga !== 'function' && waited < 3000) {
+            await new Promise(r => setTimeout(r, 100));
+            waited += 100;
         }
 
-        if (typeof window.showGiga !== 'function') {
-            showToast('Реклама недоступна. Отключите блокировщик рекламы.', '❌');
-            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-            if (timer) timer.textContent = 'Ready';
-            state.isLoading = false;
-            return;
-        }
+        if (typeof window.showGiga !== 'function') throw new Error('Рекламный SDK не загружен');
 
-        let adWatched = false;
-        try {
-            await window.showGiga();
-            adWatched = true;
-        } catch (adErr) {
-            console.error('showGiga error:', adErr);
-            // Пользователь закрыл рекламу или она не загрузилась
-            showToast('Реклама не загрузилась, попробуйте позже', '❌');
-            if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
-            if (timer) timer.textContent = 'Ready';
-            state.isLoading = false;
-            return;
-        }
-
-        if (!adWatched) return;
+        await window.showGiga();
         
         const res = await apiRequest('POST', '/api/game/watch-ad');
 
@@ -917,7 +919,7 @@ async function watchAd() {
         
     } catch (e) {
         console.error('Ad error:', e);
-        showToast('Ошибка рекламы, попробуйте позже', '❌');
+        showToast('Реклама не загрузилась, попробуйте ещё раз', '❌');
         if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
         if (timer) timer.textContent = 'Ready';
     }
@@ -2298,6 +2300,11 @@ async function findMatch() {
         return;
     }
 
+    if (!isArenaOpenClient()) {
+        showToast(`Арена закрыта. До открытия: ${arenaNextOpenText()}`, '⏰');
+        return;
+    }
+
     if (state.arenaBattlesLeft <= 0) {
         showToast('Нет доступных боёв. Восстановление через час.', '⚔️');
         return;
@@ -3065,6 +3072,11 @@ function switchTab(tab) {
         const userLevel = state.user?.level || 1;
         if (userLevel < 5) {
             showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
+            switchTab('game');
+            return;
+        }
+        if (!isArenaOpenClient()) {
+            showToast(`Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3). До открытия: ${arenaNextOpenText()}`, '⏰');
             switchTab('game');
             return;
         }

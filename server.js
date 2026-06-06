@@ -60,6 +60,33 @@ const MAX_ADS_AVAILABLE = 10;
 const ADS_REGEN_INTERVAL = 60 * 60 * 1000;
 
 const MAX_ARENA_BATTLES = 10;
+const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000;
+
+// Расписание арены (UTC+3): [startHour, endHour]
+const ARENA_SCHEDULE = [[10, 11], [20, 21]];
+
+function isArenaOpen() {
+    const nowUTC = new Date();
+    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
+    return ARENA_SCHEDULE.some(([start, end]) => hourUTC3 >= start && hourUTC3 < end);
+}
+
+function nextArenaOpenIn() {
+    const nowUTC = new Date();
+    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
+    const minUTC3 = nowUTC.getUTCMinutes();
+    // Ищем ближайшее окно
+    const allStarts = ARENA_SCHEDULE.map(([s]) => s);
+    const minutesUntil = allStarts.map(start => {
+        let diff = (start - hourUTC3) * 60 - minUTC3;
+        if (diff <= 0) diff += 24 * 60;
+        return diff;
+    });
+    const mins = Math.min(...minutesUntil);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? \`\${h}ч \${m}мин\` : \`\${m}мин\`;
+}
 const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000; // +1 бой каждый час
 const REFERRAL_BONUS_PERCENT = 2;
 
@@ -726,11 +753,9 @@ async function getGameConfig() {
         return cachedConfig;
     }
     
-    // Читаем через нативный драйвер — видим все изменения включая сделанные нативным driver
-    const col = mongoose.connection.db.collection('gameconfigs');
-    let doc = await col.findOne({});
-    if (!doc) {
-        await col.insertOne({
+    let config = await GameConfig.findOne();
+    if (!config) {
+        config = await GameConfig.create({
             capsuleCosts: { basic: 1000, premium: 6000 },
             capsuleRarities: {
                 basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
@@ -741,16 +766,14 @@ async function getGameConfig() {
             upgradeBaseCost: 300,
             upgradeMultiplier: 1.4,
             specialQuests: [],
-            limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 },
-            updatedAt: new Date()
+            limits: { maxInventorySlots: 50, maxMarketplacePrice: 100000, maxLevel: 100 }
         });
-        doc = await col.findOne({});
-        console.log('✅ Созданы настройки игры по умолчанию');
+        console.log('✅ Созданы настройки игры по умолчанию (как в первой версии)');
     }
-
-    cachedConfig = doc;
+    
+    cachedConfig = config;
     configCacheTime = now;
-    return doc;
+    return config;
 }
 
 async function invalidateConfigCache() {
@@ -1063,7 +1086,7 @@ app.get('/api/game/config', async (req, res) => {
                 upgradeBaseCost: config.upgradeBaseCost,
                 upgradeMultiplier: config.upgradeMultiplier,
                 limits: config.limits,
-                specialQuests: (config.specialQuests || []).filter(q => q && q.isActive),
+                specialQuests: config.specialQuests.filter(q => q.isActive),
                 marketplace: { minPrice: MIN_MARKETPLACE_PRICE, maxActiveListings: MAX_ACTIVE_LISTINGS }
             }
         });
@@ -1540,7 +1563,7 @@ app.post('/api/game/merge', authMiddleware, async (req, res) => {
         }
 
         const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
-        const MERGE_CHANCES = { common: 0.3, uncommon: 0.3, rare: 0.10, epic: 0.05, legendary: 0.05 };
+        const MERGE_CHANCES = { common: 0.3, uncommon: 0.3, rare: 0.3, epic: 0.10, legendary: 0.05 };
         const mergeChance = MERGE_CHANCES[creature.rarity] ?? 0.3;
         const success = Math.random() < mergeChance;
 
@@ -2465,6 +2488,16 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
         if ((user.level || 1) < 5) {
             return res.status(403).json({ success: false, message: 'Арена доступна с 5 уровня' });
         }
+
+        if (!isArenaOpen()) {
+            const next = nextArenaOpenIn();
+            return res.status(403).json({
+                success: false,
+                message: `Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3). До открытия: ${next}`,
+                arenaSchedule: ARENA_SCHEDULE,
+                nextOpenIn: next
+            });
+        }
         
         if (user.currentBattleId) {
             const existingBattle = await ArenaBattle.findById(user.currentBattleId);
@@ -2725,13 +2758,11 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
         if (result.finished) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
-                const LEAGUE_PRIZE = { bronze: 350, silver: 800, gold: 1600, platinum: 3200, diamond: 8000 };
-                const prizePool = battle.prizePool || LEAGUE_PRIZE[battle.league] || 0;
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: result.winnerId?.toString(),
                     lastMove: result.lastMove,
-                    prizePool
+                    prizePool: battle.prizePool
                 });
             }
         } else {
@@ -2776,7 +2807,6 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
-                    prizePool: battle.prizePool || 0,
                     surrendered: true
                 });
             }
@@ -3599,96 +3629,6 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
         await invalidateConfigCache();
         res.json({ success: true, config });
     } catch (e) {
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-// ============================================================
-// ADMIN SPECIAL QUESTS CRUD
-// ============================================================
-app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
-    try {
-        // Читаем напрямую из БД — минуя кэш и Mongoose
-        const col = mongoose.connection.db.collection('gameconfigs');
-        const doc = await col.findOne({});
-        res.json({ success: true, specialQuests: doc?.specialQuests || [] });
-    } catch (e) {
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
-    try {
-        const { id, title, description, icon, reward, type, link, required_count, isActive } = req.body;
-        if (!id || !title || !type) return res.status(400).json({ success: false, message: 'id, title и type обязательны' });
-
-        const newQuest = {
-            id: String(id), title: String(title).trim(),
-            description: String(description || ''), icon: String(icon || '🎯'),
-            reward: Number(reward) || 0, type: String(type),
-            link: String(link || ''), required_count: Number(required_count) || 0,
-            isActive: isActive !== false
-        };
-
-        // Используем нативный драйвер — обходим Mongoose cast полностью
-        const col = mongoose.connection.db.collection('gameconfigs');
-        const existing = await col.findOne({ 'specialQuests.id': newQuest.id });
-        if (existing) return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
-
-        await col.updateOne(
-            {},
-            { $push: { specialQuests: newQuest }, $set: { updatedAt: new Date() } },
-            { upsert: true }
-        );
-        const doc = await col.findOne({});
-        await invalidateConfigCache();
-        res.json({ success: true, specialQuests: doc.specialQuests || [] });
-    } catch (e) {
-        console.error('special-quests POST error:', e);
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
-    try {
-        const { questId } = req.params;
-        const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
-        const setFields = { updatedAt: new Date() };
-        if (title !== undefined) setFields['specialQuests.$.title'] = String(title);
-        if (description !== undefined) setFields['specialQuests.$.description'] = String(description);
-        if (icon !== undefined) setFields['specialQuests.$.icon'] = String(icon);
-        if (reward !== undefined) setFields['specialQuests.$.reward'] = Number(reward);
-        if (type !== undefined) setFields['specialQuests.$.type'] = String(type);
-        if (link !== undefined) setFields['specialQuests.$.link'] = String(link);
-        if (required_count !== undefined) setFields['specialQuests.$.required_count'] = Number(required_count);
-        if (isActive !== undefined) setFields['specialQuests.$.isActive'] = Boolean(isActive);
-
-        const col = mongoose.connection.db.collection('gameconfigs');
-        const result = await col.updateOne({ 'specialQuests.id': questId }, { $set: setFields });
-        if (result.matchedCount === 0) return res.status(404).json({ success: false, message: 'Квест не найден' });
-        const doc = await col.findOne({});
-        await invalidateConfigCache();
-        res.json({ success: true, specialQuests: doc.specialQuests || [] });
-    } catch (e) {
-        console.error('special-quests PUT error:', e);
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
-    try {
-        const { questId } = req.params;
-        const col = mongoose.connection.db.collection('gameconfigs');
-        const result = await col.updateOne(
-            { 'specialQuests.id': questId },
-            { $pull: { specialQuests: { id: questId } }, $set: { updatedAt: new Date() } }
-        );
-        if (result.matchedCount === 0) return res.status(404).json({ success: false, message: 'Квест не найден' });
-        const doc = await col.findOne({});
-        await invalidateConfigCache();
-        res.json({ success: true, specialQuests: doc.specialQuests || [] });
-    } catch (e) {
-        console.error('special-quests DELETE error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
