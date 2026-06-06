@@ -60,33 +60,7 @@ const MAX_ADS_AVAILABLE = 10;
 const ADS_REGEN_INTERVAL = 60 * 60 * 1000;
 
 const MAX_ARENA_BATTLES = 10;
-const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000;
-
-// Расписание арены (UTC+3): [startHour, endHour]
-const ARENA_SCHEDULE = [[10, 11], [20, 21]];
-
-function isArenaOpen() {
-    const nowUTC = new Date();
-    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
-    return ARENA_SCHEDULE.some(([start, end]) => hourUTC3 >= start && hourUTC3 < end);
-}
-
-function nextArenaOpenIn() {
-    const nowUTC = new Date();
-    const hourUTC3 = (nowUTC.getUTCHours() + 3) % 24;
-    const minUTC3 = nowUTC.getUTCMinutes();
-    // Ищем ближайшее окно
-    const allStarts = ARENA_SCHEDULE.map(([s]) => s);
-    const minutesUntil = allStarts.map(start => {
-        let diff = (start - hourUTC3) * 60 - minUTC3;
-        if (diff <= 0) diff += 24 * 60;
-        return diff;
-    });
-    const mins = Math.min(...minutesUntil);
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return h > 0 ? (h + 'ч ' + m + 'мин') : (m + 'мин');
-}
+const ARENA_BATTLE_REGEN_INTERVAL = 60 * 60 * 1000; // +1 бой каждый час
 const REFERRAL_BONUS_PERCENT = 2;
 
 // ============================================
@@ -704,9 +678,14 @@ function addTransaction(user, name, amount) {
     if (user.transactions.length > 30) user.transactions = user.transactions.slice(0, 30);
 }
 
+function xpNeeded(level) {
+    if (level <= 15) return level * 100;
+    return 1500 + (level - 15) * 1000;
+}
+
 function addXP(user, amount) {
     user.xp += amount;
-    const needed = user.level * 100;
+    const needed = xpNeeded(user.level);
     if (user.xp >= needed) {
         user.xp -= needed;
         user.level += 1;
@@ -1453,8 +1432,8 @@ app.post('/api/game/open-capsule', authMiddleware, async (req, res) => {
 
         // Атомарный XP: вычисляем нужный increment с учётом level-up
         {
-            const xpGain = 10;
-            const needed = updatedUser.level * 100;
+            const xpGain = type === 'premium' ? 100 : 10;
+            const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
                 await User.updateOne({ _id: updatedUser._id }, { $inc: { level: 1 }, $set: { xp: newXp - needed } });
@@ -1589,7 +1568,7 @@ app.post('/api/game/merge', authMiddleware, async (req, res) => {
 
         // Атомарно сохраняем mergeCount, discovered, транзакцию
         const xpGain = 20;
-        const needed = user.level * 100;
+        const needed = xpNeeded(user.level);
         const newXp = user.xp + xpGain;
         const xpUpdate = newXp >= needed
             ? { $inc: { level: 1 }, $set: { xp: newXp - needed } }
@@ -1666,8 +1645,8 @@ app.post('/api/game/upgrade-inventory', authMiddleware, async (req, res) => {
         addXP(updatedUser, 25); // обновляем in-memory для formatUser (атомарный блок ниже записывает в БД)
         // Атомарный XP
         {
-            const xpGain = 25;
-            const needed = updatedUser.level * 100;
+            const xpGain = 5;
+            const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
                 await User.updateOne({ _id: updatedUser._id }, { $inc: { level: 1 }, $set: { xp: newXp - needed } });
@@ -1753,7 +1732,7 @@ app.post('/api/game/watch-ad', authMiddleware, async (req, res) => {
         // Атомарный XP
         {
             const xpGain = 15;
-            const needed = updatedUser.level * 100;
+            const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
                 await User.updateOne({ _id: updatedUser._id }, { $inc: { level: 1 }, $set: { xp: newXp - needed } });
@@ -2063,7 +2042,7 @@ app.post('/api/game/complete-special-quest', authMiddleware, async (req, res) =>
         // Атомарный XP
         {
             const xpGain = 20;
-            const needed = updatedUser.level * 100;
+            const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
                 await User.updateOne({ _id: updatedUser._id }, { $inc: { level: 1 }, $set: { xp: newXp - needed } });
@@ -2238,7 +2217,7 @@ app.post('/api/marketplace/buy', authMiddleware, async (req, res) => {
         // Атомарно: XP + discovered за одну операцию
         {
             const xpGain = 5;
-            const needed = updatedBuyer.level * 100;
+            const needed = xpNeeded(updatedBuyer.level);
             const newXp = updatedBuyer.xp + xpGain;
             const xpUpdate = newXp >= needed
                 ? { $inc: { level: 1 }, $set: { xp: newXp - needed } }
@@ -2486,16 +2465,6 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
 
         if ((user.level || 1) < 5) {
             return res.status(403).json({ success: false, message: 'Арена доступна с 5 уровня' });
-        }
-
-        if (!isArenaOpen()) {
-            const next = nextArenaOpenIn();
-            return res.status(403).json({
-                success: false,
-                message: `Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3). До открытия: ${next}`,
-                arenaSchedule: ARENA_SCHEDULE,
-                nextOpenIn: next
-            });
         }
         
         if (user.currentBattleId) {
