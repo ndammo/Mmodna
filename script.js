@@ -439,7 +439,6 @@ function showArenaClosedModal() {
     const popup = document.getElementById('popup');
     if (!overlay || !popup) return;
     popup.innerHTML = `
-        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
         <div style="text-align:center;padding:8px">
             <div style="font-size:48px;margin-bottom:12px">⏰</div>
             <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">Арена закрыта</div>
@@ -451,10 +450,10 @@ function showArenaClosedModal() {
                 <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">До открытия</div>
                 <div style="font-size:24px;font-weight:700;color:#a78bfa">${arenaNextOpenText()}</div>
             </div>
-            <button class="popup-btn" onclick="closeOverlay()">Понятно</button>
+            <button onclick="closeOverlay()" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Понятно</button>
         </div>
     `;
-    document.getElementById('overlay').classList.add('show');
+    overlay.style.display = 'flex';
 }
 
 // Расписание арены (UTC+3)
@@ -1309,11 +1308,10 @@ function renderLeaderboardData(data) {
             <div class="lb-info">
                 <div class="lb-name">${escapeHtml(l.username)} ${isMe ? '<span style="font-size:9px;color:#a855f7">(You)</span>' : ''}</div>
                 <div class="lb-level">УР ${l.level} · ${getLevelTitle(l.level)}</div>
-                <div class="lb-xp" style="font-size:9px;color:#4a5568">ОП: ${l.xp}/${l.level * 100}</div>
+                <div class="lb-xp" style="font-size:9px;color:#22c55e">ОП: ${l.xp}/${l.level * 100}</div>
             </div>
             <div class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end">
-                <span style="font-size:12px;font-weight:700;color:#f59e0b">УР ${l.level}</span>
-                <span style="font-size:9px;color:#22c55e">${formatNum(l.balance)} MMO</span>
+                <span style="font-size:14px;font-weight:700;color:#f59e0b">УР ${l.level}</span>
             </div>
         </div>`;
     }).join('');
