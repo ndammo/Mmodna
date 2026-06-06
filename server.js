@@ -1536,7 +1536,7 @@ app.post('/api/game/merge', authMiddleware, async (req, res) => {
         }
 
         const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
-        const MERGE_CHANCES = { common: 0.3, uncommon: 0.3, rare: 0.3, epic: 0.10, legendary: 0.05 };
+        const MERGE_CHANCES = { common: 0.3, uncommon: 0.3, rare: 0.10, epic: 0.05, legendary: 0.05 };
         const mergeChance = MERGE_CHANCES[creature.rarity] ?? 0.3;
         const success = Math.random() < mergeChance;
 
@@ -2721,11 +2721,13 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
         if (result.finished) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
+                const LEAGUE_PRIZE = { bronze: 350, silver: 800, gold: 1600, platinum: 3200, diamond: 8000 };
+                const prizePool = battle.prizePool || LEAGUE_PRIZE[battle.league] || 0;
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: result.winnerId?.toString(),
                     lastMove: result.lastMove,
-                    prizePool: battle.prizePool
+                    prizePool
                 });
             }
         } else {
@@ -2770,6 +2772,7 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
                 arenaSocketManager.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
+                    prizePool: battle.prizePool || 0,
                     surrendered: true
                 });
             }
@@ -3592,6 +3595,92 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
         await invalidateConfigCache();
         res.json({ success: true, config });
     } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// ============================================================
+// ADMIN SPECIAL QUESTS CRUD
+// ============================================================
+app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const config = await getGameConfig();
+        res.json({ success: true, specialQuests: config?.specialQuests || [] });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { id, title, description, icon, reward, type, link, required_count, isActive } = req.body;
+        if (!id || !title || !type) return res.status(400).json({ success: false, message: 'id, title и type обязательны' });
+
+        const newQuest = {
+            id: String(id), title: String(title).trim(),
+            description: String(description || ''), icon: String(icon || '🎯'),
+            reward: Number(reward) || 0, type: String(type),
+            link: String(link || ''), required_count: Number(required_count) || 0,
+            isActive: isActive !== false
+        };
+
+        const existing = await GameConfig.findOne({ 'specialQuests.id': newQuest.id });
+        if (existing) return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
+
+        const updated = await GameConfig.findOneAndUpdate(
+            {},
+            { $push: { specialQuests: newQuest }, $set: { updatedAt: new Date() } },
+            { new: true, upsert: true }
+        );
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: updated.specialQuests });
+    } catch (e) {
+        console.error('special-quests POST error:', e);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
+        const setFields = { updatedAt: new Date() };
+        if (title !== undefined) setFields['specialQuests.$.title'] = String(title);
+        if (description !== undefined) setFields['specialQuests.$.description'] = String(description);
+        if (icon !== undefined) setFields['specialQuests.$.icon'] = String(icon);
+        if (reward !== undefined) setFields['specialQuests.$.reward'] = Number(reward);
+        if (type !== undefined) setFields['specialQuests.$.type'] = String(type);
+        if (link !== undefined) setFields['specialQuests.$.link'] = String(link);
+        if (required_count !== undefined) setFields['specialQuests.$.required_count'] = Number(required_count);
+        if (isActive !== undefined) setFields['specialQuests.$.isActive'] = Boolean(isActive);
+
+        const updated = await GameConfig.findOneAndUpdate(
+            { 'specialQuests.id': questId },
+            { $set: setFields },
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: updated.specialQuests });
+    } catch (e) {
+        console.error('special-quests PUT error:', e);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        const updated = await GameConfig.findOneAndUpdate(
+            { 'specialQuests.id': questId },
+            { $pull: { specialQuests: { id: questId } }, $set: { updatedAt: new Date() } },
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        await invalidateConfigCache();
+        res.json({ success: true, specialQuests: updated.specialQuests });
+    } catch (e) {
+        console.error('special-quests DELETE error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
