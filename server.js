@@ -3624,16 +3624,19 @@ app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
             isActive: isActive !== false
         };
 
-        const existing = await GameConfig.findOne({ 'specialQuests.id': newQuest.id });
+        // Используем нативный драйвер — обходим Mongoose cast полностью
+        const col = mongoose.connection.db.collection('gameconfigs');
+        const existing = await col.findOne({ 'specialQuests.id': newQuest.id });
         if (existing) return res.status(400).json({ success: false, message: 'Квест с таким id уже существует' });
 
-        const updated = await GameConfig.findOneAndUpdate(
+        await col.updateOne(
             {},
             { $push: { specialQuests: newQuest }, $set: { updatedAt: new Date() } },
-            { new: true, upsert: true }
+            { upsert: true }
         );
+        const doc = await col.findOne({});
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: updated.specialQuests });
+        res.json({ success: true, specialQuests: doc.specialQuests || [] });
     } catch (e) {
         console.error('special-quests POST error:', e);
         res.status(500).json({ success: false, message: e.message });
@@ -3654,14 +3657,12 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         if (required_count !== undefined) setFields['specialQuests.$.required_count'] = Number(required_count);
         if (isActive !== undefined) setFields['specialQuests.$.isActive'] = Boolean(isActive);
 
-        const updated = await GameConfig.findOneAndUpdate(
-            { 'specialQuests.id': questId },
-            { $set: setFields },
-            { new: true }
-        );
-        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const col = mongoose.connection.db.collection('gameconfigs');
+        const result = await col.updateOne({ 'specialQuests.id': questId }, { $set: setFields });
+        if (result.matchedCount === 0) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const doc = await col.findOne({});
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: updated.specialQuests });
+        res.json({ success: true, specialQuests: doc.specialQuests || [] });
     } catch (e) {
         console.error('special-quests PUT error:', e);
         res.status(500).json({ success: false, message: e.message });
@@ -3671,14 +3672,15 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
 app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
     try {
         const { questId } = req.params;
-        const updated = await GameConfig.findOneAndUpdate(
+        const col = mongoose.connection.db.collection('gameconfigs');
+        const result = await col.updateOne(
             { 'specialQuests.id': questId },
-            { $pull: { specialQuests: { id: questId } }, $set: { updatedAt: new Date() } },
-            { new: true }
+            { $pull: { specialQuests: { id: questId } }, $set: { updatedAt: new Date() } }
         );
-        if (!updated) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        if (result.matchedCount === 0) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const doc = await col.findOne({});
         await invalidateConfigCache();
-        res.json({ success: true, specialQuests: updated.specialQuests });
+        res.json({ success: true, specialQuests: doc.specialQuests || [] });
     } catch (e) {
         console.error('special-quests DELETE error:', e);
         res.status(500).json({ success: false, message: e.message });
