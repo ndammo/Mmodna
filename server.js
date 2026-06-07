@@ -366,6 +366,18 @@ const ArenaStatsSchema = new mongoose.Schema({
 });
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
 
+const StakingSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    amount: { type: Number, required: true },
+    days: { type: Number, required: true }, // 10 или 30
+    rate: { type: Number, required: true }, // 0.10 или 0.20
+    reward: { type: Number, required: true },
+    startedAt: { type: Date, default: Date.now },
+    endsAt: { type: Date, required: true },
+    claimed: { type: Boolean, default: false }
+});
+const Staking = mongoose.model('Staking', StakingSchema);
+
 // ============================================
 // АДМИН АВТОРИЗАЦИЯ
 // ============================================
@@ -1058,7 +1070,12 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    const fs = require('fs');
+    const apiUrl = process.env.API_URL || `https://${req.headers.host}`;
+    let html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+    html = html.replace("'{{API_URL}}'", JSON.stringify(apiUrl));
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
 });
 
 // ============================================
@@ -2889,6 +2906,106 @@ app.get('/api/arena/history', authMiddleware, async (req, res) => {
     } catch (e) {
         console.error('arena history error:', e);
         res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// ============================================
+// STAKING ENDPOINTS
+// ============================================
+
+const STAKING_PLANS = {
+    10: { days: 10, rate: 0.10, minAmount: 300000 },
+    30: { days: 30, rate: 0.20, minAmount: 50000  }
+};
+
+// Получить текущий стейкинг пользователя
+app.get('/api/staking/status', authMiddleware, async (req, res) => {
+    try {
+        const staking = await Staking.findOne({ userId: req.user._id, claimed: false });
+        res.json({ success: true, staking: staking || null });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Создать стейкинг
+app.post('/api/staking/start', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user;
+        const { days, amount } = req.body;
+
+        const plan = STAKING_PLANS[days];
+        if (!plan) return res.status(400).json({ success: false, message: 'Неверный план' });
+
+        const amt = Math.floor(Number(amount));
+        if (!amt || amt < plan.minAmount) {
+            return res.status(400).json({ success: false, message: `Минимальная сумма: ${plan.minAmount.toLocaleString()} MMO` });
+        }
+
+        // Проверяем нет ли уже активного стейкинга
+        const existing = await Staking.findOne({ userId: user._id, claimed: false });
+        if (existing) return res.status(400).json({ success: false, message: 'У вас уже есть активный стейкинг' });
+
+        // Списываем с баланса
+        const updated = await User.findOneAndUpdate(
+            { _id: user._id, balance: { $gte: amt } },
+            {
+                $inc: { balance: -amt },
+                $push: { transactions: { $each: [{ name: `Стейкинг ${days}д. (${plan.rate * 100}%)`, amount: -amt, time: new Date() }], $position: 0, $slice: 30 } }
+            },
+            { new: true }
+        );
+        if (!updated) return res.status(400).json({ success: false, message: 'Недостаточно MMO' });
+
+        const reward = Math.floor(amt * plan.rate);
+        const endsAt = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
+
+        const staking = await Staking.create({
+            userId: user._id,
+            amount: amt,
+            days: plan.days,
+            rate: plan.rate,
+            reward,
+            endsAt
+        });
+
+        invalidateInventoryCache(user.telegramId);
+        res.json({ success: true, staking, user: formatUser(updated) });
+    } catch (e) {
+        console.error('staking start error:', e);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Забрать награду
+app.post('/api/staking/claim', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user;
+        const staking = await Staking.findOne({ userId: user._id, claimed: false });
+
+        if (!staking) return res.status(400).json({ success: false, message: 'Нет активного стейкинга' });
+        if (new Date() < staking.endsAt) {
+            return res.status(400).json({ success: false, message: 'Стейкинг ещё не завершён' });
+        }
+
+        const total = staking.amount + staking.reward;
+        staking.claimed = true;
+        await staking.save();
+
+        const updated = await User.findByIdAndUpdate(
+            user._id,
+            {
+                $inc: { balance: total },
+                $push: { transactions: { $each: [{ name: `Стейкинг завершён +${staking.reward.toLocaleString()} MMO`, amount: total, time: new Date() }], $position: 0, $slice: 30 } }
+            },
+            { new: true }
+        );
+
+        invalidateInventoryCache(user.telegramId);
+        res.json({ success: true, total, reward: staking.reward, user: formatUser(updated) });
+    } catch (e) {
+        console.error('staking claim error:', e);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
 
