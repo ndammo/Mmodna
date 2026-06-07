@@ -6,8 +6,8 @@ const LEAGUE_CONFIG = {
     bronze: {
         minRating: 0,
         maxRating: 1299,
-        entryFee: 200,
-        prizePool: 350,
+        entryFee: 0,
+        prizePool: 10,
         color: '#cd7c3a',
         name: '🥉 Бронзовая'
     },
@@ -200,27 +200,33 @@ class ArenaBattleManager {
         const userLeague = userStats.league;
         const leagueConfig = LEAGUE_CONFIG[userLeague];
         
-        if (user.balance < leagueConfig.entryFee) {
-            return { success: false, message: `Недостаточно MMO. Нужно ${leagueConfig.entryFee} MMO для участия в ${leagueConfig.name} лиге` };
+        // Списываем взнос только если он > 0
+        if (leagueConfig.entryFee > 0) {
+            if (user.balance < leagueConfig.entryFee) {
+                return { success: false, message: `Недостаточно MMO. Нужно ${leagueConfig.entryFee} MMO для участия в ${leagueConfig.name} лиге` };
+            }
+            const updatedUser = await this.User.findOneAndUpdate(
+                { _id: user._id, balance: { $gte: leagueConfig.entryFee } },
+                { $inc: { balance: -leagueConfig.entryFee } },
+                { new: true }
+            );
+            if (!updatedUser) {
+                return { success: false, message: 'Не удалось списать средства' };
+            }
         }
-        
-        const updatedUser = await this.User.findOneAndUpdate(
-            { _id: user._id, balance: { $gte: leagueConfig.entryFee } },
-            { $inc: { balance: -leagueConfig.entryFee } },
-            { new: true }
-        );
-        
-        if (!updatedUser) {
-            return { success: false, message: 'Не удалось списать средства' };
-        }
-        
-        const waitingBattle = await this.Battle.findOne({
+
+        // Анти-повтор: исключаем себя и последнего соперника
+        const excludeIds = [user._id];
+        if (user.lastOpponentId) excludeIds.push(user.lastOpponentId);
+
+        let waitingBattle = await this.Battle.findOne({
             status: 'waiting',
             league: userLeague,
-            player1Id: { $ne: user._id },
+            player1Id: { $nin: excludeIds },
             expiresAt: { $gt: new Date() }
         }).sort({ createdAt: 1 });
-        
+
+        // Если никого нет кроме последнего соперника — встаём в очередь
         if (waitingBattle) {
             const player2Team = await buildTeamFromIds(teamIds, userLevel, user._id, this.getCreature);
             
@@ -232,12 +238,10 @@ class ArenaBattleManager {
             waitingBattle.markModified('player2Team');
             await waitingBattle.save();
             
-            // Атомарно устанавливаем currentBattleId для player2
             await this.User.updateOne(
                 { _id: user._id },
                 { $set: { currentBattleId: waitingBattle._id } }
             );
-            // Также устанавливаем для player1 (он уже в waiting, но currentBattleId мог не сохраниться)
             await this.User.updateOne(
                 { _id: waitingBattle.player1Id },
                 { $set: { currentBattleId: waitingBattle._id } }
@@ -245,14 +249,21 @@ class ArenaBattleManager {
             
             return { success: true, battle: waitingBattle, isNew: false, entryFee: leagueConfig.entryFee };
         } else {
+            // Не вставать дважды в очередь
+            const alreadyWaiting = await this.Battle.findOne({
+                status: 'waiting',
+                player1Id: user._id,
+                expiresAt: { $gt: new Date() }
+            });
+            if (alreadyWaiting) {
+                return { success: true, battle: alreadyWaiting, isNew: true, entryFee: leagueConfig.entryFee };
+            }
+
             const newBattle = await this.createBattle(user._id, teamIds, userLevel, userLeague);
-            
-            // Атомарно — если это упадёт, expireOldBattles вернёт средства по expiresAt
             await this.User.updateOne(
                 { _id: user._id },
                 { $set: { currentBattleId: newBattle._id } }
             );
-            
             return { success: true, battle: newBattle, isNew: true, entryFee: leagueConfig.entryFee };
         }
     }
@@ -643,6 +654,31 @@ class ArenaBattleManager {
             { _id: { $in: [battle.player1Id, battle.player2Id].filter(id => id) } },
             { $set: { currentBattleId: null, arenaCooldownUntil: new Date(Date.now() + 30 * 1000) } }
         );
+
+        // Сохраняем lastOpponentId для анти-повтора
+        if (battle.player1Id && battle.player2Id) {
+            await this.User.updateOne({ _id: battle.player1Id }, { $set: { lastOpponentId: battle.player2Id } });
+            await this.User.updateOne({ _id: battle.player2Id }, { $set: { lastOpponentId: battle.player1Id } });
+        }
+
+        // XP: победитель +20, проигравший +5
+        if (winnerId && loserId) {
+            const xpCalc = (level) => level <= 15 ? level * 100 : 1500 + (level - 15) * 1000;
+            const winner = await this.User.findById(winnerId);
+            const loser  = await this.User.findById(loserId);
+            if (winner) {
+                const newXp = winner.xp + 20;
+                newXp >= xpCalc(winner.level)
+                    ? await this.User.updateOne({ _id: winnerId }, { $inc: { level: 1 }, $set: { xp: newXp - xpCalc(winner.level) } })
+                    : await this.User.updateOne({ _id: winnerId }, { $inc: { xp: 20 } });
+            }
+            if (loser) {
+                const newXp = loser.xp + 5;
+                newXp >= xpCalc(loser.level)
+                    ? await this.User.updateOne({ _id: loserId }, { $inc: { level: 1 }, $set: { xp: newXp - xpCalc(loser.level) } })
+                    : await this.User.updateOne({ _id: loserId }, { $inc: { xp: 5 } });
+            }
+        }
         
         await battle.save();
         return { winnerId, loserId };
