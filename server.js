@@ -170,6 +170,7 @@ const UserSchema = new mongoose.Schema({
     }],
     adsAvailable: { type: Number, default: MAX_ADS_AVAILABLE },
     adsLastRegen: { type: Date, default: Date.now },
+    adsWatchedTotal: { type: Number, default: 0 }, // точный счётчик просмотров рекламы
     arenaBattlesLeft: { type: Number, default: MAX_ARENA_BATTLES },
     arenaLastBattleRegen: { type: Date, default: Date.now },
     adsCooldownUntil: { type: Date, default: null },
@@ -1339,7 +1340,7 @@ app.get('/api/user/stats', authMiddleware, async (req, res) => {
     try {
         const user = req.user;
         
-        const adsWatched = user.transactions.filter(tx => tx.name === 'Watch Ad Reward').length;
+        const adsWatched = user.adsWatchedTotal || 0;
         const adsEarned = user.transactions
             .filter(tx => tx.name === 'Watch Ad Reward')
             .reduce((sum, tx) => sum + tx.amount, 0);
@@ -1749,7 +1750,7 @@ app.post('/api/game/watch-ad', authMiddleware, async (req, res) => {
         const updatedUser = await User.findOneAndUpdate(
             { _id: user._id, adsAvailable: { $gt: 0 } },
             {
-                $inc: { balance: reward, adsAvailable: -1 },
+                $inc: { balance: reward, adsAvailable: -1, adsWatchedTotal: 1 },
                 $set: { adsCooldownUntil: newCooldown },
                 $push: { transactions: { $each: [{ name: 'Watch Ad Reward', amount: reward, time: new Date() }], $position: 0, $slice: 30 } }
             },
@@ -1842,17 +1843,6 @@ app.get('/api/admin/ads-stats', adminAuthMiddleware, async (req, res) => {
         
         const adsStats = await User.aggregate([
             {
-                $addFields: {
-                    transactionsArray: {
-                        $cond: {
-                            if: { $isArray: "$transactions" },
-                            then: "$transactions",
-                            else: []
-                        }
-                    }
-                }
-            },
-            {
                 $project: {
                     telegramId: 1,
                     username: 1,
@@ -1860,15 +1850,7 @@ app.get('/api/admin/ads-stats', adminAuthMiddleware, async (req, res) => {
                     level: 1,
                     adsAvailable: 1,
                     adsLastRegen: 1,
-                    adsWatched: {
-                        $size: {
-                            $filter: {
-                                input: "$transactionsArray",
-                                as: "tx",
-                                cond: { $eq: ["$$tx.name", "Watch Ad Reward"] }
-                            }
-                        }
-                    }
+                    adsWatched: { $ifNull: ['$adsWatchedTotal', 0] }
                 }
             },
             { $sort: { [sortBy]: -1 } },
@@ -1877,34 +1859,10 @@ app.get('/api/admin/ads-stats', adminAuthMiddleware, async (req, res) => {
         
         const totalStats = await User.aggregate([
             {
-                $addFields: {
-                    transactionsArray: {
-                        $cond: {
-                            if: { $isArray: "$transactions" },
-                            then: "$transactions",
-                            else: []
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    adsWatched: {
-                        $size: {
-                            $filter: {
-                                input: "$transactionsArray",
-                                as: "tx",
-                                cond: { $eq: ["$$tx.name", "Watch Ad Reward"] }
-                            }
-                        }
-                    }
-                }
-            },
-            {
                 $group: {
                     _id: null,
-                    totalAdsWatched: { $sum: "$adsWatched" },
-                    avgAdsPerUser: { $avg: "$adsWatched" }
+                    totalAdsWatched: { $sum: { $ifNull: ['$adsWatchedTotal', 0] } },
+                    avgAdsPerUser: { $avg: { $ifNull: ['$adsWatchedTotal', 0] } }
                 }
             }
         ]);
@@ -3484,7 +3442,7 @@ app.get('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
         
         const referrals = await User.find({ referredBy: user.telegramId }).select('username firstName balance createdAt');
         
-        const adsWatched = user.transactions.filter(tx => tx.name === 'Watch Ad Reward').length;
+        const adsWatched = user.adsWatchedTotal || 0;
         const adsEarned = user.transactions
             .filter(tx => tx.name === 'Watch Ad Reward')
             .reduce((sum, tx) => sum + tx.amount, 0);
