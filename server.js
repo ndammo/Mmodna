@@ -1072,7 +1072,7 @@ app.get('/', (req, res) => {
     const fs = require('fs');
     const apiUrl = process.env.API_URL || `https://${req.headers.host}`;
     let html = fs.readFileSync(__dirname + '/index.html', 'utf8');
-    html = html.replace("'{{API_URL}}'", JSON.stringify(apiUrl));
+    html = html.replace('{{API_URL}}', apiUrl);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
 });

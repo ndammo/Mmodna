@@ -5,7 +5,9 @@
 // ============================================================
 // CONFIG — API_URL подставляется сервером через index.html
 // ============================================================
-const API_URL = window.__API_URL__ || '';
+const API_URL = (window.__API_URL__ && window.__API_URL__ !== '{{API_URL}}')
+    ? window.__API_URL__
+    : (window.location.origin || '');
 
 // ============================================================
 // ЗАПРЕТ КОНТЕКСТНОГО МЕНЮ И ВЫДЕЛЕНИЯ
@@ -3434,9 +3436,8 @@ const STAKING_PLANS_CLIENT = {
 
 async function loadStakingStatus() {
     try {
-        const res = await apiFetch('/api/staking/status');
-        const data = await res.json();
-        if (data.success && data.staking) {
+        const data = await apiRequest('GET', '/api/staking/status');
+        if (data && data.success && data.staking) {
             renderActiveStaking(data.staking);
         } else {
             document.getElementById('activeStakingBlock').style.display = 'none';
@@ -3526,20 +3527,15 @@ async function confirmStaking() {
     }
 
     try {
-        const res = await apiFetch('/api/staking/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ days: plan.days, amount })
-        });
-        const data = await res.json();
-        if (data.success) {
+        const data = await apiRequest('POST', '/api/staking/start', { days: plan.days, amount });
+        if (data && data.success) {
             document.getElementById('stakingModal').style.display = 'none';
             currentStakingPlan = null;
             if (data.user) { state.user = data.user; updateHeader(); }
             renderActiveStaking(data.staking);
             showToast(`Стейкинг на ${plan.days} дней запущен!`, '🔒');
         } else {
-            showToast(data.message || 'Ошибка', '❌');
+            showToast(data?.message || 'Ошибка', '❌');
         }
     } catch (e) {
         showToast('Ошибка сервера', '❌');
@@ -3548,15 +3544,14 @@ async function confirmStaking() {
 
 async function claimStaking() {
     try {
-        const res = await apiFetch('/api/staking/claim', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
+        const data = await apiRequest('POST', '/api/staking/claim');
+        if (data && data.success) {
             if (stakingTimerInterval) clearInterval(stakingTimerInterval);
             document.getElementById('activeStakingBlock').style.display = 'none';
             if (data.user) { state.user = data.user; updateHeader(); }
             showToast(`+${formatNum(data.reward)} MMO получено!`, '🎉');
         } else {
-            showToast(data.message || 'Ошибка', '❌');
+            showToast(data?.message || 'Ошибка', '❌');
         }
     } catch (e) {
         showToast('Ошибка сервера', '❌');
