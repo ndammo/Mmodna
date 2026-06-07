@@ -705,6 +705,17 @@ function onCardClick(creatureId) {
     if (!c) return;
     const item = state.inventory.find(i => i.creatureId === creatureId);
     const color = RARITY_COLORS[c.rarity];
+    const skill = window.ARENA_SKILLS_MAP?.[c.id] || null;
+    const premiumBadge = c.premiumOnly
+        ? `<div style="display:inline-block;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed55;border-radius:8px;padding:3px 10px;font-size:10px;font-weight:700;margin-bottom:8px">💎 PREMIUM CAPSULE ONLY</div>`
+        : '';
+    const skillBlock = skill
+        ? `<div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:10px;padding:10px;margin-top:8px;text-align:left">
+               <div style="font-size:10px;color:#64748b;margin-bottom:4px">ARENA SKILL</div>
+               <div style="font-size:13px;font-weight:700;color:#e2e8f0">${skill.name} <span style="color:#64748b;font-size:11px;font-weight:400">${Math.round(skill.chance * 100)}% chance</span></div>
+               <div style="font-size:11px;color:#94a3b8;margin-top:3px">${skill.description}</div>
+           </div>`
+        : '';
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
@@ -712,10 +723,12 @@ function onCardClick(creatureId) {
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()}</div>
+        ${premiumBadge}
         <div class="popup-stats">
             <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
             <div class="popup-stat"><div class="popup-stat-val">${item ? item.count : 0}</div><div class="popup-stat-label">Owned</div></div>
         </div>
+        ${skillBlock}
         ${canMerge(creatureId)
             ? `<button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="closeOverlay();showMergePreview('${creatureId}')">
                 <i class="fa-solid fa-code-merge"></i> MERGE x3
@@ -1018,6 +1031,17 @@ function showCreatureInfo(creatureId) {
     const discovered = new Set(state.user?.discovered || []);
     const isFound = discovered.has(creatureId);
     const color = RARITY_COLORS[c.rarity];
+    const skill = window.ARENA_SKILLS_MAP?.[c.id] || null;
+    const premiumBadge = c.premiumOnly
+        ? `<div style="display:inline-block;background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed55;border-radius:8px;padding:3px 10px;font-size:10px;font-weight:700;margin-bottom:8px">💎 PREMIUM CAPSULE ONLY</div>`
+        : '';
+    const skillBlock = skill
+        ? `<div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:10px;padding:10px;margin-top:8px;text-align:left">
+               <div style="font-size:10px;color:#64748b;margin-bottom:4px">ARENA SKILL</div>
+               <div style="font-size:13px;font-weight:700;color:#e2e8f0">${skill.name} <span style="color:#64748b;font-size:11px;font-weight:400">${Math.round(skill.chance * 100)}% chance</span></div>
+               <div style="font-size:11px;color:#94a3b8;margin-top:3px">${skill.description}</div>
+           </div>`
+        : '';
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="showEncyclopedia()"><i class="fa-solid fa-arrow-left"></i></div>
@@ -1025,10 +1049,12 @@ function showCreatureInfo(creatureId) {
         <div class="popup-title" style="color:${color}">${escapeHtml(c.name)}</div>
         <div class="popup-subtitle">${escapeHtml(c.desc || '')}</div>
         <div class="popup-rarity" style="background:${color}22;color:${color};border:1px solid ${color}44">${c.rarity.toUpperCase()} ${isFound ? '✓ DISCOVERED' : '🔒 UNDISCOVERED'}</div>
+        ${premiumBadge}
         <div class="popup-stats">
             <div class="popup-stat"><div class="popup-stat-val" style="color:${color}">${c.incomeBase}</div><div class="popup-stat-label">MMO/hr</div></div>
             <div class="popup-stat"><div class="popup-stat-val">${c.rarity === 'legendary' ? '★★★★★' : c.rarity === 'epic' ? '★★★★' : c.rarity === 'rare' ? '★★★' : c.rarity === 'uncommon' ? '★★' : '★'}</div><div class="popup-stat-label">Power</div></div>
         </div>
+        ${skillBlock}
     `;
     document.getElementById('overlay').classList.add('show');
 }

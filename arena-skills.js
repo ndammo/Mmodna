@@ -198,6 +198,14 @@ const SKILLS_MAP = {
         description: 'Восстанавливает 30% maxHP всем живым союзникам'
     },
 
+    // ── MONKEY ────────────────────────────────────────────
+    monkey_r: {
+        id: 'twin_axes',
+        name: '🪓 Twin Axes',
+        chance: 0.30,
+        description: 'Наносит ×3 урона!'
+    },
+
     // ── MYTHIC ────────────────────────────────────────────
     lion_mythic: {
         id: 'king_roar',
@@ -431,6 +439,11 @@ function applySkill(skillId, attacker, target, myTeam, enemyTeam, baseDamage) {
             // Восстанавливает 30% maxHP всем живым союзникам
             result.allyHealAmount = Math.floor(attacker.maxHp * 0.30);
             result.allyHealTarget = 'all';
+            break;
+
+        // ── MONKEY ──────────────────────────────────────
+        case 'twin_axes':
+            result.damage = Math.floor(baseDamage * 3);
             break;
 
         // ── MYTHIC ──────────────────────────────────────

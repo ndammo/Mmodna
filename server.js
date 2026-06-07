@@ -215,6 +215,7 @@ const CreatureSchema = new mongoose.Schema({
     incomeBase: { type: Number, required: true, min: 1 },
     desc: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
+    premiumOnly: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 const Creature = mongoose.model('Creature', CreatureSchema);
@@ -840,8 +841,14 @@ async function getUserIncome(telegramId) {
     return income;
 }
 
-async function randomCreatureByRarity(rarity) {
-    const pool = creaturesCache ? creaturesCache.filter(c => c.rarity === rarity && c.isActive) : await Creature.find({ rarity, isActive: true });
+async function randomCreatureByRarity(rarity, capsuleType = 'premium') {
+    const allByRarity = creaturesCache
+        ? creaturesCache.filter(c => c.rarity === rarity && c.isActive)
+        : await Creature.find({ rarity, isActive: true });
+    // premiumOnly существа недоступны из basic капсулы
+    const pool = capsuleType === 'basic'
+        ? allByRarity.filter(c => !c.premiumOnly)
+        : allByRarity;
     if (!pool.length) return null;
     return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -1462,7 +1469,7 @@ app.post('/api/game/open-capsule', authMiddleware, async (req, res) => {
             if (roll < cum) { rarity = r; break; }
         }
 
-        const creature = await randomCreatureByRarity(rarity);
+        const creature = await randomCreatureByRarity(rarity, type);
         if (!creature) {
             await User.findByIdAndUpdate(user._id, { $inc: { balance: cost, capsulesOpened: -1 } });
             return res.status(500).json({ success: false, message: 'Ошибка: существо не найдено' });
@@ -4390,7 +4397,8 @@ async function initCreatures() {
         { id: 'unicorn_e', name: 'Unicorn', rarity: 'epic', icon: 'https://ndammo.github.io/Mmodna/er.png', incomeBase: 120, desc: 'Eternal magic.' },
         { id: 'unicorn_l', name: 'Unicorn', rarity: 'legendary', icon: 'https://ndammo.github.io/Mmodna/ll.png', incomeBase: 400, desc: 'Divine magic.' },
         { id: 'lion_mythic', name: 'Lion', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/lm.png', incomeBase: 1000, desc: 'THE MYTHIC KING.' },
-        { id: 'panther_mythic', name: 'Black Panther', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/pm.png', incomeBase: 2000, desc: 'TOP 1 SEASON.' }
+        { id: 'panther_mythic', name: 'Black Panther', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/pm.png', incomeBase: 2000, desc: 'TOP 1 SEASON.' },
+        { id: 'monkey_r', name: 'Monkey', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/mr.png', incomeBase: 30, desc: 'Warrior with twin axes. Premium capsule only.', premiumOnly: true }
     ];
 
     for (const creature of staticCreatures) {
