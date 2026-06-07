@@ -739,7 +739,7 @@ async function getGameConfig() {
                 basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
                 premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
             },
-            adReward: 50,
+            adReward: 20,
             adCooldown: 60,
             upgradeBaseCost: 300,
             upgradeMultiplier: 1.4,
@@ -3596,6 +3596,88 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
         
         await invalidateConfigCache();
         res.json({ success: true, config });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+// ADMIN: SPECIAL QUESTS CRUD
+console.log('🔍 РЕГИСТРИРУЮ КВЕСТЫ, server.js загружен!');
+app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const config = await getGameConfig();
+        res.json({ success: true, specialQuests: config.specialQuests || [] });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
+        if (!title || !reward || !type) return res.status(400).json({ success: false, message: 'title, reward, type обязательны' });
+        let config = await GameConfig.findOne();
+        if (!config) config = new GameConfig();
+        if (!config.specialQuests) config.specialQuests = [];
+        const newQuest = {
+            id: Date.now().toString(),
+            title, description: description || '', icon: icon || '🎯',
+            reward: Number(reward), type, link: link || '',
+            required_count: Number(required_count) || 1,
+            isActive: isActive !== false
+        };
+        config.specialQuests.push(newQuest);
+        config.markModified('specialQuests');
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true, quest: newQuest });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
+        let config = await GameConfig.findOne();
+        if (!config) return res.status(404).json({ success: false, message: 'Config not found' });
+        const idx = (config.specialQuests || []).findIndex(q => q.id === questId);
+        if (idx === -1) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        const q = config.specialQuests[idx];
+        if (title !== undefined) q.title = title;
+        if (description !== undefined) q.description = description;
+        if (icon !== undefined) q.icon = icon;
+        if (reward !== undefined) q.reward = Number(reward);
+        if (type !== undefined) q.type = type;
+        if (link !== undefined) q.link = link;
+        if (required_count !== undefined) q.required_count = Number(required_count);
+        if (isActive !== undefined) q.isActive = isActive;
+        config.specialQuests[idx] = q;
+        config.markModified('specialQuests');
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true, quest: q });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        let config = await GameConfig.findOne();
+        if (!config) return res.status(404).json({ success: false, message: 'Config not found' });
+        const before = (config.specialQuests || []).length;
+        config.specialQuests = (config.specialQuests || []).filter(q => q.id !== questId);
+        if (config.specialQuests.length === before) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        config.markModified('specialQuests');
+        config.updatedAt = new Date();
+        await config.save();
+        await invalidateConfigCache();
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
