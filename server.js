@@ -766,6 +766,14 @@ async function invalidateConfigCache() {
     console.log('🔄 Кэш конфига сброшен');
 }
 
+// Читает specialQuests напрямую через нативный драйвер,
+// обходя CastError Mongoose при несовпадении типов в БД.
+async function getSpecialQuestsRaw() {
+    const doc = await GameConfig.collection.findOne({}, { projection: { specialQuests: 1 } });
+    const quests = doc?.specialQuests || [];
+    return quests.filter(q => q && typeof q === 'object' && q.id);
+}
+
 async function formatInventory(telegramId) {
     const cached = inventoryCache.get(telegramId);
     if (cached && cached.expiresAt > Date.now()) {
@@ -1064,7 +1072,7 @@ app.get('/api/game/config', async (req, res) => {
                 upgradeBaseCost: config.upgradeBaseCost,
                 upgradeMultiplier: config.upgradeMultiplier,
                 limits: config.limits,
-                specialQuests: (config.specialQuests || []).filter(q => q && typeof q === 'object' && q.isActive),
+                specialQuests: (await getSpecialQuestsRaw()).filter(q => q.isActive),
                 marketplace: { minPrice: MIN_MARKETPLACE_PRICE, maxActiveListings: MAX_ACTIVE_LISTINGS }
             }
         });
@@ -2015,7 +2023,7 @@ app.post('/api/game/complete-special-quest', authMiddleware, async (req, res) =>
             return res.status(400).json({ success: false, message: 'Вы уже получили награду за этот квест' });
         }
         
-        const quest = config.specialQuests.find(q => q.id === questId && q.isActive);
+        const quest = (await getSpecialQuestsRaw()).find(q => q.id === questId && q.isActive);
         if (!quest) {
             return res.status(404).json({ success: false, message: 'Квест не найден или отключён' });
         }
@@ -3604,8 +3612,8 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
 // ADMIN: SPECIAL QUESTS CRUD
 app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
     try {
-        const config = await getGameConfig();
-        res.json({ success: true, specialQuests: config.specialQuests || [] });
+        const specialQuests = await getSpecialQuestsRaw();
+        res.json({ success: true, specialQuests });
     } catch (e) {
         console.error('GET /special-quests error:', e);
         res.status(500).json({ success: false, message: e.message });
