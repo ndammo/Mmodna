@@ -366,6 +366,19 @@ const ArenaStatsSchema = new mongoose.Schema({
 });
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
 
+// ── STAKING ──────────────────────────────────────────────────
+const StakingSchema = new mongoose.Schema({
+    userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    amount:    { type: Number, required: true },
+    days:      { type: Number, required: true },
+    rate:      { type: Number, required: true },
+    reward:    { type: Number, required: true },
+    startedAt: { type: Date, default: Date.now },
+    endsAt:    { type: Date, required: true },
+    claimed:   { type: Boolean, default: false }
+});
+const Staking = mongoose.model('Staking', StakingSchema);
+
 // ============================================
 // АДМИН АВТОРИЗАЦИЯ
 // ============================================
@@ -2893,6 +2906,96 @@ app.get('/api/arena/history', authMiddleware, async (req, res) => {
 });
 
 // ============================================
+// STAKING ENDPOINTS
+// ============================================
+const STAKING_PLANS = {
+    10: { days: 10, rate: 0.10, minAmount: 300000, capybara: true },
+    30: { days: 30, rate: 0.20, minAmount: 50000  }
+};
+
+app.get('/api/staking/status', authMiddleware, async (req, res) => {
+    try {
+        const staking = await Staking.findOne({ userId: req.user._id, claimed: false });
+        res.json({ success: true, staking: staking || null });
+    } catch (e) {
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+app.post('/api/staking/start', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user;
+        const { days, amount } = req.body;
+        const plan = STAKING_PLANS[Number(days)];
+        if (!plan) return res.status(400).json({ success: false, message: 'Неверный план' });
+
+        const amt = Math.floor(Number(amount));
+        if (!amt || amt < (plan.minAmount || 1))
+            return res.status(400).json({ success: false, message: `Минимум ${(plan.minAmount || 1).toLocaleString()} MMO` });
+
+        const existing = await Staking.findOne({ userId: user._id, claimed: false });
+        if (existing) return res.status(400).json({ success: false, message: 'У вас уже есть активный стейкинг' });
+
+        const updated = await User.findOneAndUpdate(
+            { _id: user._id, balance: { $gte: amt } },
+            {
+                $inc: { balance: -amt },
+                $push: { transactions: { $each: [{ name: `Стейкинг ${plan.days}д. (+${plan.rate * 100}%${plan.capybara ? ' + Capybara' : ''})`, amount: -amt, time: new Date() }], $position: 0, $slice: 30 } }
+            },
+            { new: true }
+        );
+        if (!updated) return res.status(400).json({ success: false, message: 'Недостаточно MMO' });
+
+        const reward  = Math.floor(amt * plan.rate);
+        const endsAt  = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
+        const staking = await Staking.create({ userId: user._id, amount: amt, days: plan.days, rate: plan.rate, reward, endsAt });
+
+        invalidateInventoryCache(user.telegramId);
+        res.json({ success: true, staking, user: formatUser(updated) });
+    } catch (e) {
+        console.error('staking start error:', e);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+app.post('/api/staking/claim', authMiddleware, async (req, res) => {
+    try {
+        const user    = req.user;
+        const staking = await Staking.findOne({ userId: user._id, claimed: false });
+        if (!staking) return res.status(400).json({ success: false, message: 'Нет активного стейкинга' });
+        if (new Date() < staking.endsAt) return res.status(400).json({ success: false, message: 'Стейкинг ещё не завершён' });
+
+        staking.claimed = true;
+        await staking.save();
+
+        const total   = staking.amount + staking.reward;
+        const plan    = STAKING_PLANS[staking.days];
+        const updated = await User.findByIdAndUpdate(
+            user._id,
+            {
+                $inc: { balance: total },
+                $push: { transactions: { $each: [{ name: `Стейкинг ${staking.days}д. завершён +${staking.reward.toLocaleString()} MMO`, amount: total, time: new Date() }], $position: 0, $slice: 30 } }
+            },
+            { new: true }
+        );
+
+        // 10-дневный план — дополнительно выдаём Capybara Rare
+        if (plan && plan.capybara) {
+            let inv = await Inventory.findOne({ telegramId: user.telegramId, creatureId: 'capybara_r' });
+            if (inv) { inv.count += 1; await inv.save(); }
+            else { await Inventory.create({ userId: user._id, telegramId: user.telegramId, creatureId: 'capybara_r', count: 1 }); }
+            await User.findByIdAndUpdate(user._id, { $addToSet: { discovered: 'capybara_r' } });
+        }
+
+        invalidateInventoryCache(user.telegramId);
+        res.json({ success: true, total, reward: staking.reward, capybara: !!(plan && plan.capybara), user: formatUser(updated) });
+    } catch (e) {
+        console.error('staking claim error:', e);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// ============================================
 // WALLET ENDPOINTS
 // ============================================
 app.post('/api/wallet/get-payment-details', authMiddleware, async (req, res) => {
@@ -4380,7 +4483,8 @@ async function initCreatures() {
         { id: 'unicorn_l', name: 'Unicorn', rarity: 'legendary', icon: 'https://ndammo.github.io/Mmodna/ll.png', incomeBase: 400, desc: 'Divine magic.' },
         { id: 'lion_mythic', name: 'Lion', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/lm.png', incomeBase: 1000, desc: 'THE MYTHIC KING.' },
         { id: 'panther_mythic', name: 'Black Panther', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/pm.png', incomeBase: 2000, desc: 'TOP 1 SEASON.' },
-        { id: 'monkey_r', name: 'Monkey', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/mr.png', incomeBase: 30, desc: 'Warrior with twin axes. Premium capsule only.', premiumOnly: true }
+        { id: 'monkey_r', name: 'Monkey', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/mr.png', incomeBase: 30, desc: 'Warrior with twin axes. Premium capsule only.', premiumOnly: true },
+        { id: 'capybara_r', name: 'Capybara', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/cr.png', incomeBase: 25, desc: 'Zen master. Disables enemy skill for 3 turns. Reward for 7-day staking.', premiumOnly: true }
     ];
 
     for (const creature of staticCreatures) {

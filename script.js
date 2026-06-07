@@ -3125,7 +3125,7 @@ function switchTab(tab) {
     isMarketplaceTabActive = (tab === 'shop');
     if (tab === 'leaderboard') { leaderboardCache = { data: null, expiresAt: 0 }; renderLeaderboard(); }
     if (tab === 'special') renderSpecialQuests();
-    if (tab === 'wallet') { updateHeader(); checkActiveRequests(); loadUserStats(); }
+    if (tab === 'wallet') { updateHeader(); checkActiveRequests(); loadUserStats(); loadStakingStatus(); }
     if (tab === 'shop') renderMarketplaceBuy();
     if (tab === 'friends') renderFriendsList();
     if (tab === 'arena') {
@@ -3421,3 +3421,144 @@ window.acceptBattleFromModal = acceptBattleFromModal;
 window.rejectBattleFromModal = rejectBattleFromModal;
 window.resetArenaTeam = resetArenaTeam;
 window.renderArenaFightTab = renderArenaFightTab;
+// ============================================================
+// STAKING
+// ============================================================
+let stakingTimerInterval = null;
+let currentStakingPlan = null;
+
+const STAKING_PLANS_CLIENT = {
+    10: { days: 10, rate: 0.10, minAmount: 300000, label: '+10%', capybara: true },
+    30: { days: 30, rate: 0.20, minAmount: 50000,  label: '+20%' }
+};
+
+async function loadStakingStatus() {
+    try {
+        const data = await apiRequest('GET', '/api/staking/status');
+        if (data && data.success && data.staking) {
+            renderActiveStaking(data.staking);
+        } else {
+            const block = document.getElementById('activeStakingBlock');
+            if (block) block.style.display = 'none';
+        }
+    } catch (e) {}
+}
+
+function renderActiveStaking(s) {
+    const block = document.getElementById('activeStakingBlock');
+    if (!block) return;
+    block.style.display = 'block';
+    document.getElementById('stakeAmount').textContent = formatNum(s.amount) + ' MMO';
+    document.getElementById('stakeReward').textContent = '+' + formatNum(s.reward) + ' MMO'
+        + (s.days === 10 ? ' + 🦫 Capybara' : '');
+
+    if (stakingTimerInterval) clearInterval(stakingTimerInterval);
+
+    function tick() {
+        const diff = new Date(s.endsAt).getTime() - Date.now();
+        const claimBtn = document.getElementById('stakeClaimBtn');
+        const timerEl  = document.getElementById('stakeTimer');
+        if (!timerEl) return;
+        if (diff <= 0) {
+            timerEl.textContent = 'Готово! ✅';
+            if (claimBtn) claimBtn.style.display = 'flex';
+            clearInterval(stakingTimerInterval);
+        } else {
+            const d   = Math.floor(diff / 86400000);
+            const h   = Math.floor((diff % 86400000) / 3600000);
+            const m   = Math.floor((diff % 3600000) / 60000);
+            const sec = Math.floor((diff % 60000) / 1000);
+            timerEl.textContent = (d > 0 ? d + 'д ' : '') +
+                String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+            if (claimBtn) claimBtn.style.display = 'none';
+        }
+    }
+    tick();
+    stakingTimerInterval = setInterval(tick, 1000);
+}
+
+function selectStakingPlan(days) {
+    document.querySelectorAll('.staking-plan').forEach(el => el.classList.remove('selected'));
+    const el = document.getElementById('stakingPlan' + days);
+    if (el) el.classList.add('selected');
+    openStakingModal(days);
+}
+
+function openStakingModal(days) {
+    const plan = STAKING_PLANS_CLIENT[days];
+    if (!plan) return;
+    currentStakingPlan = plan;
+    document.getElementById('stakingModalDays').textContent = days;
+    document.getElementById('stakingModalRate').textContent = plan.label;
+    document.getElementById('stakingModalMin').textContent  = 'Минимум: ' + formatNum(plan.minAmount) + ' MMO';
+    document.getElementById('stakingAmountInput').value     = '';
+    document.getElementById('stakingModalPreview').textContent = '';
+    document.getElementById('stakingModal').style.display   = 'flex';
+
+    document.getElementById('stakingAmountInput').oninput = function() {
+        const val     = Math.floor(Number(this.value));
+        const preview = document.getElementById('stakingModalPreview');
+        if (val >= plan.minAmount) {
+            const reward = Math.floor(val * plan.rate);
+            preview.textContent = 'Получите: ' + formatNum(val + reward) + ' MMO'
+                + (plan.capybara ? ' + 🦫 Capybara Rare' : '');
+        } else {
+            preview.textContent = val > 0 ? 'Минимум ' + formatNum(plan.minAmount) + ' MMO' : '';
+        }
+    };
+}
+
+function closeStakingModal(e) {
+    if (e && e.target !== document.getElementById('stakingModal')) return;
+    document.getElementById('stakingModal').style.display = 'none';
+    currentStakingPlan = null;
+}
+
+async function confirmStaking() {
+    if (!currentStakingPlan) return;
+    const plan   = currentStakingPlan;
+    const amount = Math.floor(Number(document.getElementById('stakingAmountInput').value));
+
+    if (!amount || amount < plan.minAmount) {
+        showToast('Минимум ' + formatNum(plan.minAmount) + ' MMO', '⚠️'); return;
+    }
+    if (amount > (state.user?.balance || 0)) {
+        showToast('Недостаточно MMO', '❌'); return;
+    }
+
+    const data = await apiRequest('POST', '/api/staking/start', { days: plan.days, amount });
+    if (data && data.success) {
+        document.getElementById('stakingModal').style.display = 'none';
+        currentStakingPlan = null;
+        document.querySelectorAll('.staking-plan').forEach(el => el.classList.remove('selected'));
+        if (data.user) { state.user = data.user; updateHeader(); }
+        renderActiveStaking(data.staking);
+        showToast('Стейкинг на ' + plan.days + ' дней запущен!', '🔒');
+    } else {
+        showToast((data && data.message) || 'Ошибка', '❌');
+    }
+}
+
+async function claimStaking() {
+    const data = await apiRequest('POST', '/api/staking/claim');
+    if (data && data.success) {
+        if (stakingTimerInterval) clearInterval(stakingTimerInterval);
+        const block = document.getElementById('activeStakingBlock');
+        if (block) block.style.display = 'none';
+        if (data.user) { state.user = data.user; updateHeader(); }
+        if (data.capybara) {
+            showToast('+' + formatNum(data.reward) + ' MMO + 🦫 Capybara Rare!', '🎉');
+        } else {
+            showToast('+' + formatNum(data.reward) + ' MMO получено!', '🎉');
+        }
+    } else {
+        showToast((data && data.message) || 'Ошибка', '❌');
+    }
+}
+
+window.selectStakingPlan = selectStakingPlan;
+window.openStakingModal   = openStakingModal;
+window.closeStakingModal  = closeStakingModal;
+window.confirmStaking     = confirmStaking;
+window.claimStaking       = claimStaking;
+window.loadStakingStatus  = loadStakingStatus;
