@@ -366,18 +366,6 @@ const ArenaStatsSchema = new mongoose.Schema({
 });
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
 
-const StakingSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    amount: { type: Number, required: true },
-    days: { type: Number, required: true }, // 10 или 30
-    rate: { type: Number, required: true }, // 0.10 или 0.20
-    reward: { type: Number, required: true },
-    startedAt: { type: Date, default: Date.now },
-    endsAt: { type: Date, required: true },
-    claimed: { type: Boolean, default: false }
-});
-const Staking = mongoose.model('Staking', StakingSchema);
-
 // ============================================
 // АДМИН АВТОРИЗАЦИЯ
 // ============================================
@@ -1064,6 +1052,7 @@ const authMiddleware = async (req, res, next) => {
 // ============================================
 // HEALTH CHECK
 // ============================================
+app.use(express.static(__dirname));
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
@@ -1071,9 +1060,6 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
-
-// Static файлы (index.html исключён — он отдаётся роутом выше с подстановкой API_URL)
-app.use(express.static(__dirname, { index: false }));
 
 // ============================================
 // ПУБЛИЧНЫЕ ЭНДПОИНТЫ
@@ -2907,106 +2893,6 @@ app.get('/api/arena/history', authMiddleware, async (req, res) => {
 });
 
 // ============================================
-// STAKING ENDPOINTS
-// ============================================
-
-const STAKING_PLANS = {
-    10: { days: 10, rate: 0.10, minAmount: 300000 },
-    30: { days: 30, rate: 0.20, minAmount: 50000  }
-};
-
-// Получить текущий стейкинг пользователя
-app.get('/api/staking/status', authMiddleware, async (req, res) => {
-    try {
-        const staking = await Staking.findOne({ userId: req.user._id, claimed: false });
-        res.json({ success: true, staking: staking || null });
-    } catch (e) {
-        res.status(500).json({ success: false, message: 'Ошибка сервера' });
-    }
-});
-
-// Создать стейкинг
-app.post('/api/staking/start', authMiddleware, async (req, res) => {
-    try {
-        const user = req.user;
-        const { days, amount } = req.body;
-
-        const plan = STAKING_PLANS[days];
-        if (!plan) return res.status(400).json({ success: false, message: 'Неверный план' });
-
-        const amt = Math.floor(Number(amount));
-        if (!amt || amt < plan.minAmount) {
-            return res.status(400).json({ success: false, message: `Минимальная сумма: ${plan.minAmount.toLocaleString()} MMO` });
-        }
-
-        // Проверяем нет ли уже активного стейкинга
-        const existing = await Staking.findOne({ userId: user._id, claimed: false });
-        if (existing) return res.status(400).json({ success: false, message: 'У вас уже есть активный стейкинг' });
-
-        // Списываем с баланса
-        const updated = await User.findOneAndUpdate(
-            { _id: user._id, balance: { $gte: amt } },
-            {
-                $inc: { balance: -amt },
-                $push: { transactions: { $each: [{ name: `Стейкинг ${days}д. (${plan.rate * 100}%)`, amount: -amt, time: new Date() }], $position: 0, $slice: 30 } }
-            },
-            { new: true }
-        );
-        if (!updated) return res.status(400).json({ success: false, message: 'Недостаточно MMO' });
-
-        const reward = Math.floor(amt * plan.rate);
-        const endsAt = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
-
-        const staking = await Staking.create({
-            userId: user._id,
-            amount: amt,
-            days: plan.days,
-            rate: plan.rate,
-            reward,
-            endsAt
-        });
-
-        invalidateInventoryCache(user.telegramId);
-        res.json({ success: true, staking, user: formatUser(updated) });
-    } catch (e) {
-        console.error('staking start error:', e);
-        res.status(500).json({ success: false, message: 'Ошибка сервера' });
-    }
-});
-
-// Забрать награду
-app.post('/api/staking/claim', authMiddleware, async (req, res) => {
-    try {
-        const user = req.user;
-        const staking = await Staking.findOne({ userId: user._id, claimed: false });
-
-        if (!staking) return res.status(400).json({ success: false, message: 'Нет активного стейкинга' });
-        if (new Date() < staking.endsAt) {
-            return res.status(400).json({ success: false, message: 'Стейкинг ещё не завершён' });
-        }
-
-        const total = staking.amount + staking.reward;
-        staking.claimed = true;
-        await staking.save();
-
-        const updated = await User.findByIdAndUpdate(
-            user._id,
-            {
-                $inc: { balance: total },
-                $push: { transactions: { $each: [{ name: `Стейкинг завершён +${staking.reward.toLocaleString()} MMO`, amount: total, time: new Date() }], $position: 0, $slice: 30 } }
-            },
-            { new: true }
-        );
-
-        invalidateInventoryCache(user.telegramId);
-        res.json({ success: true, total, reward: staking.reward, user: formatUser(updated) });
-    } catch (e) {
-        console.error('staking claim error:', e);
-        res.status(500).json({ success: false, message: 'Ошибка сервера' });
-    }
-});
-
-// ============================================
 // WALLET ENDPOINTS
 // ============================================
 app.post('/api/wallet/get-payment-details', authMiddleware, async (req, res) => {
@@ -4649,76 +4535,6 @@ mongoose.connection.once('open', async () => {
             await arenaManager.expireOldBattles();
         }
     }, 10000);
-
-    // ============================================
-    // УВЕДОМЛЕНИЯ О АРЕНЕ (UTC+3: 9:30, 10:00, 19:30, 20:00)
-    // ============================================
-    // Расписание арены: 10:00–11:00 и 20:00–21:00 по UTC+3
-    // Уведомления: за 30 минут (9:30, 19:30) и при открытии (10:00, 20:00)
-    async function sendArenaNotificationToAll(message) {
-        const BOT_TOKEN = process.env.BOT_TOKEN;
-        if (!BOT_TOKEN) return;
-        try {
-            const users = await User.find({ isBanned: false }, { telegramId: 1 }).lean();
-            console.log(`📢 Рассылка арены: ${users.length} пользователей`);
-            let sent = 0, failed = 0;
-            for (const user of users) {
-                if (!user.telegramId) continue;
-                try {
-                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: user.telegramId,
-                            text: message,
-                            parse_mode: 'HTML',
-                            disable_web_page_preview: true
-                        })
-                    });
-                    sent++;
-                    // Пауза чтобы не словить rate limit Telegram (30 msg/sec)
-                    if (sent % 25 === 0) await new Promise(r => setTimeout(r, 1000));
-                } catch (e) { failed++; }
-            }
-            console.log(`✅ Арена-рассылка: отправлено ${sent}, ошибок ${failed}`);
-        } catch (e) {
-            console.error('Arena broadcast error:', e);
-        }
-    }
-
-    // Проверяем каждую минуту нужно ли слать уведомление
-    let lastArenaNotiMinute = -1;
-    setInterval(async () => {
-        const now = new Date();
-        // UTC+3
-        const utc3Hour = (now.getUTCHours() + 3) % 24;
-        const utc3Min  = now.getUTCMinutes();
-        const minuteKey = utc3Hour * 60 + utc3Min;
-
-        // Не шлём дважды в одну и ту же минуту
-        if (minuteKey === lastArenaNotiMinute) return;
-
-        // 9:30 и 19:30 — предупреждение за 30 минут
-        if ((utc3Hour === 9 && utc3Min === 30) || (utc3Hour === 19 && utc3Min === 30)) {
-            lastArenaNotiMinute = minuteKey;
-            await sendArenaNotificationToAll(
-                `⚔️ <b>Через 30 минут — Арена!</b>\n\n` +
-                `Готовься к бою! Арена откроется в ${utc3Hour === 9 ? '10:00' : '20:00'} (МСК).\n` +
-                `Собери команду и жди сигнала! 🏆`
-            );
-        }
-
-        // 10:00 и 20:00 — арена открыта
-        if ((utc3Hour === 10 && utc3Min === 0) || (utc3Hour === 20 && utc3Min === 0)) {
-            lastArenaNotiMinute = minuteKey;
-            await sendArenaNotificationToAll(
-                `🏟️ <b>Арена открыта!</b>\n\n` +
-                `⚔️ Сражайся с другими игроками прямо сейчас!\n` +
-                `🏆 Побеждай и поднимайся в рейтинге!\n\n` +
-                `Арена работает 1 час — не упусти шанс! ⏳`
-            );
-        }
-    }, 60 * 1000);
     
     console.log('✅ Сервер готов');
     console.log('👥 Telegram Админы: ' + (ADMIN_IDS.join(', ') || 'не заданы'));
