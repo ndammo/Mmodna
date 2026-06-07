@@ -248,9 +248,22 @@ class ArenaBattleManager {
             
             return { success: true, battle: waitingBattle, isNew: false, entryFee: leagueConfig.entryFee };
         } else {
+            // Нет подходящего соперника (или остался только последний противник) —
+            // встаём в очередь и ждём кого-то другого
+            
+            // Проверяем, нет ли уже нашего waiting-боя в очереди (не вставать дважды)
+            const alreadyWaiting = await this.Battle.findOne({
+                status: 'waiting',
+                player1Id: user._id,
+                expiresAt: { $gt: new Date() }
+            });
+            
+            if (alreadyWaiting) {
+                return { success: true, battle: alreadyWaiting, isNew: true, entryFee: leagueConfig.entryFee };
+            }
+            
             const newBattle = await this.createBattle(user._id, teamIds, userLevel, userLeague);
             
-            // Атомарно — если это упадёт, expireOldBattles вернёт средства по expiresAt
             await this.User.updateOne(
                 { _id: user._id },
                 { $set: { currentBattleId: newBattle._id } }
