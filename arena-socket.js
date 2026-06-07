@@ -361,7 +361,18 @@ class ArenaBattleManager {
     if (!isMyTurn) {
         return { success: false, message: 'Сейчас не ваш ход' };
     }
-    
+
+    // Атомарная блокировка от race condition — помечаем что ход обрабатывается
+    const expectedTurn = battle.currentTurn;
+    const locked = await this.Battle.findOneAndUpdate(
+        { _id: battleId, status: 'active', currentTurn: expectedTurn },
+        { $set: { currentTurn: '__processing__' } }
+    );
+    if (!locked) {
+        return { success: false, message: 'Ход уже обрабатывается, подождите' };
+    }
+
+    try {
     const myTeam = isPlayer1 ? battle.player1Team : battle.player2Team;
     const enemyTeam = isPlayer1 ? battle.player2Team : battle.player1Team;
     
@@ -434,28 +445,45 @@ class ArenaBattleManager {
     // Применяем урон к цели
     target.currentHp = Math.max(0, target.currentHp - damage);
 
-    // Применяем все эффекты скилла (хил, сплеш, стан, щит)
-    const skillSummary = ArenaSkills.applySkillResult(skillResult, attackerIndex, targetIndex, myTeam, enemyTeam);
-    
+    // Помечаем цель мёртвой ДО применения скилла — чтобы сплеш не бил мёртвых
     if (target.currentHp <= 0) {
         target.isAlive = false;
     }
-    
-    battle.battleLog.push({
-        turn: battle.turnCount + 1,
-        player: battle.currentTurn,
-        attackerName: attacker.name,
-        attackerIndex: attackerIndex,
-        targetName: target.name,
-        targetIndex: targetIndex,
-        damage: damage,
-        isCrit: isCrit,
-        remainingHp: target.currentHp,
-        timestamp: new Date()
-    });
-    
+
+    // Применяем все эффекты скилла (хил, сплеш, стан, щит)
+    const skillSummary = ArenaSkills.applySkillResult(skillResult, attackerIndex, targetIndex, myTeam, enemyTeam);
+
+    // Проверяем не умер ли кто-то из своей команды (самоурон не предусмотрен, но на всякий случай)
+    myTeam.forEach(p => { if (p.currentHp <= 0) p.isAlive = false; });
+    // Убеждаемся что все враги с 0 HP помечены мёртвыми (могли быть убиты сплешем)
+    enemyTeam.forEach(p => { if (p.currentHp <= 0) p.isAlive = false; });
+
+    // Проверяем победные условия ПОСЛЕ всех эффектов
     const allEnemyDead = enemyTeam.every(p => !p.isAlive);
+    const allMyDead    = myTeam.every(p => !p.isAlive);
     
+    if (allMyDead && allEnemyDead) {
+        // Ничья — оба мертвы (редко, возможно при сплеш-скилле)
+        battle.status = 'finished';
+        battle.winnerId = null;
+        battle.turnCount++;
+        battle.markModified('player1Team');
+        battle.markModified('player2Team');
+        await this.finishBattle(battle);
+        return { success: true, finished: true, draw: true, winnerId: null };
+    }
+
+    if (allMyDead) {
+        // Все мои мертвы — враг победил
+        battle.status = 'finished';
+        battle.winnerId = isPlayer1 ? battle.player2Id : battle.player1Id;
+        battle.turnCount++;
+        battle.markModified('player1Team');
+        battle.markModified('player2Team');
+        await this.finishBattle(battle);
+        return { success: true, finished: true, winnerId: battle.winnerId, lastMove: { damage, isCrit, targetIndex, targetHp: target.currentHp, targetDead: true } };
+    }
+
     if (allEnemyDead) {
         battle.status = 'finished';
         battle.winnerId = isPlayer1 ? battle.player1Id : battle.player2Id;
@@ -526,6 +554,14 @@ class ArenaBattleManager {
         timeLeft: timeLeft,
         serverTimestamp: moveTimestamp
     };
+    } catch(err) {
+        // Восстанавливаем ход если что-то пошло не так
+        await this.Battle.findOneAndUpdate(
+            { _id: battleId, currentTurn: '__processing__' },
+            { $set: { currentTurn: expectedTurn } }
+        );
+        throw err;
+    }
 }
     async finishBattle(battle) {
         const winnerId = battle.winnerId;

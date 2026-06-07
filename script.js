@@ -2377,6 +2377,10 @@ async function findMatch() {
                 findBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Найти бой'; 
             }
             if (searchStatus) searchStatus.innerHTML = '';
+            // Если команда сброшена — переключаем на вкладку команды
+            if (res?.teamReset) {
+                setTimeout(() => switchArenaTab('team'), 500);
+            }
         } else {
             // Обновляем счётчик боёв из ответа сервера
             if (res.battlesLeft !== undefined) {
@@ -2468,6 +2472,12 @@ async function makeAttack(targetIndex) {
         showToast('ID боя не найден', '⚠️'); 
         return; 
     }
+
+    // Глобальный лок — не допускаем двойной атаки пока не пришёл ответ
+    if (makeAttack._inProgress) return;
+    makeAttack._inProgress = true;
+    
+    try {
     
     const attackBtn = document.querySelector(`#arenaEnemyCreatures .arena-battle-creature[data-enemy-index="${targetIndex}"] .arena-attack-btn`);
     if (attackBtn) {
@@ -2476,6 +2486,7 @@ async function makeAttack(targetIndex) {
     }
     
     const res = await apiRequest('POST', '/api/arena/move', { battleId, targetIndex });
+    makeAttack._inProgress = false;
     
     if (!res?.success) {
         showToast(res?.message || 'Ошибка атаки', '❌');
@@ -2498,11 +2509,11 @@ async function makeAttack(targetIndex) {
     }
 
     if (res.finished) {
-        if (res.winnerId) {
-            const isWin = res.winnerId === arenaClient?.getCurrentUserId();
-            showNativeBattleResult(isWin, res.prizePool || 0);
-            renderArenaFightTab();
-        }
+        // Всегда завершаем бой на клиенте по HTTP-ответу — не ждём WebSocket
+        arenaClient?.endBattle(res.winnerId || null, res.prizePool || 0);
+        const isWin = !!res.winnerId && res.winnerId === arenaClient?.getCurrentUserId();
+        showNativeBattleResult(isWin, res.prizePool || 0);
+        renderArenaFightTab();
     } else {
         const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
         if (res.skillResult) {
@@ -2520,7 +2531,12 @@ async function makeAttack(targetIndex) {
             showDamageAnimation(res.lastMove.targetIndex, res.lastMove.damage, res.lastMove.isCrit, false);
         }
     }
+    } catch(e) {
+        makeAttack._inProgress = false;
+        showToast('Ошибка соединения', '❌');
+    }
 }
+makeAttack._inProgress = false;
 
 async function surrenderBattle() {
     const battleId = arenaClient?.getBattleId();

@@ -323,7 +323,7 @@ const ArenaBattleSchema = new mongoose.Schema({
         stunned: Boolean, shielded: Boolean,
         skill: { id: String, name: String, chance: Number, description: String } }],
     
-    currentTurn: { type: String, enum: ['player1', 'player2'], default: 'player1' },
+    currentTurn: { type: String, enum: ['player1', 'player2', '__processing__'], default: 'player1' },
     turnCount: { type: Number, default: 0 },
     battleLog: [{
         turn: Number, player: String, attackerName: String, attackerIndex: Number,
@@ -2151,6 +2151,13 @@ app.post('/api/marketplace/list', authMiddleware, async (req, res) => {
             price,
             active: true
         });
+
+        // Убираем существо из арена-команды если оно там есть и больше нет в инвентаре
+        const remainingCount = invItem.count; // уже уменьшен выше
+        if (remainingCount <= 0 && user.arenaTeam && user.arenaTeam.includes(creatureId)) {
+            const newTeam = user.arenaTeam.filter(id => id !== creatureId);
+            await User.updateOne({ _id: user._id }, { $set: { arenaTeam: newTeam } });
+        }
         
         marketplaceListingsCache = { data: null, expiresAt: 0 };
         invalidateInventoryCache(user.telegramId);
@@ -2514,6 +2521,21 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
 
         // --- ЛИМИТ БОЁВ АРЕНЫ ОТКЛЮЧЁН (безлимитные бои) ---
         const battlesLeft = 999;
+
+        // Проверяем что все существа команды реально есть в инвентаре
+        const inventory = await Inventory.find({ telegramId: user.telegramId }).lean();
+        const inventoryMap = new Map(inventory.map(i => [i.creatureId, i.count]));
+        const missingCreatures = arenaTeam.filter(id => !inventoryMap.get(id) || inventoryMap.get(id) < 1);
+        if (missingCreatures.length > 0) {
+            // Чистим команду от отсутствующих существ
+            const newTeam = arenaTeam.filter(id => inventoryMap.get(id) >= 1);
+            await User.updateOne({ _id: user._id }, { $set: { arenaTeam: newTeam } });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Некоторых существ из вашей команды нет в инвентаре (возможно они на маркете). Обновите команду в разделе "Команда".',
+                teamReset: true
+            });
+        }
 
         const result = await arenaManager.findMatch(user, arenaTeam);
 
