@@ -3634,14 +3634,12 @@ app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
             isActive: isActive !== false
         };
         
-        // Используем findOneAndUpdate с $push для атомарного добавления
-        const config = await GameConfig.findOneAndUpdate(
+        // Нативный драйвер — обходит CastError Mongoose при несовпадении схемы в БД
+        const col = GameConfig.collection;
+        await col.updateOne(
             {},
-            { 
-                $push: { specialQuests: newQuest },
-                $set: { updatedAt: new Date() }
-            },
-            { upsert: true, new: true }
+            { $push: { specialQuests: newQuest }, $set: { updatedAt: new Date() } },
+            { upsert: true }
         );
         
         await invalidateConfigCache();
@@ -3659,17 +3657,19 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         const { questId } = req.params;
         const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
         
-        const config = await GameConfig.findOne();
+        const col = GameConfig.collection;
+        const config = await col.findOne({});
         if (!config) {
             return res.status(404).json({ success: false, message: 'Config not found' });
         }
         
-        const idx = (config.specialQuests || []).findIndex(q => q.id === questId);
+        const quests = config.specialQuests || [];
+        const idx = quests.findIndex(q => q.id === questId);
         if (idx === -1) {
             return res.status(404).json({ success: false, message: 'Квест не найден' });
         }
         
-        const q = config.specialQuests[idx];
+        const q = quests[idx];
         if (title !== undefined) q.title = title;
         if (description !== undefined) q.description = description;
         if (icon !== undefined) q.icon = icon;
@@ -3679,9 +3679,7 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         if (required_count !== undefined) q.required_count = Number(required_count);
         if (isActive !== undefined) q.isActive = isActive;
         
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
+        await col.updateOne({}, { $set: { specialQuests: quests, updatedAt: new Date() } });
         
         await invalidateConfigCache();
         res.json({ success: true, quest: q });
@@ -3695,13 +3693,13 @@ app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req
     try {
         const { questId } = req.params;
         
-        const config = await GameConfig.findOneAndUpdate(
+        const col = GameConfig.collection;
+        const result = await col.updateOne(
             {},
-            { $pull: { specialQuests: { id: questId } } },
-            { new: true }
+            { $pull: { specialQuests: { id: questId } } }
         );
         
-        if (!config) {
+        if (result.matchedCount === 0) {
             return res.status(404).json({ success: false, message: 'Config not found' });
         }
         
