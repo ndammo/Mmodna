@@ -217,6 +217,7 @@ const CreatureSchema = new mongoose.Schema({
     desc: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
     premiumOnly: { type: Boolean, default: false },
+    stakingOnly: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 const Creature = mongoose.model('Creature', CreatureSchema);
@@ -859,10 +860,13 @@ async function randomCreatureByRarity(rarity, capsuleType = 'premium') {
     const allByRarity = creaturesCache
         ? creaturesCache.filter(c => c.rarity === rarity && c.isActive)
         : await Creature.find({ rarity, isActive: true });
-    // premiumOnly существа недоступны из basic капсулы
-    const pool = capsuleType === 'basic'
-        ? allByRarity.filter(c => !c.premiumOnly)
-        : allByRarity;
+    // stakingOnly — только через стейкинг, никогда из капсул
+    // premiumOnly — только из premium капсулы (не из basic)
+    const pool = allByRarity.filter(c => {
+        if (c.stakingOnly) return false;
+        if (capsuleType === 'basic' && c.premiumOnly) return false;
+        return true;
+    });
     if (!pool.length) return null;
     return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -4484,7 +4488,7 @@ async function initCreatures() {
         { id: 'lion_mythic', name: 'Lion', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/lm.png', incomeBase: 1000, desc: 'THE MYTHIC KING.' },
         { id: 'panther_mythic', name: 'Black Panther', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/pm.png', incomeBase: 2000, desc: 'TOP 1 SEASON.' },
         { id: 'monkey_r', name: 'Monkey', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/mr.png', incomeBase: 30, desc: 'Warrior with twin axes. Premium capsule only.', premiumOnly: true },
-        { id: 'capybara_r', name: 'Capybara', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/cr.png', incomeBase: 25, desc: 'Zen master. Disables enemy skill for 3 turns. Reward for 7-day staking.', premiumOnly: true }
+        { id: 'capybara_r', name: 'Capybara', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/cr.png', incomeBase: 25, desc: 'Zen master. Disables enemy skill for 3 turns. Staking reward only.', stakingOnly: true }
     ];
 
     for (const creature of staticCreatures) {
@@ -4492,6 +4496,14 @@ async function initCreatures() {
         if (!exists) {
             await Creature.create(creature);
             console.log(`✅ Добавлено существо: ${creature.name}`);
+        } else {
+            // Обновляем флаги stakingOnly/premiumOnly если изменились
+            await Creature.updateOne({ id: creature.id }, {
+                $set: {
+                    stakingOnly: creature.stakingOnly || false,
+                    premiumOnly: creature.premiumOnly || false
+                }
+            });
         }
     }
     await loadCreaturesToCache();
