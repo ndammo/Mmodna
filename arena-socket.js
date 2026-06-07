@@ -199,44 +199,30 @@ class ArenaBattleManager {
         const userLeague = userStats.league;
         const leagueConfig = LEAGUE_CONFIG[userLeague];
         
-        if (leagueConfig.entryFee > 0 && user.balance < leagueConfig.entryFee) {
+        if (user.balance < leagueConfig.entryFee) {
             return { success: false, message: `Недостаточно MMO. Нужно ${leagueConfig.entryFee} MMO для участия в ${leagueConfig.name} лиге` };
         }
         
-        // Списываем взнос только если он > 0
-        if (leagueConfig.entryFee > 0) {
-            const updatedUser = await this.User.findOneAndUpdate(
-                { _id: user._id, balance: { $gte: leagueConfig.entryFee } },
-                { $inc: { balance: -leagueConfig.entryFee } },
-                { new: true }
-            );
-            if (!updatedUser) {
-                return { success: false, message: 'Не удалось списать средства' };
-            }
+        const updatedUser = await this.User.findOneAndUpdate(
+            { _id: user._id, balance: { $gte: leagueConfig.entryFee } },
+            { $inc: { balance: -leagueConfig.entryFee } },
+            { new: true }
+        );
+        
+        if (!updatedUser) {
+            return { success: false, message: 'Не удалось списать средства' };
         }
         
-        // Получаем ID последнего противника чтобы не попадаться ему снова подряд
-        const lastOpponentId = userStats.lastOpponentId || null;
-
-        const waitingBattleQuery = {
+        // Исключаем самого игрока и последнего соперника (анти-повтор)
+        const excludeIds = [user._id];
+        if (user.lastOpponentId) excludeIds.push(user.lastOpponentId);
+        
+        const waitingBattle = await this.Battle.findOne({
             status: 'waiting',
             league: userLeague,
-            player1Id: { $ne: user._id },
+            player1Id: { $nin: excludeIds },
             expiresAt: { $gt: new Date() }
-        };
-
-        // Исключаем последнего противника если есть другие кандидаты
-        let waitingBattle = null;
-        if (lastOpponentId) {
-            waitingBattle = await this.Battle.findOne({
-                ...waitingBattleQuery,
-                player1Id: { $ne: user._id, $ne: lastOpponentId }
-            }).sort({ createdAt: 1 });
-        }
-        // Если не нашли (очередь пустая или только последний противник) — берём любого
-        if (!waitingBattle) {
-            waitingBattle = await this.Battle.findOne(waitingBattleQuery).sort({ createdAt: 1 });
-        }
+        }).sort({ createdAt: 1 });
         
         if (waitingBattle) {
             const player2Team = await buildTeamFromIds(teamIds, userLevel, user._id, this.getCreature);
@@ -611,7 +597,6 @@ class ArenaBattleManager {
             winnerStats.totalBattles += 1;
             winnerStats.totalEarned += battle.prizePool;
             winnerStats.lastBattleAt = new Date();
-            winnerStats.lastOpponentId = loserId;
             
             loserStats.rating = newLoserRating;
             loserStats.league = newLoserLeague;
@@ -620,20 +605,42 @@ class ArenaBattleManager {
             loserStats.totalBattles += 1;
             loserStats.totalLost = (loserStats.totalLost || 0) + battle.entryFee;
             loserStats.lastBattleAt = new Date();
-            loserStats.lastOpponentId = winnerId;
             
             await winnerStats.save();
             await loserStats.save();
             
-            if (this.sendNotification) {
-                const winner = await this.User.findById(winnerId);
-                const loser = await this.User.findById(loserId);
+            // XP за арену
+            const xpNeededCalc = (level) => level <= 15 ? level * 100 : 1500 + (level - 15) * 1000;
+            const winner = await this.User.findById(winnerId);
+            const loser = await this.User.findById(loserId);
+            if (winner) {
+                const xpWin = 20;
+                const neededW = xpNeededCalc(winner.level);
+                const newXpW = winner.xp + xpWin;
+                if (newXpW >= neededW) {
+                    await this.User.updateOne({ _id: winnerId }, { $inc: { level: 1 }, $set: { xp: newXpW - neededW } });
+                } else {
+                    await this.User.updateOne({ _id: winnerId }, { $inc: { xp: xpWin } });
+                }
+            }
+            if (loser) {
+                const xpLose = 5;
+                const neededL = xpNeededCalc(loser.level);
+                const newXpL = loser.xp + xpLose;
+                if (newXpL >= neededL) {
+                    await this.User.updateOne({ _id: loserId }, { $inc: { level: 1 }, $set: { xp: newXpL - neededL } });
+                } else {
+                    await this.User.updateOne({ _id: loserId }, { $inc: { xp: xpLose } });
+                }
+            }
                 
+            if (this.sendNotification) {
                 if (winner) {
                     await this.sendNotification(winner.telegramId,
                         `🏆 <b>ПОБЕДА В АРЕНЕ!</b>\n\n` +
                         `Вы победили ${loser?.username || loser?.firstName || 'игрока'}!\n` +
                         `💰 Выигрыш: +${battle.prizePool.toLocaleString()} MMO\n` +
+                        `⭐ XP: +20\n` +
                         `📊 Рейтинг: ${winnerStats.rating} ${ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`}\n` +
                         `🔥 Серия побед: ${winnerStats.streak}\n` +
                         `${promotionMessage ? `\n${promotionMessage}` : ''}\n` +
@@ -645,6 +652,7 @@ class ArenaBattleManager {
                     await this.sendNotification(loser.telegramId,
                         `💀 <b>ПОРАЖЕНИЕ В АРЕНЕ</b>\n\n` +
                         `Вы проиграли ${winner?.username || winner?.firstName || 'игроку'}.\n` +
+                        `⭐ XP: +5\n` +
                         `📊 Рейтинг: ${loserStats.rating} (${ratingChange > 0 ? `-${ratingChange}` : `-${Math.abs(ratingChange)}`})\n` +
                         `${demotionMessage ? `\n${demotionMessage}` : ''}\n` +
                         `💪 Следующий бой будет лучше!`
@@ -657,6 +665,12 @@ class ArenaBattleManager {
             { _id: { $in: [battle.player1Id, battle.player2Id].filter(id => id) } },
             { $set: { currentBattleId: null, arenaCooldownUntil: new Date(Date.now() + 30 * 1000) } }
         );
+        
+        // Запоминаем последнего соперника для каждого игрока (анти-повтор)
+        if (battle.player1Id && battle.player2Id) {
+            await this.User.updateOne({ _id: battle.player1Id }, { $set: { lastOpponentId: battle.player2Id } });
+            await this.User.updateOne({ _id: battle.player2Id }, { $set: { lastOpponentId: battle.player1Id } });
+        }
         
         await battle.save();
         return { winnerId, loserId };

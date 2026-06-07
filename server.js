@@ -185,7 +185,8 @@ const UserSchema = new mongoose.Schema({
     incomeCacheExpires: { type: Date, default: Date.now },
     arenaTeam: [{ type: String, default: [] }],
     arenaCooldownUntil: { type: Date, default: null },
-    currentBattleId: { type: mongoose.Schema.Types.ObjectId, ref: 'ArenaBattle', default: null }
+    currentBattleId: { type: mongoose.Schema.Types.ObjectId, ref: 'ArenaBattle', default: null },
+    lastOpponentId: { type: mongoose.Schema.Types.ObjectId, default: null }
 });
 
 UserSchema.pre('save', function(next) {
@@ -361,7 +362,6 @@ const ArenaStatsSchema = new mongoose.Schema({
     totalEarned: { type: Number, default: 0 },
     totalLost: { type: Number, default: 0 },
     lastBattleAt: { type: Date, default: null },
-    lastOpponentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     updatedAt: { type: Date, default: Date.now }
 });
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
@@ -846,6 +846,7 @@ async function randomCreatureByRarity(rarity, capsuleType = 'premium') {
     const allByRarity = creaturesCache
         ? creaturesCache.filter(c => c.rarity === rarity && c.isActive)
         : await Creature.find({ rarity, isActive: true });
+    // premiumOnly существа недоступны из basic капсулы
     const pool = capsuleType === 'basic'
         ? allByRarity.filter(c => !c.premiumOnly)
         : allByRarity;
@@ -1657,10 +1658,10 @@ app.post('/api/game/upgrade-inventory', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Недостаточно MMO', required: cost });
         }
 
-        addXP(updatedUser, 25); // обновляем in-memory для formatUser (атомарный блок ниже записывает в БД)
+        addXP(updatedUser, 30); // обновляем in-memory для formatUser (атомарный блок ниже записывает в БД)
         // Атомарный XP
         {
-            const xpGain = 5;
+            const xpGain = 30;
             const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
@@ -1743,10 +1744,10 @@ app.post('/api/game/watch-ad', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Не удалось получить награду. Попробуйте ещё раз.' });
         }
         
-        addXP(updatedUser, 15); // обновляем in-memory для formatUser (атомарный блок ниже записывает в БД)
+        addXP(updatedUser, 5); // обновляем in-memory для formatUser (атомарный блок ниже записывает в БД)
         // Атомарный XP
         {
-            const xpGain = 15;
+            const xpGain = 5;
             const needed = xpNeeded(updatedUser.level);
             const newXp = updatedUser.xp + xpGain;
             if (newXp >= needed) {
@@ -2494,22 +2495,8 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: `Подождите ${secondsLeft} секунд перед следующим боем` });
         }
 
-        // --- ЛИМИТ БОЁВ АРЕНЫ ---
-        await regenerateArenaBattles(user);
-        const battlesLeft = user.arenaBattlesLeft ?? MAX_ARENA_BATTLES;
-        if (battlesLeft <= 0) {
-            const now = Date.now();
-            const lastRegen = user.arenaLastBattleRegen ? new Date(user.arenaLastBattleRegen).getTime() : now;
-            const msUntilNext = ARENA_BATTLE_REGEN_INTERVAL - ((now - lastRegen) % ARENA_BATTLE_REGEN_INTERVAL);
-            const minsLeft = Math.ceil(msUntilNext / 60000);
-            return res.status(400).json({
-                success: false,
-                message: `Нет доступных боёв. Следующий через ${minsLeft} мин.`,
-                battlesLeft: 0,
-                nextRegenMinutes: minsLeft
-            });
-        }
-        // --- /ЛИМИТ БОЁВ АРЕНЫ ---
+        // --- ЛИМИТ БОЁВ АРЕНЫ ОТКЛЮЧЁН (безлимитные бои) ---
+        const battlesLeft = 999;
 
         const result = await arenaManager.findMatch(user, arenaTeam);
 
@@ -2517,13 +2504,8 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             return res.status(400).json(result);
         }
 
-        // Списываем попытку ТОЛЬКО когда найден соперник (бой начинается)
-        // Если игрок просто встал в очередь (isNew=true) — не списываем
-        let battlesLeftAfter = battlesLeft;
-        if (!result.isNew) {
-            await User.updateOne({ _id: user._id }, { $inc: { arenaBattlesLeft: -1 } });
-            battlesLeftAfter = battlesLeft - 1;
-        }
+        // Попытки не списываем (безлимитная арена)
+        let battlesLeftAfter = 999;
         
         if (!result.isNew) {
             arenaSocketManager.send(result.battle.player1Id, 'match_found', {
