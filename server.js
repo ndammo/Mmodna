@@ -361,6 +361,7 @@ const ArenaStatsSchema = new mongoose.Schema({
     totalEarned: { type: Number, default: 0 },
     totalLost: { type: Number, default: 0 },
     lastBattleAt: { type: Date, default: null },
+    lastOpponentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     updatedAt: { type: Date, default: Date.now }
 });
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
@@ -845,7 +846,6 @@ async function randomCreatureByRarity(rarity, capsuleType = 'premium') {
     const allByRarity = creaturesCache
         ? creaturesCache.filter(c => c.rarity === rarity && c.isActive)
         : await Creature.find({ rarity, isActive: true });
-    // premiumOnly существа недоступны из basic капсулы
     const pool = capsuleType === 'basic'
         ? allByRarity.filter(c => !c.premiumOnly)
         : allByRarity;
