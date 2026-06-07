@@ -2624,6 +2624,9 @@ async function renderArenaFightTab() {
                     const entryFeeEl = document.getElementById('arenaEntryFee');
                     const prizePoolEl = document.getElementById('arenaPrizePool');
                     const leagueEl = document.getElementById('arenaLeague');
+
+                    const entryRow = document.getElementById('arenaEntryFeeRow');
+                    if (entryRow) entryRow.style.display = config.entryFee === 0 ? 'none' : '';
                     if (entryFeeEl) entryFeeEl.textContent = config.entryFee;
                     if (prizePoolEl) prizePoolEl.textContent = config.prizePool;
                     if (leagueEl) {
