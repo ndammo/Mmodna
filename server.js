@@ -3602,12 +3602,12 @@ app.put('/api/admin/config', adminAuthMiddleware, async (req, res) => {
 });
 
 // ADMIN: SPECIAL QUESTS CRUD
-console.log('🔍 РЕГИСТРИРУЮ КВЕСТЫ, server.js загружен!');
 app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
     try {
         const config = await getGameConfig();
         res.json({ success: true, specialQuests: config.specialQuests || [] });
     } catch (e) {
+        console.error('GET /special-quests error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -3615,24 +3615,41 @@ app.get('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
 app.post('/api/admin/special-quests', adminAuthMiddleware, async (req, res) => {
     try {
         const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
-        if (!title || !reward || !type) return res.status(400).json({ success: false, message: 'title, reward, type обязательны' });
-        let config = await GameConfig.findOne();
-        if (!config) config = new GameConfig();
-        if (!config.specialQuests) config.specialQuests = [];
+        
+        console.log('📝 Создание квеста:', { title, reward, type });
+        
+        if (!title || !reward || !type) {
+            return res.status(400).json({ success: false, message: 'title, reward, type обязательны' });
+        }
+        
         const newQuest = {
             id: Date.now().toString(),
-            title, description: description || '', icon: icon || '🎯',
-            reward: Number(reward), type, link: link || '',
+            title,
+            description: description || '',
+            icon: icon || '🎯',
+            reward: Number(reward),
+            type,
+            link: link || '',
             required_count: Number(required_count) || 1,
             isActive: isActive !== false
         };
-        config.specialQuests.push(newQuest);
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
+        
+        // Используем findOneAndUpdate с $push для атомарного добавления
+        const config = await GameConfig.findOneAndUpdate(
+            {},
+            { 
+                $push: { specialQuests: newQuest },
+                $set: { updatedAt: new Date() }
+            },
+            { upsert: true, new: true }
+        );
+        
         await invalidateConfigCache();
+        
+        console.log('✅ Квест создан:', newQuest.id);
         res.json({ success: true, quest: newQuest });
     } catch (e) {
+        console.error('❌ POST /special-quests error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -3641,10 +3658,17 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
     try {
         const { questId } = req.params;
         const { title, description, icon, reward, type, link, required_count, isActive } = req.body;
-        let config = await GameConfig.findOne();
-        if (!config) return res.status(404).json({ success: false, message: 'Config not found' });
+        
+        const config = await GameConfig.findOne();
+        if (!config) {
+            return res.status(404).json({ success: false, message: 'Config not found' });
+        }
+        
         const idx = (config.specialQuests || []).findIndex(q => q.id === questId);
-        if (idx === -1) return res.status(404).json({ success: false, message: 'Квест не найден' });
+        if (idx === -1) {
+            return res.status(404).json({ success: false, message: 'Квест не найден' });
+        }
+        
         const q = config.specialQuests[idx];
         if (title !== undefined) q.title = title;
         if (description !== undefined) q.description = description;
@@ -3654,13 +3678,15 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
         if (link !== undefined) q.link = link;
         if (required_count !== undefined) q.required_count = Number(required_count);
         if (isActive !== undefined) q.isActive = isActive;
-        config.specialQuests[idx] = q;
+        
         config.markModified('specialQuests');
         config.updatedAt = new Date();
         await config.save();
+        
         await invalidateConfigCache();
         res.json({ success: true, quest: q });
     } catch (e) {
+        console.error('PUT /special-quests error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
@@ -3668,73 +3694,21 @@ app.put('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, r
 app.delete('/api/admin/special-quests/:questId', adminAuthMiddleware, async (req, res) => {
     try {
         const { questId } = req.params;
-        let config = await GameConfig.findOne();
-        if (!config) return res.status(404).json({ success: false, message: 'Config not found' });
-        const before = (config.specialQuests || []).length;
-        config.specialQuests = (config.specialQuests || []).filter(q => q.id !== questId);
-        if (config.specialQuests.length === before) return res.status(404).json({ success: false, message: 'Квест не найден' });
-        config.markModified('specialQuests');
-        config.updatedAt = new Date();
-        await config.save();
+        
+        const config = await GameConfig.findOneAndUpdate(
+            {},
+            { $pull: { specialQuests: { id: questId } } },
+            { new: true }
+        );
+        
+        if (!config) {
+            return res.status(404).json({ success: false, message: 'Config not found' });
+        }
+        
         await invalidateConfigCache();
         res.json({ success: true });
     } catch (e) {
-        res.status(500).json({ success: false, message: e.message });
-    }
-});
-
-app.post('/api/admin/give-to-all', adminAuthMiddleware, async (req, res) => {
-    try {
-        const { type, amount, creatureId } = req.body;
-        
-        if (type === 'coins' && amount) {
-            if (Math.abs(amount) > 1000000) {
-                return res.status(400).json({ success: false, message: 'Слишком большая сумма' });
-            }
-            const result = await User.updateMany({}, { $inc: { balance: amount } });
-            leaderboardCache = { data: null, expiresAt: 0 };
-            res.json({ success: true, message: `Выдано ${amount} MMO ${result.modifiedCount} игрокам` });
-        } 
-        else if (type === 'creature' && creatureId) {
-            const creature = await getCreature(creatureId);
-            if (!creature) return res.status(400).json({ success: false, message: 'Существо не найдено' });
-            
-            let count = 0;
-            const batchSize = 100;
-            let skip = 0;
-            let hasMore = true;
-            
-            while (hasMore) {
-                const users = await User.find({}).select('_id telegramId inventorySlots').skip(skip).limit(batchSize).lean();
-                if (users.length === 0) { hasMore = false; break; }
-                
-                const bulkOps = [];
-                for (const user of users) {
-                    const inventory = await Inventory.find({ telegramId: user.telegramId });
-                    const usedSlots = inventory.reduce((sum, i) => sum + i.count, 0);
-                    if (usedSlots >= user.inventorySlots) continue;
-                    
-                    bulkOps.push({ updateOne: { filter: { telegramId: user.telegramId, creatureId }, update: { $inc: { count: 1 } }, upsert: true } });
-                    
-                    if (!user.discovered?.includes(creatureId)) {
-                        await User.updateOne({ _id: user._id }, { $addToSet: { discovered: creatureId } });
-                    }
-                    count++;
-                }
-                
-                if (bulkOps.length > 0) await Inventory.bulkWrite(bulkOps);
-                skip += batchSize;
-            }
-            
-            inventoryCache.clear();
-            userIncomeCache.clear();
-            res.json({ success: true, message: `Выдано существо ${creature.name} ${count} игрокам` });
-        }
-        else {
-            res.status(400).json({ success: false, message: 'Неверные параметры' });
-        }
-    } catch (e) {
-        console.error('give-to-all error:', e);
+        console.error('DELETE /special-quests error:', e);
         res.status(500).json({ success: false, message: e.message });
     }
 });
