@@ -1064,7 +1064,6 @@ const authMiddleware = async (req, res, next) => {
 // ============================================
 // HEALTH CHECK
 // ============================================
-app.use(express.static(__dirname));
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
@@ -1077,6 +1076,9 @@ app.get('/', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
 });
+
+// Static файлы (index.html исключён — он отдаётся роутом выше с подстановкой API_URL)
+app.use(express.static(__dirname, { index: false }));
 
 // ============================================
 // ПУБЛИЧНЫЕ ЭНДПОИНТЫ
@@ -4652,6 +4654,76 @@ mongoose.connection.once('open', async () => {
             await arenaManager.expireOldBattles();
         }
     }, 10000);
+
+    // ============================================
+    // УВЕДОМЛЕНИЯ О АРЕНЕ (UTC+3: 9:30, 10:00, 19:30, 20:00)
+    // ============================================
+    // Расписание арены: 10:00–11:00 и 20:00–21:00 по UTC+3
+    // Уведомления: за 30 минут (9:30, 19:30) и при открытии (10:00, 20:00)
+    async function sendArenaNotificationToAll(message) {
+        const BOT_TOKEN = process.env.BOT_TOKEN;
+        if (!BOT_TOKEN) return;
+        try {
+            const users = await User.find({ isBanned: false }, { telegramId: 1 }).lean();
+            console.log(`📢 Рассылка арены: ${users.length} пользователей`);
+            let sent = 0, failed = 0;
+            for (const user of users) {
+                if (!user.telegramId) continue;
+                try {
+                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: user.telegramId,
+                            text: message,
+                            parse_mode: 'HTML',
+                            disable_web_page_preview: true
+                        })
+                    });
+                    sent++;
+                    // Пауза чтобы не словить rate limit Telegram (30 msg/sec)
+                    if (sent % 25 === 0) await new Promise(r => setTimeout(r, 1000));
+                } catch (e) { failed++; }
+            }
+            console.log(`✅ Арена-рассылка: отправлено ${sent}, ошибок ${failed}`);
+        } catch (e) {
+            console.error('Arena broadcast error:', e);
+        }
+    }
+
+    // Проверяем каждую минуту нужно ли слать уведомление
+    let lastArenaNotiMinute = -1;
+    setInterval(async () => {
+        const now = new Date();
+        // UTC+3
+        const utc3Hour = (now.getUTCHours() + 3) % 24;
+        const utc3Min  = now.getUTCMinutes();
+        const minuteKey = utc3Hour * 60 + utc3Min;
+
+        // Не шлём дважды в одну и ту же минуту
+        if (minuteKey === lastArenaNotiMinute) return;
+
+        // 9:30 и 19:30 — предупреждение за 30 минут
+        if ((utc3Hour === 9 && utc3Min === 30) || (utc3Hour === 19 && utc3Min === 30)) {
+            lastArenaNotiMinute = minuteKey;
+            await sendArenaNotificationToAll(
+                `⚔️ <b>Через 30 минут — Арена!</b>\n\n` +
+                `Готовься к бою! Арена откроется в ${utc3Hour === 9 ? '10:00' : '20:00'} (МСК).\n` +
+                `Собери команду и жди сигнала! 🏆`
+            );
+        }
+
+        // 10:00 и 20:00 — арена открыта
+        if ((utc3Hour === 10 && utc3Min === 0) || (utc3Hour === 20 && utc3Min === 0)) {
+            lastArenaNotiMinute = minuteKey;
+            await sendArenaNotificationToAll(
+                `🏟️ <b>Арена открыта!</b>\n\n` +
+                `⚔️ Сражайся с другими игроками прямо сейчас!\n` +
+                `🏆 Побеждай и поднимайся в рейтинге!\n\n` +
+                `Арена работает 1 час — не упусти шанс! ⏳`
+            );
+        }
+    }, 60 * 1000);
     
     console.log('✅ Сервер готов');
     console.log('👥 Telegram Админы: ' + (ADMIN_IDS.join(', ') || 'не заданы'));
