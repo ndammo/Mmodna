@@ -4639,6 +4639,77 @@ mongoose.connection.once('open', async () => {
             await arenaManager.expireOldBattles();
         }
     }, 10000);
+
+    // ============================================
+    // УВЕДОМЛЕНИЯ ОБ АРЕНЕ (UTC+3)
+    // Расписание: 10:00–12:00 и 20:00–22:00
+    // За 30 минут: 9:30 и 19:30
+    // При открытии: 10:00 и 20:00
+    // ============================================
+    async function sendArenaNotificationToAll(message) {
+        const BOT_TOKEN = process.env.BOT_TOKEN;
+        if (!BOT_TOKEN) return;
+        try {
+            const users = await User.find({ isBanned: false }, { telegramId: 1 }).lean();
+            console.log(`📢 Арена-рассылка: ${users.length} пользователей`);
+            let sent = 0, failed = 0;
+            for (const user of users) {
+                if (!user.telegramId) continue;
+                try {
+                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: user.telegramId,
+                            text: message,
+                            parse_mode: 'HTML',
+                            disable_web_page_preview: true
+                        })
+                    });
+                    sent++;
+                    if (sent % 25 === 0) await new Promise(r => setTimeout(r, 1000));
+                } catch (e) { failed++; }
+            }
+            console.log(`✅ Арена-рассылка завершена: ${sent} отправлено, ${failed} ошибок`);
+        } catch (e) {
+            console.error('Arena broadcast error:', e);
+        }
+    }
+
+    let lastArenaNotiMinute = -1;
+    setInterval(async () => {
+        const now = new Date();
+        const utc3Hour = (now.getUTCHours() + 3) % 24;
+        const utc3Min  = now.getUTCMinutes();
+        const minuteKey = utc3Hour * 60 + utc3Min;
+
+        if (minuteKey === lastArenaNotiMinute) return;
+
+        // За 30 минут до открытия
+        if ((utc3Hour === 9 && utc3Min === 30) || (utc3Hour === 19 && utc3Min === 30)) {
+            lastArenaNotiMinute = minuteKey;
+            const openTime = utc3Hour === 9 ? '10:00' : '20:00';
+            await sendArenaNotificationToAll(
+                `⚔️ <b>Через 30 минут — Арена!</b>\n\n` +
+                `Готовься к бою! Арена откроется в ${openTime} (МСК).\n` +
+                `Собери команду и жди сигнала! 🏆`
+            );
+        }
+
+        // Арена открывается (10:00 и 20:00)
+        if ((utc3Hour === 10 && utc3Min === 0) || (utc3Hour === 20 && utc3Min === 0)) {
+            lastArenaNotiMinute = minuteKey;
+            const closeTime = utc3Hour === 10 ? '12:00' : '22:00';
+            await sendArenaNotificationToAll(
+                `🏟️ <b>Арена открыта!</b>\n\n` +
+                `⚔️ Сражайся с другими игроками прямо сейчас!\n` +
+                `🏆 Побеждай и поднимайся в рейтинге!\n\n` +
+                `⏳ Арена работает до ${closeTime} (МСК)`
+            );
+        }
+    }, 60 * 1000);
+
+    console.log('🔔 Уведомления об арене: активны (9:30, 10:00, 19:30, 20:00 МСК)');
     
     console.log('✅ Сервер готов');
     console.log('👥 Telegram Админы: ' + (ADMIN_IDS.join(', ') || 'не заданы'));

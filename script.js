@@ -444,7 +444,7 @@ function showArenaClosedModal() {
             <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">Арена закрыта</div>
             <div style="font-size:14px;color:#94a3b8;margin-bottom:16px;line-height:1.5">
                 Арена работает по расписанию<br>
-                <span style="color:#a78bfa;font-weight:600">10:00 – 11:00</span> и <span style="color:#a78bfa;font-weight:600">20:00 – 21:00</span><br>(UTC+3)
+                <span style="color:#a78bfa;font-weight:600">10:00 – 12:00</span> и <span style="color:#a78bfa;font-weight:600">20:00 – 22:00</span><br>(UTC+3)
             </div>
             <div style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:12px;margin-bottom:20px">
                 <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">До открытия</div>
@@ -457,7 +457,7 @@ function showArenaClosedModal() {
 }
 
 // Расписание арены (UTC+3)
-const ARENA_SCHEDULE_CLIENT = [[10, 11], [20, 21]];
+const ARENA_SCHEDULE_CLIENT = [[10, 12], [20, 22]];
 
 function isArenaOpenClient() {
     const nowUTC = new Date();
@@ -489,7 +489,7 @@ function updateArenaLock() {
     } else if (!isArenaOpenClient()) {
         lock.style.display = 'inline';
         lock.textContent = '⏰';
-        lock.title = `Арена закрыта. Открыта в 10:00–11:00 и 20:00–21:00 (UTC+3)`;
+        lock.title = `Арена закрыта. Открыта в 10:00–12:00 и 20:00–22:00 (UTC+3)`;
     } else {
         lock.style.display = 'none';
     }
