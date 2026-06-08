@@ -948,6 +948,10 @@ async function watchAd() {
         showToast(`+${AD_REWARD} MMO! Осталось рекламы: ${res.adsAvailable}/${res.maxAdsPerDay}${nextRegenText}`, '🎉');
         spawnFloatingMMO(AD_REWARD);
         
+        if (res.kangarooUnlocked) {
+            setTimeout(() => showToast('🦘 Получен Kangaroo Uncommon за 200 просмотров рекламы!', '🎉'), 1500);
+        }
+        
         updateAdsStatus();
         
         if (btn && res.adsAvailable > 0 && state.adsCooldown === 0) { btn.style.opacity = '1'; btn.disabled = false; }
@@ -2518,6 +2522,11 @@ async function makeAttack(targetIndex) {
         const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
         if (res.skillResult) {
             showSkillBanner(res.skillResult.skillName, res.skillResult.description);
+            if (res.skillResult.poisoned) showToast('☠️ Противник отравлен на 3 хода!', '☠️');
+        }
+        if (res.poisonLog && res.poisonLog.length > 0) {
+            const totalDmg = res.poisonLog.reduce((s, p) => s + p.dmg, 0);
+            showToast(`☠️ Яд: -${totalDmg} HP у врагов`, '💀');
         }
         updateBattleUIFromClient({
             myTeam: res.myTeam,

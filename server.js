@@ -1781,6 +1781,18 @@ app.post('/api/game/watch-ad', authMiddleware, async (req, res) => {
         const lastRegen = new Date(updatedUser.adsLastRegen || updatedUser.createdAt).getTime();
         const nextRegenIn = ADS_REGEN_INTERVAL - (now.getTime() - lastRegen);
         const nextRegenMinutes = Math.ceil(nextRegenIn / 60000);
+
+        // Milestone: 200 реклам — выдаём Kangaroo Uncommon (один раз)
+        let kangarooUnlocked = false;
+        const newTotal = updatedUser.adsWatchedTotal;
+        if (newTotal >= 200 && !(updatedUser.discovered || []).includes('kangaroo_u')) {
+            let inv = await Inventory.findOne({ telegramId: updatedUser.telegramId, creatureId: 'kangaroo_u' });
+            if (inv) { inv.count += 1; await inv.save(); }
+            else { await Inventory.create({ userId: updatedUser._id, telegramId: updatedUser.telegramId, creatureId: 'kangaroo_u', count: 1 }); }
+            await User.findByIdAndUpdate(updatedUser._id, { $addToSet: { discovered: 'kangaroo_u' } });
+            invalidateInventoryCache(updatedUser.telegramId);
+            kangarooUnlocked = true;
+        }
         
         adLocks.delete(userId);
         
@@ -1791,6 +1803,7 @@ app.post('/api/game/watch-ad', authMiddleware, async (req, res) => {
             adsAvailable: updatedUser.adsAvailable,
             maxAdsPerDay: MAX_ADS_AVAILABLE,
             nextRegenMinutes: nextRegenMinutes,
+            kangarooUnlocked,
             user: formatUser(updatedUser)
         });
     } catch (e) {
@@ -4468,7 +4481,8 @@ async function initCreatures() {
         { id: 'lion_mythic', name: 'Lion', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/lm.png', incomeBase: 1000, desc: 'THE MYTHIC KING.' },
         { id: 'panther_mythic', name: 'Black Panther', rarity: 'mythic', icon: 'https://ndammo.github.io/Mmodna/pm.png', incomeBase: 2000, desc: 'TOP 1 SEASON.' },
         { id: 'monkey_r', name: 'Monkey', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/mr.png', incomeBase: 30, desc: 'Warrior with twin axes. Premium capsule only.', premiumOnly: true },
-        { id: 'capybara_r', name: 'Capybara', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/cr.png', incomeBase: 25, desc: 'Zen master. Disables enemy skill for 3 turns. Staking reward only.', stakingOnly: true }
+        { id: 'capybara_r', name: 'Capybara', rarity: 'rare', icon: 'https://ndammo.github.io/Mmodna/cr.png', incomeBase: 25, desc: 'Zen master. Disables enemy skill for 3 turns. Staking reward only.', stakingOnly: true },
+        { id: 'kangaroo_u', name: 'Kangaroo', rarity: 'uncommon', icon: 'https://ndammo.github.io/Mmodna/ku.png', incomeBase: 15, desc: 'Poisons all enemies for 3 turns (-10% HP/turn). Reward for 200 ads watched.', stakingOnly: true }
     ];
 
     for (const creature of staticCreatures) {

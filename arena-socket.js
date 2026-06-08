@@ -104,6 +104,7 @@ async function buildTeamFromIds(teamIds, userLevel, userId, getCreatureFn) {
                 stunned: false,
                 shielded: false,
                 skillDisabledTurns: 0,
+                poisonTurns: 0,
                 skill: ArenaSkills.getSkillForCreature(creature.id) || null
             });
         }
@@ -375,6 +376,27 @@ class ArenaBattleManager {
     try {
     const myTeam = isPlayer1 ? battle.player1Team : battle.player2Team;
     const enemyTeam = isPlayer1 ? battle.player2Team : battle.player1Team;
+
+    // ── ЯД: тик в начале хода ──────────────────────────────
+    const poisonLog = [];
+    myTeam.forEach(p => {
+        if (p.isAlive && p.poisonTurns > 0) {
+            const dmg = Math.max(1, Math.floor(p.maxHp * 0.10));
+            p.currentHp = Math.max(0, p.currentHp - dmg);
+            p.poisonTurns--;
+            if (p.currentHp <= 0) p.isAlive = false;
+            poisonLog.push({ name: p.name, dmg });
+        }
+    });
+    // Если яд убил всех наших — враг победил
+    if (myTeam.every(p => !p.isAlive)) {
+        battle.status = 'finished';
+        battle.winnerId = isPlayer1 ? battle.player2Id : battle.player1Id;
+        battle.markModified('player1Team');
+        battle.markModified('player2Team');
+        await this.finishBattle(battle);
+        return { success: true, finished: true, winnerId: battle.winnerId, poisonLog };
+    }
     
     let attackerIndex = -1;
     let attacker = null;
@@ -544,7 +566,8 @@ class ArenaBattleManager {
             stunned: skillSummary.stunned,
             shielded: skillSummary.shielded,
             missed: skillSummary.missed,
-            skillDisabled: skillSummary.skillDisabled
+            skillDisabled: skillSummary.skillDisabled,
+            poisoned: skillSummary.poisoned
         } : null,
         currentTurn: battle.currentTurn,
         turnCount: battle.turnCount,
