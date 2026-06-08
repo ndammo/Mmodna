@@ -4647,28 +4647,6 @@ mongoose.connection.once('open', async () => {
     }, 10000);
 
     // ============================================
-    // МИГРАЦИЯ: восстанавливаем adsWatchedTotal из транзакций
-    // Запускается один раз при старте — только для пользователей у кого adsWatchedTotal = 0
-    // Данные частичные (последние 30 транзакций), но лучше чем ноль
-    // ============================================
-    (async () => {
-        try {
-            const usersToMigrate = await User.find({ adsWatchedTotal: 0 }, { _id: 1, transactions: 1 }).lean();
-            let migrated = 0;
-            for (const user of usersToMigrate) {
-                const count = (user.transactions || []).filter(tx => tx.name === 'Watch Ad Reward').length;
-                if (count > 0) {
-                    await User.updateOne({ _id: user._id }, { $set: { adsWatchedTotal: count } });
-                    migrated++;
-                }
-            }
-            if (migrated > 0) console.log(`✅ Миграция adsWatchedTotal: восстановлено для ${migrated} пользователей`);
-        } catch(e) {
-            console.error('Migration adsWatchedTotal error:', e);
-        }
-    })();
-
-    // ============================================
     // УВЕДОМЛЕНИЯ ОБ АРЕНЕ (UTC+3)
     // Расписание: 10:00–12:00 и 20:00–22:00
     // За 30 минут: 9:30 и 19:30
