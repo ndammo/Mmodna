@@ -2518,7 +2518,7 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
         let battlesLeftAfter = 999;
         
         if (!result.isNew) {
-            arenaSocketManager.send(result.battle.player1Id, 'match_found', {
+            arenaSocketManager?.send(result.battle.player1Id, 'match_found', {
                 battleId: result.battle._id,
                 status: 'pending_confirmation',
                 isPlayer1: true,
@@ -2527,7 +2527,7 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
                 myTeam: result.battle.player1Team
             });
             
-            arenaSocketManager.send(result.battle.player2Id, 'match_found', {
+            arenaSocketManager?.send(result.battle.player2Id, 'match_found', {
                 battleId: result.battle._id,
                 status: 'pending_confirmation',
                 isPlayer1: false,
@@ -2640,7 +2640,7 @@ app.post('/api/arena/accept-match', authMiddleware, async (req, res) => {
             const player1 = await User.findById(battle.player1Id).select('username firstName level');
             const player2 = await User.findById(battle.player2Id).select('username firstName level');
             
-            arenaSocketManager.send(battle.player1Id, 'battle_start', {
+            arenaSocketManager?.send(battle.player1Id, 'battle_start', {
                 battleId: battle._id,
                 status: 'active',
                 isPlayer1: true,
@@ -2654,7 +2654,7 @@ app.post('/api/arena/accept-match', authMiddleware, async (req, res) => {
                 timeLeft: 30
             });
             
-            arenaSocketManager.send(battle.player2Id, 'battle_start', {
+            arenaSocketManager?.send(battle.player2Id, 'battle_start', {
                 battleId: battle._id,
                 status: 'active',
                 isPlayer1: false,
@@ -2668,11 +2668,11 @@ app.post('/api/arena/accept-match', authMiddleware, async (req, res) => {
                 timeLeft: 30
             });
         } else {
-            arenaSocketManager.send(result.battle.player1Id, 'confirmation_update', {
+            arenaSocketManager?.send(result.battle.player1Id, 'confirmation_update', {
                 player1Confirmed: result.battle.player1Confirmed,
                 player2Confirmed: result.battle.player2Confirmed
             });
-            arenaSocketManager.send(result.battle.player2Id, 'confirmation_update', {
+            arenaSocketManager?.send(result.battle.player2Id, 'confirmation_update', {
                 player1Confirmed: result.battle.player1Confirmed,
                 player2Confirmed: result.battle.player2Confirmed
             });
@@ -2702,12 +2702,12 @@ app.post('/api/arena/reject-match', authMiddleware, async (req, res) => {
                 : battleBefore.player1Id;
             // Уведомляем обоих: соперника и самого реджектящего
             if (otherId) {
-                arenaSocketManager.send(otherId, 'match_rejected', {
+                arenaSocketManager?.send(otherId, 'match_rejected', {
                     battleId: battleId,
                     message: 'Соперник отклонил бой. Ставка возвращена.'
                 });
             }
-            arenaSocketManager.send(req.user._id, 'match_rejected', {
+            arenaSocketManager?.send(req.user._id, 'match_rejected', {
                 battleId: battleId,
                 message: 'Вы отклонили бой. Ставка возвращена.'
             });
@@ -2733,7 +2733,7 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
         if (result.finished) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
-                arenaSocketManager.sendBoth(battle, 'battle_end', {
+                arenaSocketManager?.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: result.winnerId?.toString(),
                     lastMove: result.lastMove,
@@ -2759,8 +2759,8 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
                     serverTimestamp: result.serverTimestamp || Date.now()
                 };
                 
-                arenaSocketManager.send(opponentId, 'move_update', moveUpdatePayload);
-                arenaSocketManager.send(moverId, 'move_update', { ...moveUpdatePayload, isSelf: true });
+                arenaSocketManager?.send(opponentId, 'move_update', moveUpdatePayload);
+                arenaSocketManager?.send(moverId, 'move_update', { ...moveUpdatePayload, isSelf: true });
             }
         }
         
@@ -2779,7 +2779,7 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
         if (result.success) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
-                arenaSocketManager.sendBoth(battle, 'battle_end', {
+                arenaSocketManager?.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
                     surrendered: true
@@ -4561,7 +4561,10 @@ io.on('connection', (socket) => {
     if (arenaSocketManager) {
         arenaSocketManager.add(user._id, socket.id);
     } else {
-        console.error(`❌ arenaSocketManager не инициализирован!`);
+        // arenaSocketManager ещё не готов — ждём открытия БД и регистрируем
+        mongoose.connection.once('open', () => {
+            if (arenaSocketManager) arenaSocketManager.add(user._id, socket.id);
+        });
     }
     
     socket.on('check_battle_status', async (data) => {
