@@ -485,7 +485,7 @@ function updateArenaLock() {
     if (level < 5) {
         lock.style.display = 'inline';
         lock.textContent = '🔒';
-        lock.title = `Доступно с 5 уровня (ваш: ${level})`;
+        lock.title = `Доступно с 3 уровня (ваш: ${level})`;
     } else if (!isArenaOpenClient()) {
         lock.style.display = 'inline';
         lock.textContent = '⏰';
@@ -2347,7 +2347,7 @@ async function findMatch() {
     }
 
     if ((state.user?.level || 1) < 5) {
-        showToast('Арена доступна с 5 уровня', '🔒');
+        showToast('Арена доступна с 3 уровня', '🔒');
         return;
     }
 
@@ -3135,8 +3135,8 @@ function switchTab(tab) {
     // Проверки ПЕРЕД переключением DOM
     if (tab === 'arena') {
         const userLevel = state.user?.level || 1;
-        if (userLevel < 5) {
-            showToast(`Арена доступна с 5 уровня (ваш: ${userLevel})`, '🔒');
+        if (userLevel < 3) {
+            showToast(`Арена доступна с 3 уровня (ваш: ${userLevel})`, '🔒');
             return;
         }
         if (!isArenaOpenClient()) {

@@ -2474,7 +2474,7 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Сначала выберите команду из 3 питомцев' });
         }
 
-        if ((user.level || 1) < 5) {
+        if ((user.level || 1) < 3) {
             return res.status(403).json({ success: false, message: 'Арена доступна с 5 уровня' });
         }
         
