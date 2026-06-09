@@ -2475,8 +2475,8 @@ app.post('/api/arena/find-match', authMiddleware, async (req, res) => {
         }
 
         if ((user.level || 1) < 3) {
-            return res.status(403).json({ success: false, message: 'Арена доступна с 5 уровня' });
-        }
+    return res.status(403).json({ success: false, message: 'Арена доступна с 3 уровня' });
+}
         
         if (user.currentBattleId) {
             const existingBattle = await ArenaBattle.findById(user.currentBattleId);
