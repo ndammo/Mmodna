@@ -676,7 +676,7 @@ function formatUser(user) {
         inventoryUpgrades: user.inventoryUpgrades,
         discovered: user.discovered || [],
         completedSpecialQuests: user.completedSpecialQuests || [],
-        transactions: (user.transactions || []).slice(0, 20),
+        transactions: (user.transactions || []).slice(0, 200),
         adsAvailable: user.adsAvailable,
         adsCooldownUntil: user.adsCooldownUntil,
         referralCode: user.referralCode,
