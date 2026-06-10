@@ -2638,7 +2638,7 @@ async function renderArenaFightTab() {
                 if (leaderboardRes?.success && leaderboardRes.myStats) {
                     const myLeague = leaderboardRes.myStats.league || 'bronze';
                     const leagueConfigs = {
-                        bronze: { entryFee: 0, prizePool: 10, name: '🥉 Бронзовая' },
+                        bronze: { entryFee: 0, prizePool: 0, name: '🥉 Бронзовая' },
                         silver: { entryFee: 500, prizePool: 800, name: '🥈 Серебряная' },
                         gold: { entryFee: 1000, prizePool: 1600, name: '🥇 Золотая' },
                         platinum: { entryFee: 2000, prizePool: 3200, name: '💎 Платиновая' },
@@ -2782,6 +2782,7 @@ function updateBattleUIFromClient(data, isPlayer1) {
     
     if (!myTeam || !enemyTeam) return;
     
+    // Обновляем ТОЛЬКО свою команду (без анимации урона)
     for (let i = 0; i < myTeam.length; i++) {
         const creature = myTeam[i];
         const creatureEl = document.querySelector(`#arenaMyCreatures .arena-battle-creature[data-creature-index="${i}"]`);
@@ -2797,10 +2798,14 @@ function updateBattleUIFromClient(data, isPlayer1) {
     
     const isMyTurn = data.currentTurn && ((data.currentTurn === 'player1' && isPlayer1) || (data.currentTurn === 'player2' && !isPlayer1));
     
+    // Обновляем команду соперника (обычно без кнопки атаки)
     for (let i = 0; i < enemyTeam.length; i++) {
         const creature = enemyTeam[i];
         const creatureEl = document.querySelector(`#arenaEnemyCreatures .arena-battle-creature[data-enemy-index="${i}"]`);
         if (!creatureEl || !creature) continue;
+        
+        const oldHp = parseInt(creatureEl.querySelector('.creature-hp')?.textContent?.match(/[\d.]+/)?.[0] || creature.currentHp);
+        const newHp = creature.currentHp;
         
         const hpEl = creatureEl.querySelector('.creature-hp');
         const fillEl = creatureEl.querySelector('.arena-hp-fill');
@@ -2811,6 +2816,12 @@ function updateBattleUIFromClient(data, isPlayer1) {
             creatureEl.classList.add('dead');
         } else {
             creatureEl.classList.remove('dead');
+        }
+        
+        // Если у врага уменьшилось HP — показываем анимацию урона
+        if (oldHp > newHp && data.lastMove && data.lastMove.targetIndex === i) {
+            const damage = oldHp - newHp;
+            showDamageAnimation(i, damage, data.lastMove.isCrit || false, false);
         }
         
         const existingBtn = creatureEl.querySelector('.arena-attack-btn');
@@ -2834,6 +2845,7 @@ function updateBattleUIFromClient(data, isPlayer1) {
         }
     }
     
+    // Обновляем лог боя
     if (data.lastMove) {
         const logContainer = document.getElementById('arenaBattleLog');
         if (logContainer) {
