@@ -3308,9 +3308,6 @@ await loadCreaturesFromServer();
                 showSkillBanner(data.skillResult.skillName, data.skillResult.description);
             }
             updateBattleUIFromClient(data, isPlayer1);
-            if (data.lastMove && data.lastMove.targetIndex !== undefined) {
-                showDamageAnimation(data.lastMove.targetIndex, data.lastMove.damage, data.lastMove.isCrit, true);
-            }
         });
         arenaClient.on('onBattleEnd', (isWin, prizePool) => { 
             showNativeBattleResult(isWin, prizePool); 
