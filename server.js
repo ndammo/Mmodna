@@ -68,7 +68,7 @@ const REFERRAL_BONUS_PERCENT = 2;
 // RATE LIMITING
 // ============================================
 const rateLimit = new Map();
-const RATE_LIMIT_MAX = 600;          // запросов на пользователя/IP в минуту
+const RATE_LIMIT_MAX = 600;
 const RATE_LIMIT_WINDOW = 60 * 1000;
 
 setInterval(() => {
@@ -84,8 +84,6 @@ function resetRateLimitForUser(userId) {
 
 function rateLimiter(req, res, next) {
     if (req.method === 'OPTIONS') return next();
-
-    // Ключ по userId из JWT, иначе по IP
     let key;
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -98,21 +96,17 @@ function rateLimiter(req, res, next) {
         const forwarded = req.headers['x-forwarded-for'];
         key = 'ip:' + (forwarded ? forwarded.split(',')[0].trim() : (req.ip || 'unknown'));
     }
-
     const now = Date.now();
     const record = rateLimit.get(key);
-
     if (!record || now > record.resetAt) {
         rateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
         return next();
     }
-
     if (record.count >= RATE_LIMIT_MAX) {
         const retryAfter = Math.ceil((record.resetAt - now) / 1000);
         res.setHeader('Retry-After', retryAfter);
         return res.status(429).json({ success: false, message: `Слишком много запросов. Подождите ${retryAfter} сек.` });
     }
-
     record.count++;
     next();
 }
@@ -2885,7 +2879,7 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
                     prizePool: battle.prizePool,
                     dustWin: _lcEnd.dustWin || 0
                 });
-                // Сброс счётчика rate limit для обоих игроков после боя
+                // Сбрасываем rate limit обоих игроков после боя
                 resetRateLimitForUser(battle.player1Id);
                 resetRateLimitForUser(battle.player2Id);
             }
@@ -2904,6 +2898,7 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
                     player1Team: battle.player1Team,
                     player2Team: battle.player2Team,
                     skillResult: result.skillResult || null,
+                    poisonLog: result.poisonLog || [],
                     timeLeft: result.timeLeft || 30,
                     serverTimestamp: result.serverTimestamp || Date.now()
                 };
@@ -2931,12 +2926,14 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
         if (result.success) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
+                const _lcSurr = ArenaModule?.LEAGUE_CONFIG?.[battle.league] || { dustWin: 0 };
                 arenaSocketManager?.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
-                    surrendered: true
+                    surrendered: true,
+                    prizePool: battle.prizePool,
+                    dustWin: _lcSurr.dustWin || 0
                 });
-                // Сброс счётчика rate limit для обоих игроков
                 resetRateLimitForUser(battle.player1Id);
                 resetRateLimitForUser(battle.player2Id);
             }
