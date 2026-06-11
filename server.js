@@ -383,7 +383,7 @@ const ArenaStatsSchema = new mongoose.Schema({
 const ArenaStats = mongoose.model('ArenaStats', ArenaStatsSchema);
 
 const StakingSchema = new mongoose.Schema({
-    userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     amount:    { type: Number, required: true },
     days:      { type: Number, required: true },
     rate:      { type: Number, required: true },
@@ -392,6 +392,7 @@ const StakingSchema = new mongoose.Schema({
     endsAt:    { type: Date, required: true },
     claimed:   { type: Boolean, default: false }
 });
+StakingSchema.index({ userId: 1, claimed: 1 });
 const Staking = mongoose.model('Staking', StakingSchema);
 
 // ============================================
@@ -2862,13 +2863,16 @@ app.post('/api/arena/move', authMiddleware, async (req, res) => {
         if (result.finished) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
-                const _lcEnd = ArenaModule?.LEAGUE_CONFIG?.[battle.league] || { dustWin: 0 };
+                const _lcEnd = ArenaModule?.LEAGUE_CONFIG?.[battle.league] || { dustWin: 0, dustLose: 0, xpWin: 0, xpLose: 0 };
                 arenaSocketManager?.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: result.winnerId?.toString(),
                     lastMove: result.lastMove,
                     prizePool: battle.prizePool,
-                    dustWin: _lcEnd.dustWin || 0
+                    dustWin: _lcEnd.dustWin || 0,
+                    dustLose: _lcEnd.dustLose || 0,
+                    xpWin: _lcEnd.xpWin || 0,
+                    xpLose: _lcEnd.xpLose || 0
                 });
             }
         } else {
@@ -2913,10 +2917,16 @@ app.post('/api/arena/surrender', authMiddleware, async (req, res) => {
         if (result.success) {
             const battle = await ArenaBattle.findById(battleId);
             if (battle) {
+                const _lcSurr = ArenaModule?.LEAGUE_CONFIG?.[battle.league] || { dustWin: 0, dustLose: 0, xpWin: 0, xpLose: 0 };
                 arenaSocketManager?.sendBoth(battle, 'battle_end', {
                     battleId: battle._id,
                     winnerId: battle.winnerId?.toString(),
-                    surrendered: true
+                    surrendered: true,
+                    prizePool: battle.prizePool,
+                    dustWin: _lcSurr.dustWin || 0,
+                    dustLose: _lcSurr.dustLose || 0,
+                    xpWin: _lcSurr.xpWin || 0,
+                    xpLose: _lcSurr.xpLose || 0
                 });
             }
         }
@@ -3077,9 +3087,20 @@ app.post('/api/staking/start', authMiddleware, async (req, res) => {
         );
         if (!updated) return res.status(400).json({ success: false, message: 'Недостаточно MMO' });
 
-        const reward  = Math.floor(amt * plan.rate);
-        const endsAt  = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
-        const staking = await Staking.create({ userId: user._id, amount: amt, days: plan.days, rate: plan.rate, reward, endsAt });
+        const reward = Math.floor(amt * plan.rate);
+        const endsAt = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
+        let staking;
+        try {
+            staking = await Staking.create({ userId: user._id, amount: amt, days: plan.days, rate: plan.rate, reward, endsAt });
+        } catch (createErr) {
+            // Rollback: вернуть баланс и удалить транзакцию
+            await User.findByIdAndUpdate(user._id, {
+                $inc: { balance: amt },
+                $push: { transactions: { $each: [{ name: `Отмена стейкинга (ошибка)`, amount: amt, time: new Date() }], $position: 0, $slice: 30 } }
+            });
+            console.error('staking create error (rollback done):', createErr);
+            return res.status(500).json({ success: false, message: 'Ошибка создания стейкинга, средства возвращены' });
+        }
 
         invalidateInventoryCache(user.telegramId);
         res.json({ success: true, staking, user: formatUser(updated) });
@@ -3115,9 +3136,11 @@ app.post('/api/staking/claim', authMiddleware, async (req, res) => {
         );
 
         if (plan && plan.capybara) {
-            let inv = await Inventory.findOne({ telegramId: user.telegramId, creatureId: 'capybara_r' });
-            if (inv) { inv.count += 1; await inv.save(); }
-            else { await Inventory.create({ userId: user._id, telegramId: user.telegramId, creatureId: 'capybara_r', count: 1 }); }
+            await Inventory.findOneAndUpdate(
+                { telegramId: user.telegramId, creatureId: 'capybara_r' },
+                { $inc: { count: 1 }, $setOnInsert: { userId: user._id, telegramId: user.telegramId, creatureId: 'capybara_r' } },
+                { upsert: true, new: true }
+            );
             await User.findByIdAndUpdate(user._id, { $addToSet: { discovered: 'capybara_r' } });
         }
 
