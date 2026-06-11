@@ -466,7 +466,7 @@ function showArenaClosedModal() {
 }
 
 // Расписание арены (UTC+3)
-const ARENA_SCHEDULE_CLIENT = [[0, 23]];
+const ARENA_SCHEDULE_CLIENT = [[10, 12], [20, 22]];
 
 function isArenaOpenClient() {
     const nowUTC = new Date();
