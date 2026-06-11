@@ -116,7 +116,7 @@ function getIconHtml(creature, addShadow = false, shadowColor = null) {
     const icon = creature.icon;
     if (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.startsWith('Images/'))) {
         const shadowStyle = addShadow && shadowColor ? `filter:drop-shadow(0 0 16px ${shadowColor});` : '';
-        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" loading="lazy" style="object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display='none'">`;
+        return `<img src="${icon}" alt="${escapeHtml(creature.name)}" loading="lazy" style="object-fit:contain;${shadowStyle}" class="card-icon-img" onerror="this.style.display=\'none\'">`;
     }
     return icon || '🧬';
 }
@@ -457,7 +457,7 @@ function showArenaClosedModal() {
 }
 
 // Расписание арены (UTC+3)
-const ARENA_SCHEDULE_CLIENT = [[10, 12], [20, 22]];
+const ARENA_SCHEDULE_CLIENT = [[10, 14], [20, 02]];
 
 function isArenaOpenClient() {
     const nowUTC = new Date();
@@ -501,30 +501,55 @@ function updateHeader() {
 
     if (!state.incomePerHour) {
         let income = 0;
-        state.inventory.forEach(item => { const c = getCreature(item.creatureId); if (c) income += c.incomeBase * item.count; });
+        state.inventory.forEach(item => { 
+            const c = getCreature(item.creatureId); 
+            if (c) income += c.incomeBase * item.count; 
+        });
         state.incomePerHour = income;
     }
 
     const visualBalance = getVisualBalance();
-    document.getElementById('balanceDisplay').textContent = formatBalance(visualBalance);
     
+    // Обновляем MMO баланс
+    const balanceEl = document.getElementById('balanceDisplay');
+    if (balanceEl) balanceEl.textContent = formatBalance(visualBalance);
+    
+    // Обновляем пыль
+    const dustEl = document.getElementById('dustDisplay');
+    if (dustEl) dustEl.textContent = formatNum(u.dust || 0);
+    
+    // Обновляем инлайн доход
     const incomeInline = document.getElementById('incomeInline');
-    if (incomeInline) incomeInline.textContent = `+${formatNum(state.incomePerHour)}/hr`;
-
+    if (incomeInline) incomeInline.textContent = formatNum(state.incomePerHour);
+    
+    // Обновляем компактный XP индикатор
     const needed = u.level * 100;
-    document.getElementById('xpLabel').textContent = `XP ${u.xp}/${needed}`;
-    document.getElementById('xpFill').style.width = `${Math.min(100, (u.xp / needed) * 100)}%`;
-    document.getElementById('playerLevelLabel').textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
-
-    document.getElementById('walletCards').textContent = state.inventory.reduce((s, i) => s + i.count, 0);
-    document.getElementById('walletMerges').textContent = u.mergeCount || 0;
-
-    updateUpgradeButton();
-    renderTransactions();
-    updateArenaLock();
-
+    const xpPercent = Math.min(100, (u.xp / needed) * 100);
+    const xpFill = document.getElementById('xpFillCompact');
+    const xpText = document.getElementById('xpTextCompact');
+    
+    if (xpFill) xpFill.style.width = `${xpPercent}%`;
+    if (xpText) xpText.textContent = `${u.xp}/${needed}`;
+    
+    // Обновляем уровень
+    const levelLabel = document.getElementById('playerLevelLabel');
+    if (levelLabel) levelLabel.textContent = `LVL ${u.level} · ${getLevelTitle(u.level)}`;
+    
+    // Остальные обновления...
+    const walletBalanceEl = document.getElementById('walletBalance');
+    if (walletBalanceEl) walletBalanceEl.textContent = formatBalance(visualBalance);
+    
+    const walletDustEl = document.getElementById('walletDust');
+    if (walletDustEl) walletDustEl.textContent = formatNum(u.dust || 0);
+    
+    const inventorySlots = document.getElementById('inventorySlots');
+    if (inventorySlots) inventorySlots.textContent = `${getUsedSlots()}/${u.inventorySlots || 10}`;
+    
+    const upgradeCostEl = document.getElementById('upgradeSlotCost');
+    if (upgradeCostEl) upgradeCostEl.textContent = getUpgradeCost();
+    
     const friendCountDisplay = document.getElementById('friendCountDisplay');
-    if (friendCountDisplay && state.user) friendCountDisplay.textContent = `${state.user.referralCount || 0} друзей 5+ уровня`;
+    if (friendCountDisplay) friendCountDisplay.textContent = `${u.referralCount || 0} друзей 5+ уровня`;
 }
 
 function updateUpgradeButton() {
@@ -730,7 +755,7 @@ function onCardClick(creatureId) {
         </div>
         ${skillBlock}
         ${canMerge(creatureId)
-            ? `<button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="closeOverlay();showMergePreview('${creatureId}')">
+            ? `<button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="showMergePreview('${creatureId}')">
                 <i class="fa-solid fa-code-merge"></i> MERGE x3
             </button>`
             : `<button class="popup-btn" onclick="closeOverlay()">CLOSE</button>`
@@ -738,6 +763,13 @@ function onCardClick(creatureId) {
     `;
     document.getElementById('overlay').classList.add('show');
 }
+
+// Таблица стоимости пыли — синхронизирована с сервером
+const MERGE_DUST_TABLE = {
+    common:   { 10: 600,  20: 950,   30: 1200,  40: 1350,  50: 1500,  60: 1600,  70: 3200  },
+    uncommon: { 10: 3000, 20: 5200,  30: 6600,  40: 7500,  50: 8000,  60: 8400,  70: 16800 },
+    rare:     { 10: 132000, 20: 180000, 30: 205000, 40: 223000, 50: 237000, 60: 248000, 70: 257000, 80: 266000 }
+};
 
 function showMergePreview(creatureId) {
     const creature = getCreature(creatureId);
@@ -747,37 +779,139 @@ function showMergePreview(creatureId) {
     const currentRarityIdx = RARITY_ORDER.indexOf(creature.rarity);
     const nextRarity = currentRarityIdx < RARITY_ORDER.length - 2 ? RARITY_ORDER[currentRarityIdx + 1] : creature.rarity;
     const nextCreature = CREATURES.find(c => c.name === creature.name && c.rarity === nextRarity) || creature;
-    const color = RARITY_COLORS[creature.rarity];
+
+    const BASE_CHANCE = { common: 30, uncommon: 30, rare: 10, epic: 10, legendary: 5 };
+    const baseChance = BASE_CHANCE[creature.rarity] || 30;
+    const userDust = state.user?.dust || 0;
+    const rarityTable = MERGE_DUST_TABLE[creature.rarity];
+    const hasDustBoost = !!rarityTable;
+    const steps = rarityTable ? Object.keys(rarityTable).map(Number).sort((a,b)=>a-b) : [];
 
     document.getElementById('popup').innerHTML = `
         <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
-        <div class="popup-title" style="margin-bottom:4px">Предпросмотр Слияния</div>
+        <div class="popup-title" style="margin-bottom:4px">Слияние</div>
         <div class="popup-subtitle">3x ${escapeHtml(creature.name)} → ?</div>
-        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:16px;margin-bottom:16px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                <div style="text-align:center;flex:1"><div style="font-size:24px;margin-bottom:6px">${getIconHtml(creature)}</div><div style="font-size:10px;color:#94a3b8">Исходные</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">3x ${escapeHtml(creature.name)}</div></div>
-                <div style="color:#4a5568;font-size:18px">→</div>
-                <div style="text-align:center;flex:1"><div style="font-size:24px;margin-bottom:6px">?</div><div style="font-size:10px;color:#94a3b8">Результат</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-top:2px">Unknown</div></div>
-            </div>
-            <div style="border-top:1px solid #1e2d4a;padding-top:14px">
-                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Возможные результаты</div>
-                <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px;margin-bottom:8px">
-                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(nextCreature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#22c55e">30% Успех</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#22c55e">▲ ПОВЫШЕНИЕ</div></div>
+
+        <div style="background:#0d1120;border:1px solid #1e2d4a;border-radius:14px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div style="text-align:center;flex:1">
+                    <div style="font-size:28px;margin-bottom:4px">${getIconHtml(creature)}</div>
+                    <div style="font-size:10px;color:#94a3b8">3x ${escapeHtml(creature.name)}</div>
                 </div>
-                <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px">
-                    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${getIconHtml(creature)}</span><div style="flex:1"><div style="font-size:11px;font-weight:600;color:#ef4444">70% Провал</div><div style="font-size:10px;color:#94a3b8">${escapeHtml(creature.name)} (${creature.rarity.toUpperCase()})</div></div><div style="font-size:12px;font-weight:700;color:#ef4444">= БЕЗ ИЗМЕНЕНИЙ</div></div>
+                <div style="color:#4a5568;font-size:22px;padding:0 8px">→</div>
+                <div style="text-align:center;flex:1">
+                    <div style="font-size:28px;margin-bottom:4px">?</div>
+                    <div style="font-size:10px;color:#94a3b8">${escapeHtml(nextCreature.name)} (${nextRarity})</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px">
+                <div style="flex:1;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:20px;font-weight:800;color:#22c55e" id="mergeChanceDisplay">${baseChance}%</div>
+                    <div style="font-size:10px;color:#86efac">Шанс успеха</div>
+                </div>
+                <div style="flex:1;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:20px;font-weight:800;color:#ef4444" id="mergeFailDisplay">${100-baseChance}%</div>
+                    <div style="font-size:10px;color:#fca5a5">Провал</div>
                 </div>
             </div>
         </div>
-        <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px" onclick="closeOverlay();executeMerge('${creatureId}')">
-            <i class="fa-solid fa-code-merge"></i> СЛИТЬ СЕЙЧАС
+
+        ${hasDustBoost ? `
+        <div style="background:#0d1120;border:1px solid #2e1b4a;border-radius:14px;padding:14px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:700;color:#a78bfa;display:flex;align-items:center;gap:5px">
+                    <img src="https://duckadsss.github.io/dust.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain"> Бонус пыли
+                </div>
+                <div style="font-size:11px;color:#7c3aed">У вас: ${userDust.toLocaleString()} 🌫️</div>
+            </div>
+            <input type="range" id="mergeDustSlider" min="0" max="${steps.length}" value="0"
+                style="width:100%;accent-color:#7c3aed;cursor:pointer;height:6px;margin-bottom:10px"
+                oninput="updateMergeSlider('${creatureId}', ${baseChance})">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:11px;color:#c4b5fd">Бонус: <span id="mergeBonusLabel" style="font-weight:700;color:#a78bfa">Без пыли</span></div>
+                <div style="font-size:11px;color:#c4b5fd">Стоимость: <span id="mergeCostLabel" style="font-weight:700">0 🌫️</span></div>
+            </div>
+            <div id="mergeDustAffordability" style="font-size:10px;color:#64748b;text-align:center">Двигайте ползунок для выбора бонуса</div>
+        </div>
+        <button class="popup-btn" id="mergeDustBtn" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);margin-bottom:8px;opacity:0.4;pointer-events:none" onclick="executeMergeWithDust('${creatureId}')">
+            <img src="https://duckadsss.github.io/dust.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain">
+            <span id="mergeDustBtnLabel">Выберите бонус пыли</span>
+        </button>` : ''}
+
+        <button class="popup-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);margin-bottom:8px"
+            onclick="closeOverlay();executeMerge('${creatureId}', 0)">
+            <i class="fa-solid fa-code-merge"></i> СЛИТЬ БЕЗ ПЫЛИ — ${baseChance}%
         </button>
         <button class="popup-btn" style="background:#1a2540;color:#e2e8f0" onclick="closeOverlay()">ОТМЕНА</button>
     `;
     document.getElementById('overlay').classList.add('show');
 }
 
-async function executeMerge(creatureId) {
+function updateMergeSlider(creatureId, baseChance) {
+    const creature = getCreature(creatureId);
+    const rarityTable = MERGE_DUST_TABLE[creature?.rarity];
+    if (!rarityTable) return;
+    const steps = Object.keys(rarityTable).map(Number).sort((a,b)=>a-b);
+    const slider = document.getElementById('mergeDustSlider');
+    const idx = parseInt(slider.value);
+    const userDust = state.user?.dust || 0;
+
+    const bonusLabel = document.getElementById('mergeBonusLabel');
+    const costLabel = document.getElementById('mergeCostLabel');
+    const afford = document.getElementById('mergeDustAffordability');
+    const btn = document.getElementById('mergeDustBtn');
+    const btnLabel = document.getElementById('mergeDustBtnLabel');
+    const chanceEl = document.getElementById('mergeChanceDisplay');
+    const failEl = document.getElementById('mergeFailDisplay');
+
+    if (idx === 0) {
+        if (bonusLabel) bonusLabel.textContent = 'Без пыли';
+        if (costLabel) costLabel.innerHTML = '0 🌫️';
+        if (afford) afford.innerHTML = 'Двигайте ползунок для выбора бонуса';
+        if (btn) { btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none'; }
+        if (btnLabel) btnLabel.textContent = 'Выберите бонус пыли';
+        if (chanceEl) chanceEl.textContent = baseChance + '%';
+        if (failEl) failEl.textContent = (100 - baseChance) + '%';
+        return;
+    }
+
+    const bonusPct = steps[idx - 1];
+    const cost = rarityTable[bonusPct];
+    const totalChance = Math.min(100, baseChance + bonusPct);
+    const canAfford = userDust >= cost;
+
+    if (bonusLabel) bonusLabel.innerHTML = `<span style="color:#a78bfa">+${bonusPct}%</span>`;
+    if (costLabel) costLabel.innerHTML = `<span style="color:${canAfford ? '#a78bfa' : '#ef4444'}">${cost.toLocaleString()} 🌫️</span>`;
+    if (chanceEl) chanceEl.textContent = totalChance + '%';
+    if (failEl) failEl.textContent = (100 - totalChance) + '%';
+
+    if (canAfford) {
+        if (afford) afford.innerHTML = `<span style="color:#22c55e">✓ Достаточно пыли</span>`;
+        if (btn) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+        if (btnLabel) btnLabel.innerHTML = `Слить +${bonusPct}% за ${cost.toLocaleString()} 🌫️ — <b>${totalChance}%</b>`;
+    } else {
+        const need = cost - userDust;
+        if (afford) afford.innerHTML = `<span style="color:#ef4444">✗ Не хватает ${need.toLocaleString()} 🌫️</span>`;
+        if (btn) { btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none'; }
+        if (btnLabel) btnLabel.textContent = 'Не хватает пыли';
+    }
+}
+
+function executeMergeWithDust(creatureId) {
+    const creature = getCreature(creatureId);
+    const rarityTable = MERGE_DUST_TABLE[creature?.rarity];
+    if (!rarityTable) return;
+    const steps = Object.keys(rarityTable).map(Number).sort((a,b)=>a-b);
+    const slider = document.getElementById('mergeDustSlider');
+    const idx = parseInt(slider?.value || '0');
+    if (idx === 0) return;
+    const bonusPct = steps[idx - 1];
+    closeOverlay();
+    executeMerge(creatureId, bonusPct);
+}
+
+
+async function executeMerge(creatureId, dustBonusPercent = 0) {
     if (state.isLoading) return;
     if (!canMerge(creatureId)) return;
     
@@ -788,7 +922,7 @@ async function executeMerge(creatureId) {
     lastMergeTimes.set(state.user?.telegramId, Date.now());
 
     state.isLoading = true;
-    const res = await apiRequest('POST', '/api/game/merge', { creatureId });
+    const res = await apiRequest('POST', '/api/game/merge', { creatureId, dustBonusPercent: Number(dustBonusPercent) || 0 });
     state.isLoading = false;
 
     if (!res.success) { showToast(res.message || 'Merge failed', '❌'); return; }
@@ -796,6 +930,8 @@ async function executeMerge(creatureId) {
     state.user = res.user;
     state.inventory = res.inventory;
     state.incomePerHour = res.incomePerHour;
+    
+    if (res.dustUsed > 0) showToast(`-${res.dustUsed.toLocaleString()} 🌫️ Пыль использована`, '✨');
     
     updateServerSnapshot(state.user.balance, state.incomePerHour, null);
     updateHeader();
@@ -1120,11 +1256,36 @@ function renderMarketplaceListings(listings) {
         return;
     }
 
+    const userLevel = state.user?.level || 1;
     container.innerHTML = listings.map(l => {
+        const isOwn = l.sellerTgId === state.user?.telegramId;
+        const locked = !isOwn && userLevel < 5;
+
+        if (l.isDust) {
+            return `<div class="marketplace-listing">
+                <div class="marketplace-listing-icon" style="background:#a78bfa11;border-color:#a78bfa44">
+                    <img src="https://duckadsss.github.io/dust.png" style="width:36px;height:36px;object-fit:contain" onerror="this.replaceWith(document.createTextNode('🌫️'))">
+                </div>
+                <div class="marketplace-listing-info">
+                    <div class="marketplace-listing-name" style="color:#a78bfa">Пыль ×${l.dustAmount}</div>
+                    <div class="marketplace-listing-seller">by ${escapeHtml(l.sellerName)}${isOwn ? ' (Вы)' : ''}</div>
+                    <div class="marketplace-listing-rarity" style="color:#7c3aed;font-size:9px">${Math.round(l.price/l.dustAmount)} MMO/шт</div>
+                </div>
+                <div class="marketplace-listing-price">
+                    <div class="marketplace-listing-amount">${l.price} MMO</div>
+                    ${isOwn
+                        ? `<button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">ОТМЕНИТЬ</button>`
+                        : locked
+                            ? `<button class="marketplace-buy-btn" style="opacity:0.5;cursor:not-allowed" onclick="showToast('Маркет доступен с 5 уровня','🔒')">🔒 LVL 5</button>`
+                            : `<button class="marketplace-buy-btn" style="background:linear-gradient(135deg,#7c3aed,#a855f7)" onclick="buyFromMarketplace('${l._id}', ${l.price}, null)">КУПИТЬ</button>`
+                    }
+                </div>
+            </div>`;
+        }
+
         const c = getCreature(l.creatureId);
         if (!c) return '';
         const color = RARITY_COLORS[c.rarity];
-        const isOwn = l.sellerTgId === state.user?.telegramId;
 
         return `<div class="marketplace-listing">
             <div class="marketplace-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c)}</div>
@@ -1135,7 +1296,12 @@ function renderMarketplaceListings(listings) {
             </div>
             <div class="marketplace-listing-price">
                 <div class="marketplace-listing-amount">${l.price}</div>
-                ${isOwn ? `<button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">CANCEL</button>` : `<button class="marketplace-buy-btn" onclick="buyFromMarketplace('${l._id}', ${l.price}, '${l.creatureId}')">BUY</button>`}
+                ${isOwn
+                    ? `<button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">CANCEL</button>`
+                    : locked
+                        ? `<button class="marketplace-buy-btn" style="opacity:0.5;cursor:not-allowed" onclick="showToast('Маркет доступен с 5 уровня','🔒')">🔒 LVL 5</button>`
+                        : `<button class="marketplace-buy-btn" onclick="buyFromMarketplace('${l._id}', ${l.price}, '${l.creatureId}')">BUY</button>`
+                }
             </div>
         </div>`;
     }).join('');
@@ -1145,12 +1311,25 @@ function renderMarketplaceSell() {
     const cards = document.getElementById('marketplaceSellCards');
     if (!cards) return;
 
-    if (!state.inventory.length) {
-        cards.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">You have no creatures to sell</div>`;
+    const userLevel = state.user?.level || 1;
+    if (userLevel < 5) {
+        cards.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px 20px">
+            <div style="font-size:32px;margin-bottom:12px">🔒</div>
+            <div style="color:#e2e8f0;font-weight:700;font-size:15px;margin-bottom:6px">Маркет доступен с 5 уровня</div>
+            <div style="color:#64748b;font-size:12px">Ваш уровень: ${userLevel}</div>
+        </div>`;
         return;
     }
 
-    cards.innerHTML = state.inventory.map(item => {
+    const dust = state.user?.dust || 0;
+    const dustCard = `<div class="marketplace-sell-card" style="cursor:pointer;border-color:#a78bfa44;background:#a78bfa11" onclick="openDustSellModal(${dust})">
+        <div class="marketplace-sell-card-icon"><img src="https://duckadsss.github.io/dust.png" style="width:36px;height:36px;object-fit:contain" onerror="this.replaceWith(document.createTextNode('🌫️'))"></div>
+        <div class="marketplace-sell-card-name" style="color:#a78bfa">Пыль</div>
+        <div style="font-size:9px;color:#7c3aed">x${dust}</div>
+        <div style="font-size:10px;color:#a78bfa;font-weight:600;margin-top:4px">ПРОДАТЬ</div>
+    </div>`;
+
+    const creatureCards = state.inventory.map(item => {
         const c = getCreature(item.creatureId);
         if (!c || !item.count) return '';
         return `<div class="marketplace-sell-card" style="cursor:pointer" onclick="openSellModal('${item.creatureId}', '${c.name}', ${item.count})">
@@ -1160,6 +1339,8 @@ function renderMarketplaceSell() {
             <div style="font-size:10px;color:#06b6d4;font-weight:600;margin-top:4px">SET PRICE</div>
         </div>`;
     }).filter(Boolean).join('');
+
+    cards.innerHTML = dustCard + (creatureCards || `<div style="grid-column:1/-1;text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">Нет существ для продажи</div>`);
 }
 
 function openSellModal(creatureId, creatureName, count) {
@@ -1181,6 +1362,64 @@ function openSellModal(creatureId, creatureName, count) {
     `;
     document.getElementById('overlay').classList.add('show');
     updateFeeCalculator();
+}
+
+function openDustSellModal(maxDust) {
+    if (maxDust < 1) { showToast('У вас нет пыли для продажи', '🌫️'); return; }
+    document.getElementById('popup').innerHTML = `
+        <div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div>
+        <div class="popup-title">Продать пыль</div>
+        <div class="popup-subtitle" style="margin-bottom:16px">Доступно: <b>${maxDust}</b> <img src="https://duckadsss.github.io/dust.png" style="width:14px;height:14px;vertical-align:middle" onerror="this.replaceWith(document.createTextNode('🌫️'))"></div>
+        <div class="price-input-modal">
+            <div style="margin-bottom:12px">
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Количество пыли</div>
+                <input type="number" class="price-input-field" id="dustAmountInput" placeholder="Кол-во" min="1" max="${maxDust}" value="1" oninput="updateDustFeeCalculator(${maxDust})">
+            </div>
+            <div>
+                <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Цена за 1 пыль (MMO)</div>
+                <input type="number" class="price-input-field" id="dustPriceInput" placeholder="Цена за 1 шт" min="15" value="15" oninput="updateDustFeeCalculator(${maxDust})">
+            </div>
+            <div class="fee-calculator" style="margin-top:12px">
+                <div class="fee-row"><span class="fee-label">Итого</span><span class="fee-value" id="dustTotalDisplay">15</span></div>
+                <div class="fee-row" style="color:#ef4444"><span class="fee-label">Комиссия (10%)</span><span class="fee-value fee" id="dustFeeDisplay">-2</span></div>
+                <div class="fee-row total"><span>Получите</span><span class="fee-value final" id="dustFinalDisplay">13</span></div>
+            </div>
+        </div>
+        <button class="popup-btn" style="background:linear-gradient(135deg,#7c3aed,#a855f7);margin-top:16px" onclick="confirmDustSellListing()"><i class="fa-solid fa-check"></i> ВЫСТАВИТЬ ПЫЛЬ</button>
+        <button class="popup-btn" style="background:#1a2540;color:#e2e8f0;margin-top:8px" onclick="closeOverlay()">ОТМЕНА</button>
+    `;
+    document.getElementById('overlay').classList.add('show');
+    updateDustFeeCalculator(maxDust);
+}
+
+function updateDustFeeCalculator(maxDust) {
+    const amount = Math.max(1, Math.min(maxDust, parseInt(document.getElementById('dustAmountInput')?.value) || 1));
+    const priceEach = Math.max(15, parseInt(document.getElementById('dustPriceInput')?.value) || 15);
+    const total = amount * priceEach;
+    const fee = Math.floor(total * 0.1);
+    const el = (id) => document.getElementById(id);
+    if (el('dustTotalDisplay')) el('dustTotalDisplay').textContent = total;
+    if (el('dustFeeDisplay')) el('dustFeeDisplay').textContent = `-${fee}`;
+    if (el('dustFinalDisplay')) el('dustFinalDisplay').textContent = total - fee;
+}
+
+async function confirmDustSellListing() {
+    const amount = parseInt(document.getElementById('dustAmountInput')?.value) || 0;
+    const priceEach = parseInt(document.getElementById('dustPriceInput')?.value) || 0;
+    if (amount < 1) { showToast('Укажите количество пыли', '❌'); return; }
+    if (priceEach < 15) { showToast('Минимальная цена 15 MMO за 1 пыль', '❌'); return; }
+    const total = amount * priceEach;
+    state.isLoading = true;
+    const res = await apiRequest('POST', '/api/marketplace/list', { isDust: true, dustAmount: amount, price: total });
+    state.isLoading = false;
+    if (!res?.success) { showToast(res?.message || 'Ошибка', '❌'); return; }
+    if (state.user) state.user.dust = res.dust;
+    closeOverlay();
+    showToast(`Выставлено ${amount} пыли за ${total} MMO`, '✅');
+    updateHeader();
+    renderMarketplaceSell();
+    marketplaceCache.expiresAt = 0;
+    switchMarketplaceTab('mylistings');
 }
 
 function updateFeeCalculator() {
@@ -1228,11 +1467,26 @@ async function renderMarketplaceMyListings() {
     if (!listings.length) { container.innerHTML = `<div class="empty-listings">У вас нет активных лотов</div>`; return; }
 
     container.innerHTML = listings.map(l => {
+        const date = new Date(l.createdAt).toLocaleDateString();
+        if (l.isDust) {
+            return `<div class="marketplace-my-listing">
+                <div class="marketplace-my-listing-icon" style="background:#a78bfa11;border-color:#a78bfa44">
+                    <img src="https://duckadsss.github.io/dust.png" style="width:36px;height:36px;object-fit:contain" onerror="this.replaceWith(document.createTextNode('🌫️'))">
+                </div>
+                <div class="marketplace-my-listing-info">
+                    <div class="marketplace-my-listing-name" style="color:#a78bfa">Пыль ×${l.dustAmount}</div>
+                    <div class="marketplace-my-listing-status">Выставлено ${date}</div>
+                    <div style="font-size:9px;color:#7c3aed">${Math.round(l.price/l.dustAmount)} MMO/шт</div>
+                </div>
+                <div class="marketplace-my-listing-price">
+                    <div class="marketplace-my-listing-amount">${l.price} MMO</div>
+                    <button class="marketplace-cancel-btn" onclick="cancelMarketplaceListing('${l._id}')">ОТМЕНИТЬ</button>
+                </div>
+            </div>`;
+        }
         const c = getCreature(l.creatureId);
         if (!c) return '';
         const color = RARITY_COLORS[c.rarity];
-        const date = new Date(l.createdAt).toLocaleDateString();
-        
         return `<div class="marketplace-my-listing">
             <div class="marketplace-my-listing-icon" style="background:${color}11;border-color:${color}44">${getIconHtml(c)}</div>
             <div class="marketplace-my-listing-info">
@@ -1255,11 +1509,17 @@ async function cancelMarketplaceListing(listingId) {
 
     if (!res.success) { showToast(res.message || 'Error', '❌'); return; }
 
-    state.inventory = res.inventory;
-    renderCards();
+    if (res.dust !== undefined && state.user) {
+        state.user.dust = res.dust;
+        updateHeader();
+        showToast('Лот отменён, пыль возвращена', '✅');
+    } else {
+        state.inventory = res.inventory;
+        renderCards();
+        showToast('Listing cancelled, card returned', '✅');
+    }
     marketplaceCache.expiresAt = 0;
     renderMarketplaceMyListings();
-    showToast('Listing cancelled, card returned', '✅');
 }
 
 async function buyFromMarketplace(listingId, price, creatureId) {
@@ -1272,10 +1532,22 @@ async function buyFromMarketplace(listingId, price, creatureId) {
 
     if (!res.success) { showToast(res.message || 'Error buying', '❌'); return; }
 
+    if (res.isDust) {
+        if (state.user) state.user.dust = res.user?.dust ?? (state.user.dust || 0) + res.dustAmount;
+        state.user = res.user;
+        state.inventory = res.inventory || state.inventory;
+        updateHeader();
+        marketplaceCache.expiresAt = 0;
+        renderMarketplaceBuy();
+        showToast(`Куплено ${res.dustAmount} пыли за ${price} MMO!`, '✅');
+        spawnFloatingMMO(-price);
+        return;
+    }
+
     state.user = res.user;
     state.inventory = res.inventory;
     state.incomePerHour = res.incomePerHour;
-    
+
     updateServerSnapshot(state.user.balance, state.incomePerHour, null);
 
     const c = getCreature(creatureId);
@@ -2211,19 +2483,50 @@ async function rejectBattleFromModal(battleId) {
     }
 }
 
-function showNativeBattleResult(isWin, prizePool) {
-    if (!window.Telegram?.WebApp) {
-        const overlay = document.getElementById('overlay');
-        const popup = document.getElementById('popup');
-        popup.innerHTML = `<div class="popup-close" onclick="closeOverlay()"><i class="fa-solid fa-xmark"></i></div><div class="popup-icon">${isWin ? '🏆' : '💀'}</div><div class="popup-title" style="color:${isWin ? 'var(--legendary)' : 'var(--mythic)'}">${isWin ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ'}</div><div class="popup-subtitle">${isWin ? `Вы выиграли ${prizePool} MMO!` : 'В следующий раз повезёт!'}</div><button class="popup-btn" onclick="closeOverlay(); renderArenaFightTab();">Закрыть</button></div>`;
-        overlay.classList.add('show');
-        return;
+function showNativeBattleResult(isWin, prizePool, dustWin = 0) {
+    const overlay = document.getElementById('overlay');
+    const popup = document.getElementById('popup');
+    if (!overlay || !popup) return;
+
+    const D = 'https://duckadsss.github.io/dust.png';
+    let html = '';
+    html += '<div class="popup-close" onclick="closeOverlay(); renderArenaFightTab();"><i class="fa-solid fa-xmark"></i></div>';
+    html += '<div style="text-align:center;padding:8px 0 4px;">';
+    html += '<div style="font-size:64px;line-height:1;margin-bottom:10px;filter:drop-shadow(0 0 20px ' + (isWin ? '#fbbf24' : '#ef4444') + ');">' + (isWin ? '\uD83C\uDFC6' : '\uD83D\uDC80') + '</div>';
+    html += '<div style="font-size:28px;font-weight:900;letter-spacing:2px;font-family:Orbitron,monospace;background:' + (isWin ? 'linear-gradient(135deg,#fbbf24,#f59e0b,#fde68a)' : 'linear-gradient(135deg,#ef4444,#dc2626,#fca5a5)') + ';-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;">' + (isWin ? '\u041f\u041e\u0411\u0415\u0414\u0410!' : '\u041f\u041e\u0420\u0410\u0416\u0415\u041d\u0418\u0415') + '</div>';
+    html += '<div style="font-size:13px;color:var(--text3);margin-bottom:4px;">' + (isWin ? '\uD83C\uDF89 \u041e\u0442\u043b\u0438\u0447\u043d\u0430\u044f \u0431\u0438\u0442\u0432\u0430!' : '\uD83D\uDCAA \u0412 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0440\u0430\u0437 \u043f\u043e\u0432\u0435\u0437\u0435\u0442!') + '</div>';
+    html += '</div>';
+
+    if (isWin) {
+        html += '<div style="display:flex;flex-direction:column;gap:10px;margin:18px 0;">';
+        html += '<div style="background:linear-gradient(135deg,#1a2e1a,#0d1f0d);border:1px solid #22c55e44;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;color:#86efac;font-size:13px;"><i class="fa-solid fa-coins" style="color:#fbbf24"></i><span>\u0412\u044b\u0438\u0433\u0440\u044b\u0448</span></div>';
+        html += '<span style="font-size:18px;font-weight:800;color:#4ade80;">+' + (prizePool || 0).toLocaleString() + ' MMO</span>';
+        html += '</div>';
+        if (dustWin > 0) {
+            html += '<div style="background:linear-gradient(135deg,#1e1a2e,#130d1f);border:1px solid #a78bfa44;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;color:#c4b5fd;font-size:13px;"><img src="' + D + '" style="width:16px;height:16px;vertical-align:middle" onerror="this.style.display=\'none\'"><span>\u041f\u044b\u043b\u044c</span></div>';
+            html += '<span style="font-size:18px;font-weight:800;color:#a78bfa;">+' + dustWin + ' \uD83C\uDF2B\uFE0F</span>';
+            html += '</div>';
+        }
+        html += '<div style="background:linear-gradient(135deg,#1a1f2e,#0d1220);border:1px solid #60a5fa44;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;color:#93c5fd;font-size:13px;"><i class="fa-solid fa-chart-line" style="color:#60a5fa"></i><span>\u0420\u0435\u0439\u0442\u0438\u043d\u0433</span></div>';
+        html += '<span style="font-size:15px;font-weight:700;color:#60a5fa;">\u2191 \u041f\u043e\u0432\u044b\u0448\u0430\u0435\u0442\u0441\u044f</span>';
+        html += '</div>';
+        html += '</div>';
+    } else {
+        html += '<div style="background:linear-gradient(135deg,#2e1a1a,#1f0d0d);border:1px solid #ef444444;border-radius:14px;padding:14px 20px;margin:18px 0;display:flex;align-items:center;justify-content:space-between;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;color:#fca5a5;font-size:13px;"><i class="fa-solid fa-arrow-trend-down" style="color:#ef4444"></i><span>\u0420\u0435\u0439\u0442\u0438\u043d\u0433</span></div>';
+        html += '<span style="font-size:15px;font-weight:700;color:#f87171;">\u2193 \u041f\u043e\u043d\u0438\u0436\u0430\u0435\u0442\u0441\u044f</span>';
+        html += '</div>';
     }
-    const tg = window.Telegram.WebApp;
-    const title = isWin ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ';
-    const message = isWin ? `Вы выиграли ${prizePool} MMO! 🎉\nВаш рейтинг повышается!` : `Вы проиграли бой.\nВ следующий раз повезёт!`;
-    tg.showPopup({ title, message, buttons: [{ id: 'ok', type: 'default', text: 'ОК' }] });
+
+    html += '<button class="popup-btn" style="background:' + (isWin ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#1d4ed8,#1e40af)') + ';margin-top:4px;font-size:15px;font-weight:700;padding:14px;" onclick="closeOverlay(); renderArenaFightTab();">' + (isWin ? '\uD83C\uDFC6 \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c' : '\uD83D\uDD04 \u041f\u043e\u043f\u0440\u043e\u0431\u043e\u0432\u0430\u0442\u044c \u0441\u043d\u043e\u0432\u0430') + '</button>';
+
+    popup.innerHTML = html;
+    overlay.classList.add('show');
 }
+
 
 // ============================================================
 // ARENA - UI ФУНКЦИИ
@@ -2402,7 +2705,7 @@ async function findMatch() {
     }
 }
 
-function cancelBattleSearch() {
+async function cancelBattleSearch() {
     arenaClient?.stopSearch();
     const findBtn = document.getElementById('findMatchBtn');
     const searchStatus = document.getElementById('arenaSearchStatus');
@@ -2411,6 +2714,7 @@ function cancelBattleSearch() {
         findBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Найти бой'; 
     }
     if (searchStatus) searchStatus.innerHTML = '';
+    try { await apiRequest('POST', '/api/arena/cancel-search'); } catch(e) {}
     showToast('Поиск отменён', '⚠️');
 }
 
@@ -2477,99 +2781,73 @@ async function makeAttack(targetIndex) {
         return; 
     }
 
-    // Глобальный лок — не допускаем двойной атаки пока не пришёл ответ
     if (makeAttack._inProgress) return;
     makeAttack._inProgress = true;
     
-    try {
-    
     const attackBtn = document.querySelector(`#arenaEnemyCreatures .arena-battle-creature[data-enemy-index="${targetIndex}"] .arena-attack-btn`);
-    if (attackBtn) {
-        attackBtn.disabled = true;
-        attackBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    }
     
-    const res = await apiRequest('POST', '/api/arena/move', { battleId, targetIndex });
-    makeAttack._inProgress = false;
-    
-    if (!res?.success) {
-        showToast(res?.message || 'Ошибка атаки', '❌');
+    try {
+        if (attackBtn) {
+            attackBtn.disabled = true;
+            attackBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        }
+        
+        const res = await apiRequest('POST', '/api/arena/move', { battleId, targetIndex });
+        
+        if (!res?.success) {
+            showToast(res?.message || 'Ошибка атаки', '❌');
+            return;
+        }
+
+        if (res.stunSkipped) {
+            showToast('😵 Питомец оглушён и пропускает ход!', '⚡');
+            const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
+            updateBattleUIFromClient({
+                myTeam: res.myTeam,
+                opponentTeam: res.enemyTeam,
+                currentTurn: res.currentTurn
+            }, isPlayer1);
+            return;
+        }
+
+        if (res.finished) {
+            arenaClient?.endBattle(res.winnerId || null, res.prizePool || 0, res.dustWin || 0);
+            const isWin = !!res.winnerId && res.winnerId === arenaClient?.getCurrentUserId();
+            showNativeBattleResult(isWin, res.prizePool || 0);
+            renderArenaFightTab();
+        } else {
+            const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
+            if (res.skillResult) {
+                showSkillBanner(res.skillResult.skillName, res.skillResult.description);
+                if (res.skillResult.poisoned) showToast('☠️ Противник отравлен на 3 хода!', '☠️');
+            }
+            if (res.poisonLog && res.poisonLog.length > 0) {
+                const totalDmg = res.poisonLog.reduce((s, p) => s + p.dmg, 0);
+                showToast(`☠️ Яд: -${totalDmg} HP у врагов`, '💀');
+            }
+            updateBattleUIFromClient({
+                myTeam: res.myTeam,
+                opponentTeam: res.enemyTeam,
+                lastMove: res.lastMove,
+                currentTurn: res.currentTurn,
+                turnCount: res.turnCount
+            }, isPlayer1);
+            
+            if (res.lastMove && res.lastMove.targetIndex !== undefined) {
+                showDamageAnimation(res.lastMove.targetIndex, res.lastMove.damage, res.lastMove.isCrit, false);
+            }
+        }
+    } catch(e) {
+        showToast('Ошибка соединения', '❌');
+    } finally {
+        makeAttack._inProgress = false;
         if (attackBtn) {
             attackBtn.disabled = false;
             attackBtn.innerHTML = '⚔️ Атаковать';
         }
-        return;
-    }
-
-    if (res.stunSkipped) {
-        showToast('😵 Питомец оглушён и пропускает ход!', '⚡');
-        const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
-        updateBattleUIFromClient({
-            myTeam: res.myTeam,
-            opponentTeam: res.enemyTeam,
-            currentTurn: res.currentTurn
-        }, isPlayer1);
-        return;
-    }
-
-    if (res.finished) {
-        // Всегда завершаем бой на клиенте по HTTP-ответу — не ждём WebSocket
-        arenaClient?.endBattle(res.winnerId || null, res.prizePool || 0);
-        const isWin = !!res.winnerId && res.winnerId === arenaClient?.getCurrentUserId();
-        showNativeBattleResult(isWin, res.prizePool || 0);
-        renderArenaFightTab();
-    } else {
-        const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
-        if (res.skillResult) {
-            showSkillBanner(res.skillResult.skillName, res.skillResult.description);
-            if (res.skillResult.poisoned) showToast('☠️ Противник отравлен на 3 хода!', '☠️');
-        }
-        if (res.poisonLog && res.poisonLog.length > 0) {
-            const totalDmg = res.poisonLog.reduce((s, p) => s + p.dmg, 0);
-            showToast(`☠️ Яд: -${totalDmg} HP у врагов`, '💀');
-        }
-        updateBattleUIFromClient({
-            myTeam: res.myTeam,
-            opponentTeam: res.enemyTeam,
-            lastMove: res.lastMove,
-            currentTurn: res.currentTurn,
-            turnCount: res.turnCount
-        }, isPlayer1);
-        
-        if (res.lastMove && res.lastMove.targetIndex !== undefined) {
-            showDamageAnimation(res.lastMove.targetIndex, res.lastMove.damage, res.lastMove.isCrit, false);
-        }
-    }
-    } catch(e) {
-        makeAttack._inProgress = false;
-        showToast('Ошибка соединения', '❌');
     }
 }
 makeAttack._inProgress = false;
-
-async function surrenderBattle() {
-    const battleId = arenaClient?.getBattleId();
-    if (!battleId) return;
-    
-    if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showPopup({
-            title: '⚠️ Сдаться?',
-            message: 'Вы потеряете MMO за вход в бой.',
-            buttons: [
-                { id: 'confirm', type: 'destructive', text: 'Сдаться' },
-                { id: 'cancel', type: 'cancel', text: 'Отмена' }
-            ]
-        }, async (buttonId) => {
-            if (buttonId !== 'confirm') return;
-            const res = await apiRequest('POST', '/api/arena/surrender', { battleId });
-            if (res?.success) { showToast('Вы сдались', '⚠️'); renderArenaFightTab(); }
-        });
-    } else {
-        if (!confirm('Вы уверены, что хотите сдаться? Вы потеряете MMO за вход.')) return;
-        const res = await apiRequest('POST', '/api/arena/surrender', { battleId });
-        if (res?.success) { showToast('Вы сдались', '⚠️'); renderArenaFightTab(); }
-    }
-}
 
 // ============================================================
 // RENDER ARENA FIGHT TAB
@@ -2580,7 +2858,8 @@ async function renderArenaFightTab() {
     
     if (arenaClient && state.token && !arenaClient.isConnected()) {
         arenaClient.connectSocket(state.token, API_URL);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Не ждём подключения — сокет поднимется асинхронно.
+        // Данные для рендера берём через HTTP ниже, сокет нужен только для push-событий.
     }
     
     if (arenaClient?.isBattleActive()) {
@@ -2612,9 +2891,15 @@ async function renderArenaFightTab() {
             } else if (battleRes.status === 'active') {
                 const justEnded = arenaClient?.state.battleEndedAt && (Date.now() - arenaClient.state.battleEndedAt < 8000);
                 if (!arenaClient?.isBattleActive() && !justEnded) {
-                    arenaClient?.startBattle(battleRes.battleId, battleRes.isPlayer1, battleRes.myTeam, battleRes.opponentTeam);
-                    renderBattleInterface(battleRes);
-                }
+    arenaClient?.startBattle(
+        battleRes.battleId, 
+        battleRes.isPlayer1, 
+        battleRes.myTeam, 
+        battleRes.opponentTeam,
+        battleRes.timeLeft
+    );
+    renderBattleInterface(battleRes);
+}
             } else if (battleRes.status === 'pending_confirmation') {
                 const myConfirmed = battleRes.isPlayer1 ? battleRes.player1Confirmed : battleRes.player2Confirmed;
                 const modalAlreadyOpen = !!document.getElementById('matchFoundModal');
@@ -2638,12 +2923,12 @@ async function renderArenaFightTab() {
                 if (leaderboardRes?.success && leaderboardRes.myStats) {
                     const myLeague = leaderboardRes.myStats.league || 'bronze';
                     const leagueConfigs = {
-                        bronze: { entryFee: 0, prizePool: 0, name: '🥉 Бронзовая' },
-                        silver: { entryFee: 500, prizePool: 800, name: '🥈 Серебряная' },
-                        gold: { entryFee: 1000, prizePool: 1600, name: '🥇 Золотая' },
-                        platinum: { entryFee: 2000, prizePool: 3200, name: '💎 Платиновая' },
-                        diamond: { entryFee: 5000, prizePool: 8000, name: '🏆 Алмазная' }
-                    };
+    bronze: { entryFee: 10, prizePool: 15, dustWin: 1, name: '🥉 Бронзовая' },
+    silver: { entryFee: 50, prizePool: 80, dustWin: 5, name: '🥈 Серебряная' },
+    gold: { entryFee: 500, prizePool: 800, dustWin: 50, name: '🥇 Золотая' },
+    platinum: { entryFee: 2000, prizePool: 3200, dustWin: 100, name: '💎 Платиновая' },
+    diamond: { entryFee: 5000, prizePool: 8000, dustWin: 200, name: '🏆 Алмазная' }
+};
                     const config = leagueConfigs[myLeague] || leagueConfigs.bronze;
                     
                     const entryFeeEl = document.getElementById('arenaEntryFee');
@@ -2653,7 +2938,10 @@ async function renderArenaFightTab() {
                     const entryRow = document.getElementById('arenaEntryFeeRow');
                     if (entryRow) entryRow.style.display = config.entryFee === 0 ? 'none' : '';
                     if (entryFeeEl) entryFeeEl.textContent = config.entryFee;
-                    if (prizePoolEl) prizePoolEl.textContent = config.prizePool;
+                    if (prizePoolEl) {
+                        const dustImg = '<img src="https://duckadsss.github.io/dust.png" style="width:13px;height:13px;vertical-align:middle;margin:0 2px" onerror="this.style.display=\'none\'">';
+                        prizePoolEl.innerHTML = config.prizePool + ' <span style="font-size:11px;color:var(--text3)">+ ' + config.dustWin + dustImg + '</span>';
+                    }
                     if (leagueEl) {
                         leagueEl.innerHTML = `<span class="arena-league-badge league-${myLeague}">${config.name}</span>`;
                     }
@@ -3292,6 +3580,8 @@ await loadCreaturesFromServer();
     if (arenaClient) {
         arenaClient.stopSearch();
         arenaClient.loadTeamFromStorage();
+        // Устанавливаем userId явно, чтобы endBattle корректно определял победителя
+        if (state.user) arenaClient.setCurrentUserId(state.user.id || state.user._id);
         arenaClient.connectSocket(state.token, API_URL);
         arenaClient.on('onMatchFound', (data) => showNativeBattleConfirmation(data));
         arenaClient.on('onBattleStartUI', (data) => {
@@ -3309,8 +3599,8 @@ await loadCreaturesFromServer();
             }
             updateBattleUIFromClient(data, isPlayer1);
         });
-        arenaClient.on('onBattleEnd', (isWin, prizePool) => { 
-            showNativeBattleResult(isWin, prizePool); 
+        arenaClient.on('onBattleEnd', (isWin, prizePool, dustWin = 0) => { 
+            showNativeBattleResult(isWin, prizePool, dustWin); 
             refreshUserProfile();
             setTimeout(() => {
                 renderArenaFightTab();
@@ -3340,7 +3630,12 @@ await loadCreaturesFromServer();
             } 
         });
         arenaClient.on('onConnected', () => console.log('✅ WebSocket соединение установлено'));
-        arenaClient.on('onDisconnected', (reason) => console.log(`❌ WebSocket отключён: ${reason}`));
+        arenaClient.on('onDisconnected', (reason) => {
+            console.log(`❌ WebSocket отключён: ${reason}`);
+            if (reason === 'reconnect_failed' && (arenaClient?.isBattleActive() || arenaClient?.isSearching())) {
+                showToast('Потеряно соединение с сервером. Обновите страницу.', '⚠️');
+            }
+        });
         arenaClient.on('onConfirmationUpdate', (data) => { updateConfirmationModal(data); });
         arenaClient.on('onMatchRejected', (data) => {
             const modal = document.getElementById('matchFoundModal');
@@ -3413,6 +3708,8 @@ window.openCapsule = openCapsule;
 window.onCardClick = onCardClick;
 window.showMergePreview = showMergePreview;
 window.executeMerge = executeMerge;
+window.updateMergeSlider = updateMergeSlider;
+window.executeMergeWithDust = executeMergeWithDust;
 window.upgradeInventory = upgradeInventory;
 window.watchAd = watchAd;
 window.showEncyclopedia = showEncyclopedia;
@@ -3593,6 +3890,50 @@ async function claimStaking() {
     }
 }
 
+// ============================================================
+// ВОССТАНОВЛЕНИЕ WEBSOCKET ПОСЛЕ СВОРАЧИВАНИЯ/РАЗВОРАЧИВАНИЯ
+// ============================================================
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && arenaClient && state.token) {
+        console.log('👁️ Вкладка активна, проверяем WebSocket...');
+        if (!arenaClient.isConnected()) {
+            console.log('🔄 WebSocket отключён, переподключаемся...');
+            arenaClient.connectSocket(state.token, API_URL);
+        }
+        
+        if (arenaClient.getBattleId()) {
+            setTimeout(() => {
+                arenaClient.checkBattleStatus(arenaClient.getBattleId());
+            }, 500);
+        } else if (arenaClient.isSearching()) {
+            setTimeout(() => {
+                arenaClient.checkBattleStatus();
+            }, 500);
+        }
+    }
+});
+
+window.addEventListener('online', () => {
+    console.log('🌐 Интернет восстановлен');
+    if (arenaClient && state.token && !arenaClient.isConnected()) {
+        arenaClient.connectSocket(state.token, API_URL);
+        if (arenaClient.getBattleId()) {
+            setTimeout(() => {
+                arenaClient.checkBattleStatus(arenaClient.getBattleId());
+            }, 1000);
+        }
+    }
+});
+
+window.addEventListener('offline', () => {
+    console.log('📡 Интернет потерян');
+    if (typeof showToast === 'function') {
+        showToast('Потеряно соединение с интернетом', '⚠️');
+    }
+});
+
+// ========== ЭТИ СТРОКИ УЖЕ БЫЛИ, НИЧЕГО НЕ МЕНЯЙТЕ ==========
 window.selectStakingPlan = selectStakingPlan;
 window.openStakingModal   = openStakingModal;
 window.closeStakingModal  = closeStakingModal;

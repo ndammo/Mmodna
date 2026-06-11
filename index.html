@@ -53,22 +53,36 @@
             <div>
                 <div class="player-name">GENOME_X</div>
                 <div class="player-level" id="playerLevelLabel">LVL 1 · Researcher</div>
-            </div>
-        </div>
-        
-        <div style="display:flex;align-items:center;gap:10px">
-            <div class="balance-area">
-                <div class="balance-icon"><i class="fa-solid fa-dna"></i></div>
-                <div>
-                    <div class="balance-amount" id="balanceDisplay">0</div>
-                    <div class="income-inline" id="incomeInline" style="font-size:8px; color:var(--uncommon); margin-top:2px;">+0/hr</div>
+                <!-- Компактная полоска опыта -->
+                <div class="player-xp-compact">
+                    <div class="xp-bar-compact">
+                        <div class="xp-fill-compact" id="xpFillCompact" style="width:0%"></div>
+                    </div>
+                    <div class="xp-text-compact" id="xpTextCompact">0/100</div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="xp-bar-wrap">
-        <div class="xp-label" id="xpLabel">XP 0/100</div>
-        <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+        
+        <!-- Блок баланса -->
+        <div class="balance-area stacked">
+            <div class="balance-row main">
+                <i class="fa-solid fa-dna"></i>
+                <span id="balanceDisplay">0</span>
+                <span class="balance-suffix">MMO</span>
+            </div>
+            <div class="balance-row stats">
+                <div class="stats-item dust">
+                    <span><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:16px;height:16px;vertical-align:middle;object-fit:contain" onerror="this.replaceWith(document.createTextNode('🌫️'))"></span>
+                    <span id="dustDisplay">0</span>
+                </div>
+                <div class="stats-divider"></div>
+                <div class="stats-item income">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span id="incomeInline">0</span>
+                    <span class="income-unit">/ч</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -341,8 +355,9 @@
                 </div>
                 <div class="rank-compact-details" id="rankCompactDetails-bronze" style="display: none;">
                     <div class="compact-rewards">
-                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 0 MMO</div>
-                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 0 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 10 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 15 MMO</div>
+                        <div class="reward-chip"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:12px;height:12px;vertical-align:middle;margin-right:2px" onerror="this.replaceWith(document.createTextNode('🌫️'))"> Пыль: +1 за победу</div>
                         <div class="reward-chip"><i class="fa-solid fa-arrow-up"></i> До 1300</div>
                     </div>
                     <div class="compact-players">
@@ -363,8 +378,9 @@
                 </div>
                 <div class="rank-compact-details" id="rankCompactDetails-silver" style="display: none;">
                     <div class="compact-rewards">
-                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 500 MMO</div>
-                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 800 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 50 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 80 MMO</div>
+                        <div class="reward-chip"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:12px;height:12px;vertical-align:middle;margin-right:2px" onerror="this.replaceWith(document.createTextNode('🌫️'))"> Пыль: +5 за победу</div>
                         <div class="reward-chip"><i class="fa-solid fa-arrow-up"></i> До 1600</div>
                     </div>
                     <div class="compact-players">
@@ -385,8 +401,9 @@
                 </div>
                 <div class="rank-compact-details" id="rankCompactDetails-gold" style="display: none;">
                     <div class="compact-rewards">
-                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 1000 MMO</div>
-                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 1600 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 500 MMO</div>
+                        <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 800 MMO</div>
+                        <div class="reward-chip"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:12px;height:12px;vertical-align:middle;margin-right:2px" onerror="this.replaceWith(document.createTextNode('🌫️'))"> Пыль: +50 за победу</div>
                         <div class="reward-chip"><i class="fa-solid fa-arrow-up"></i> До 1900</div>
                     </div>
                     <div class="compact-players">
@@ -409,6 +426,7 @@
                     <div class="compact-rewards">
                         <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 2000 MMO</div>
                         <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 3200 MMO</div>
+                        <div class="reward-chip"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:12px;height:12px;vertical-align:middle;margin-right:2px" onerror="this.replaceWith(document.createTextNode('🌫️'))"> Пыль: +100 за победу</div>
                         <div class="reward-chip"><i class="fa-solid fa-arrow-up"></i> До 2200</div>
                     </div>
                     <div class="compact-players">
@@ -431,6 +449,7 @@
                     <div class="compact-rewards">
                         <div class="reward-chip"><i class="fa-solid fa-coins"></i> Вход: 5000 MMO</div>
                         <div class="reward-chip"><i class="fa-solid fa-gift"></i> Приз: 8000 MMO</div>
+                        <div class="reward-chip"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:12px;height:12px;vertical-align:middle;margin-right:2px" onerror="this.replaceWith(document.createTextNode('🌫️'))"> Пыль: +200 за победу</div>
                         <div class="reward-chip"><i class="fa-solid fa-crown"></i> Элита!</div>
                     </div>
                     <div class="compact-players">
@@ -459,6 +478,11 @@
     <div class="wallet-hero">
         <div class="wallet-label" data-i18n="wallet.totalBalance">Total Balance</div>
         <div class="wallet-balance"><span id="walletBalance">0</span> <span style="font-size:16px;color:var(--text2)">MMO</span></div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px">
+            <span style="font-size:13px;color:#7c3aed"><img src="https://ndammo.github.io/Mmodna/dust.png" style="width:16px;height:16px;vertical-align:middle;object-fit:contain" onerror="this.replaceWith(document.createTextNode('🌫️'))"></span>
+            <span style="font-family:'Orbitron',monospace;font-size:20px;font-weight:700;color:#a78bfa" id="walletDust">0</span>
+            <span style="font-size:13px;color:#7c3aed">ПЫЛЬ</span>
+        </div>
         <div class="wallet-hero-stats">
             <div class="wallet-hero-stat"><span class="whs-icon">🧬</span><span class="whs-val" id="walletCards">0</span><span class="whs-label">Creatures</span></div>
             <div class="wallet-hero-stat"><span class="whs-icon">🔀</span><span class="whs-val" id="walletMerges">0</span><span class="whs-label">Merges</span></div>
