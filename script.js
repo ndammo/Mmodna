@@ -2492,7 +2492,7 @@ async function rejectBattleFromModal(battleId) {
     }
 }
 
-function showNativeBattleResult(isWin, prizePool, dustWin = 0) {
+function showNativeBattleResult(isWin, prizePool, dustWin = 0, xpGained = 0, ratingChange = 0, entryFee = 0) {
     const overlay = document.getElementById('overlay');
     const popup = document.getElementById('popup');
     if (!overlay || !popup) return;
@@ -2518,15 +2518,35 @@ function showNativeBattleResult(isWin, prizePool, dustWin = 0) {
             html += '<span style="font-size:18px;font-weight:800;color:#a78bfa;">+' + dustWin + ' \uD83C\uDF2B\uFE0F</span>';
             html += '</div>';
         }
+        if (xpGained > 0) {
+            html += '<div style="background:linear-gradient(135deg,#1a2414,#0d1f18);border:1px solid #fbbf2444;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;color:#fde68a;font-size:13px;"><i class="fa-solid fa-star" style="color:#fbbf24"></i><span>\u041e\u043f\u044b\u0442</span></div>';
+            html += '<span style="font-size:18px;font-weight:800;color:#fde68a;">+' + xpGained + ' XP</span>';
+            html += '</div>';
+        }
         html += '<div style="background:linear-gradient(135deg,#1a1f2e,#0d1220);border:1px solid #60a5fa44;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
         html += '<div style="display:flex;align-items:center;gap:8px;color:#93c5fd;font-size:13px;"><i class="fa-solid fa-chart-line" style="color:#60a5fa"></i><span>\u0420\u0435\u0439\u0442\u0438\u043d\u0433</span></div>';
-        html += '<span style="font-size:15px;font-weight:700;color:#60a5fa;">\u2191 \u041f\u043e\u0432\u044b\u0448\u0430\u0435\u0442\u0441\u044f</span>';
+        html += '<span style="font-size:15px;font-weight:700;color:#60a5fa;">\u2191 +' + (ratingChange || 0) + '</span>';
         html += '</div>';
         html += '</div>';
     } else {
-        html += '<div style="background:linear-gradient(135deg,#2e1a1a,#1f0d0d);border:1px solid #ef444444;border-radius:14px;padding:14px 20px;margin:18px 0;display:flex;align-items:center;justify-content:space-between;">';
+        html += '<div style="display:flex;flex-direction:column;gap:10px;margin:18px 0;">';
+        if (entryFee > 0) {
+            html += '<div style="background:linear-gradient(135deg,#2e1a1a,#1f0d0d);border:1px solid #ef444444;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;color:#fca5a5;font-size:13px;"><i class="fa-solid fa-coins" style="color:#ef4444"></i><span>\u041f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043e</span></div>';
+            html += '<span style="font-size:18px;font-weight:800;color:#f87171;">-' + (entryFee || 0).toLocaleString() + ' MMO</span>';
+            html += '</div>';
+        }
+        if (xpGained > 0) {
+            html += '<div style="background:linear-gradient(135deg,#1a2414,#0d1f18);border:1px solid #fbbf2444;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;color:#fde68a;font-size:13px;"><i class="fa-solid fa-star" style="color:#fbbf24"></i><span>\u041e\u043f\u044b\u0442</span></div>';
+            html += '<span style="font-size:18px;font-weight:800;color:#fde68a;">+' + xpGained + ' XP</span>';
+            html += '</div>';
+        }
+        html += '<div style="background:linear-gradient(135deg,#2e1a1a,#1f0d0d);border:1px solid #ef444444;border-radius:14px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">';
         html += '<div style="display:flex;align-items:center;gap:8px;color:#fca5a5;font-size:13px;"><i class="fa-solid fa-arrow-trend-down" style="color:#ef4444"></i><span>\u0420\u0435\u0439\u0442\u0438\u043d\u0433</span></div>';
-        html += '<span style="font-size:15px;font-weight:700;color:#f87171;">\u2193 \u041f\u043e\u043d\u0438\u0436\u0430\u0435\u0442\u0441\u044f</span>';
+        html += '<span style="font-size:15px;font-weight:700;color:#f87171;">\u2193 -' + (ratingChange || 0) + '</span>';
+        html += '</div>';
         html += '</div>';
     }
 
@@ -2839,9 +2859,9 @@ async function makeAttack(targetIndex) {
         }
 
         if (res.finished) {
-            arenaClient?.endBattle(res.winnerId || null, res.prizePool || 0, res.dustWin || 0);
+            arenaClient?.endBattle(res.winnerId || null, res.prizePool || 0, res.dustWin || 0, res.xpGained || 0, res.ratingChange || 0, res.entryFee || 0);
             const isWin = !!res.winnerId && res.winnerId === arenaClient?.getCurrentUserId();
-            showNativeBattleResult(isWin, res.prizePool || 0);
+            showNativeBattleResult(isWin, res.prizePool || 0, res.dustWin || 0, res.xpGained || 0, res.ratingChange || 0, res.entryFee || 0);
             renderArenaFightTab();
         } else {
             const isPlayer1 = arenaClient?.state.currentBattleIsPlayer1;
@@ -3627,8 +3647,8 @@ await loadCreaturesFromServer();
             }
             updateBattleUIFromClient(data, isPlayer1);
         });
-        arenaClient.on('onBattleEnd', (isWin, prizePool, dustWin = 0) => { 
-            showNativeBattleResult(isWin, prizePool, dustWin); 
+        arenaClient.on('onBattleEnd', (isWin, prizePool, dustWin = 0, xpGained = 0, ratingChange = 0, entryFee = 0) => { 
+            showNativeBattleResult(isWin, prizePool, dustWin, xpGained, ratingChange, entryFee); 
             refreshUserProfile();
             setTimeout(() => {
                 renderArenaFightTab();
