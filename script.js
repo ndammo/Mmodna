@@ -59,7 +59,7 @@ let RARITY_WEIGHTS = {
     basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
     premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
 };
-let AD_REWARD = 50;
+let AD_REWARD = 5;
 let AD_COOLDOWN = 60;
 let UPGRADE_BASE_COST = 300;
 let UPGRADE_MULTIPLIER = 1.4;
@@ -86,6 +86,9 @@ let currentPaymentMemo = null;
 let currentPaymentAmount = null;
 const MIN_TRANSACTION_AMOUNT = 10000;
 const MAX_ACTIVE_REQUESTS = 2;
+
+let currentMarketplaceFilter = 'all';
+let allMarketplaceListings = [];
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -227,7 +230,7 @@ async function loadGameConfig() {
         const cfg = res.config;
         CAPSULE_COSTS = cfg.capsuleCosts || { basic: 1000, premium: 6000 };
         RARITY_WEIGHTS = cfg.capsuleRarities || RARITY_WEIGHTS;
-        AD_REWARD = cfg.adReward || 50;
+        AD_REWARD = cfg.adReward || 5;
         AD_COOLDOWN = cfg.adCooldown || 60;
         UPGRADE_BASE_COST = cfg.upgradeBaseCost || 300;
         UPGRADE_MULTIPLIER = cfg.upgradeMultiplier || 1.4;
@@ -1260,13 +1263,30 @@ function renderMarketplaceListings(listings) {
     const container = document.getElementById('marketplaceListings');
     if (!container) return;
     
-    if (!listings.length) {
-        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">No listings available</div>`;
+    // Сохраняем все листинги для фильтрации
+    allMarketplaceListings = listings;
+    
+    // Применяем фильтр
+    let filteredListings = [...listings];
+    
+    if (currentMarketplaceFilter === 'dust') {
+        filteredListings = listings.filter(l => l.isDust === true);
+    } else if (currentMarketplaceFilter !== 'all') {
+        // Фильтр по редкости (только для существ, не для пыли)
+        filteredListings = listings.filter(l => {
+            if (l.isDust) return false;
+            const c = getCreature(l.creatureId);
+            return c && c.rarity === currentMarketplaceFilter;
+        });
+    }
+    
+    if (filteredListings.length === 0) {
+        container.innerHTML = `<div style="text-align:center;color:#4a5568;padding:30px 20px;font-size:12px">Нет лотов с выбранным фильтром</div>`;
         return;
     }
 
     const userLevel = state.user?.level || 1;
-    container.innerHTML = listings.map(l => {
+    container.innerHTML = filteredListings.map(l => {
         const isOwn = l.sellerTgId === state.user?.telegramId;
         const locked = !isOwn && userLevel < 5;
 
@@ -1386,7 +1406,7 @@ function openDustSellModal(maxDust) {
             </div>
             <div>
                 <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Цена за 1 пыль (MMO)</div>
-                <input type="number" class="price-input-field" id="dustPriceInput" placeholder="Цена за 1 шт" min="15" value="15" oninput="updateDustFeeCalculator(${maxDust})">
+                <input type="number" class="price-input-field" id="dustPriceInput" placeholder="Цена за 1 шт" min="3" value="3" oninput="updateDustFeeCalculator(${maxDust})">
             </div>
             <div class="fee-calculator" style="margin-top:12px">
                 <div class="fee-row"><span class="fee-label">Итого</span><span class="fee-value" id="dustTotalDisplay">15</span></div>
@@ -1403,7 +1423,7 @@ function openDustSellModal(maxDust) {
 
 function updateDustFeeCalculator(maxDust) {
     const amount = Math.max(1, Math.min(maxDust, parseInt(document.getElementById('dustAmountInput')?.value) || 1));
-    const priceEach = Math.max(15, parseInt(document.getElementById('dustPriceInput')?.value) || 15);
+    const priceEach = Math.max(3, parseInt(document.getElementById('dustPriceInput')?.value) || 15);
     const total = amount * priceEach;
     const fee = Math.floor(total * 0.1);
     const el = (id) => document.getElementById(id);
@@ -1416,7 +1436,7 @@ async function confirmDustSellListing() {
     const amount = parseInt(document.getElementById('dustAmountInput')?.value) || 0;
     const priceEach = parseInt(document.getElementById('dustPriceInput')?.value) || 0;
     if (amount < 1) { showToast('Укажите количество пыли', '❌'); return; }
-    if (priceEach < 15) { showToast('Минимальная цена 15 MMO за 1 пыль', '❌'); return; }
+    if (priceEach < 3) { showToast('Минимальная цена 15 MMO за 1 пыль', '❌'); return; }
     const total = amount * priceEach;
     state.isLoading = true;
     const res = await apiRequest('POST', '/api/marketplace/list', { isDust: true, dustAmount: amount, price: total });
@@ -3087,11 +3107,15 @@ function renderBattleInterface(battleData) {
                     `).join('')}
                 </div>
             </div>
-            <div class="arena-battle-log" id="arenaBattleLog">
-                ${battleData.battleLog && battleData.battleLog.length ? 
-                    battleData.battleLog.slice(-10).map(log => `<div class="arena-log-entry ${log.isCrit ? 'crit' : ''}">Ход ${log.turn}: ${log.attackerName || 'Питомец'} → ${log.targetName || 'Враг'}: ${log.damage} урона ${log.isCrit ? '💥 КРИТ!' : ''}</div>`).join('') : 
-                    '<div class="arena-log-entry">Бой начинается...</div>'}
-            </div>
+     <div class="arena-battle-log" id="arenaBattleLog">
+    ${battleData.battleLog && battleData.battleLog.length ? 
+        battleData.battleLog.slice(-10).map(log => {
+            const isMyTurn = (log.player === 'player1' && battleData.isPlayer1) || (log.player === 'player2' && !battleData.isPlayer1);
+            const turnLabel = isMyTurn ? '⚔️ Мой ход' : '🛡️ Ход соперника';
+            return `<div class="arena-log-entry ${log.isCrit ? 'crit' : ''}">${turnLabel}: ${log.attackerName || 'Питомец'} → ${log.targetName || 'Враг'}: ${log.damage} урона ${log.isCrit ? '💥 КРИТ!' : ''}</div>`;
+        }).join('') : 
+        '<div class="arena-log-entry">Бой начинается...</div>'}
+</div>
             <div class="arena-battle-timer" id="arenaBattleTimer">⏱ ${battleData.timeLeft !== undefined ? battleData.timeLeft : 30}</div>
             <button class="arena-surrender-btn" onclick="surrenderBattle()"><i class="fa-solid fa-flag"></i> Сдаться</button>
         </div>
@@ -3182,18 +3206,20 @@ function updateBattleUIFromClient(data, isPlayer1) {
     }
     
     // Обновляем лог боя
-    if (data.lastMove) {
-        const logContainer = document.getElementById('arenaBattleLog');
-        if (logContainer) {
-            const logEntry = document.createElement('div');
-            logEntry.className = `arena-log-entry ${data.lastMove.isCrit ? 'crit' : ''}`;
-            logEntry.innerHTML = `Ход ${data.turnCount || '?'}: Нанесено ${data.lastMove.damage} урона ${data.lastMove.isCrit ? '💥 КРИТ!' : ''}`;
-            logContainer.insertBefore(logEntry, logContainer.firstChild);
-            if (logContainer.children.length > 10) {
-                logContainer.removeChild(logContainer.lastChild);
-            }
+if (data.lastMove) {
+    const logContainer = document.getElementById('arenaBattleLog');
+    if (logContainer) {
+        const logEntry = document.createElement('div');
+        logEntry.className = `arena-log-entry ${data.lastMove.isCrit ? 'crit' : ''}`;
+        const isMyTurn = (data.currentTurn === 'player1' && data.isPlayer1) || (data.currentTurn === 'player2' && !data.isPlayer1);
+        const turnLabel = isMyTurn ? '⚔️ Мой ход' : '🛡️ Ход соперника';
+        logEntry.innerHTML = `${turnLabel}: Нанесено ${data.lastMove.damage} урона ${data.lastMove.isCrit ? '💥 КРИТ!' : ''}`;
+        logContainer.insertBefore(logEntry, logContainer.firstChild);
+        if (logContainer.children.length > 10) {
+            logContainer.removeChild(logContainer.lastChild);
         }
     }
+}
 }
 
 // ============================================================
@@ -3987,6 +4013,30 @@ window.addEventListener('offline', () => {
         showToast('Потеряно соединение с интернетом', '⚠️');
     }
 });
+
+// ============================================================
+// ФИЛЬТРЫ МАРКЕТПЛЕЙСА
+// ============================================================
+function setMarketplaceFilter(filter) {
+    currentMarketplaceFilter = filter;
+    
+    // Обновляем активный класс на кнопках
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const btnFilter = btn.getAttribute('data-filter');
+        if (btnFilter === filter) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Перерисовываем листинги с новым фильтром
+    if (allMarketplaceListings.length > 0) {
+        renderMarketplaceListings(allMarketplaceListings);
+    } else {
+        renderMarketplaceBuy();
+    }
+}
 
 // ========== ЭТИ СТРОКИ УЖЕ БЫЛИ, НИЧЕГО НЕ МЕНЯЙТЕ ==========
 window.selectStakingPlan = selectStakingPlan;

@@ -55,7 +55,7 @@ const MIN_TRANSACTION_AMOUNT = 10000;
 const MAX_ACTIVE_REQUESTS = 2;
 const MAX_ACTIVE_LISTINGS = 2;
 const MIN_MARKETPLACE_PRICE = 500;
-const MIN_DUST_PRICE = 15;
+const MIN_DUST_PRICE = 3;
 const MAX_COMMON_PRICE = 1100;
 const MAX_ADS_AVAILABLE = 10;
 const ADS_REGEN_INTERVAL = 60 * 60 * 1000;
@@ -784,7 +784,7 @@ async function getGameConfig() {
                 basic: { common: 100, uncommon: 0, rare: 0, epic: 0, legendary: 0 },
                 premium: { common: 70, uncommon: 20, rare: 10, epic: 0, legendary: 0 }
             },
-            adReward: 20,
+            adReward: 5,
             adCooldown: 60,
             upgradeBaseCost: 300,
             upgradeMultiplier: 1.4,

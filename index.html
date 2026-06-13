@@ -117,7 +117,7 @@
             <i class="fa-solid fa-tv" style="font-size:16px"></i>
             <span style="flex:1;text-align:left" data-i18n="game.watchAd">Watch Ad</span>
             <span style="color:var(--uncommon);font-size:13px;min-width:50px;text-align:right" id="adsTimer">Ready</span>
-            <span style="color:var(--uncommon);font-weight:700" id="adsReward">+20</span>
+            <span style="color:var(--uncommon);font-weight:700" id="adsReward">+5</span>
             <span style="color:var(--text3);font-size:9px;margin-left:4px" id="adsRemaining">0/10</span>
         </button>
         <div class="encyclopedia-btn" onclick="showEncyclopedia()">
@@ -158,9 +158,19 @@
             <i class="fa-solid fa-list"></i> <span data-i18n="marketplace.myListings">My</span>
         </button>
     </div>
-    <div class="marketplace-subtab active" id="marketplace-buy">
-        <div id="marketplaceListings" style="display:flex;flex-direction:column;gap:10px"></div>
+<div class="marketplace-subtab active" id="marketplace-buy">
+    <!-- Блок фильтров -->
+    <div class="marketplace-filters">
+        <button class="filter-btn active" data-filter="all" onclick="setMarketplaceFilter('all')">📦 Все</button>
+        <button class="filter-btn" data-filter="common" onclick="setMarketplaceFilter('common')">⬜ Common</button>
+        <button class="filter-btn" data-filter="uncommon" onclick="setMarketplaceFilter('uncommon')">🟢 Uncommon</button>
+        <button class="filter-btn" data-filter="rare" onclick="setMarketplaceFilter('rare')">🔵 Rare</button>
+        <button class="filter-btn" data-filter="epic" onclick="setMarketplaceFilter('epic')">🟣 Epic</button>
+        <button class="filter-btn" data-filter="legendary" onclick="setMarketplaceFilter('legendary')">🟠 Legendary</button>
+        <button class="filter-btn" data-filter="dust" onclick="setMarketplaceFilter('dust')">🌫️ Пыль</button>
     </div>
+    <div id="marketplaceListings" style="display:flex;flex-direction:column;gap:10px"></div>
+</div>
     <div class="marketplace-subtab" id="marketplace-sell">
         <div class="section-title" style="margin-bottom:12px"><i class="fa-solid fa-hand-holding-dollar" style="color:var(--uncommon)"></i> <span data-i18n="marketplace.yourCreatures">Your Creatures</span></div>
         <div id="marketplaceSellCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
