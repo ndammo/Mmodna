@@ -398,7 +398,9 @@ const StakingSchema = new mongoose.Schema({
     reward:    { type: Number, required: true },
     startedAt: { type: Date, default: Date.now },
     endsAt:    { type: Date, required: true },
-    claimed:   { type: Boolean, default: false }
+    claimed:   { type: Boolean, default: false },
+    skinName:  { type: String, default: null },      // 👈 ДОБАВИТЬ ЭТУ СТРОКУ
+    skinDuration: { type: String, default: null }    // 👈 ДОБАВИТЬ ЭТУ СТРОКУ
 });
 StakingSchema.index({ userId: 1, claimed: 1 });
 const Staking = mongoose.model('Staking', StakingSchema);
@@ -3123,17 +3125,26 @@ app.post('/api/staking/start', authMiddleware, async (req, res) => {
         const reward = Math.floor(amt * plan.rate);
         const endsAt = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000);
         let staking;
-        try {
-            staking = await Staking.create({ userId: user._id, amount: amt, days: plan.days, rate: plan.rate, reward, endsAt });
-        } catch (createErr) {
-            // Rollback: вернуть баланс и удалить транзакцию
-            await User.findByIdAndUpdate(user._id, {
-                $inc: { balance: amt },
-                $push: { transactions: { $each: [{ name: `Отмена стейкинга (ошибка)`, amount: amt, time: new Date() }], $position: 0, $slice: 30 } }
-            });
-            console.error('staking create error (rollback done):', createErr);
-            return res.status(500).json({ success: false, message: 'Ошибка создания стейкинга, средства возвращены' });
-        }
+try {
+    staking = await Staking.create({ 
+        userId: user._id, 
+        amount: amt, 
+        days: plan.days, 
+        rate: plan.rate, 
+        reward, 
+        endsAt,
+        skinName: plan.skinName || null,
+        skinDuration: plan.skinDuration || null
+    });
+} catch (createErr) {
+    // Rollback: вернуть баланс и удалить транзакцию
+    await User.findByIdAndUpdate(user._id, {
+        $inc: { balance: amt },
+        $push: { transactions: { $each: [{ name: `Отмена стейкинга (ошибка)`, amount: amt, time: new Date() }], $position: 0, $slice: 30 } }
+    });
+    console.error('staking create error (rollback done):', createErr);
+    return res.status(500).json({ success: false, message: 'Ошибка создания стейкинга, средства возвращены' });
+}
 
         invalidateInventoryCache(user.telegramId);
         res.json({ success: true, staking, user: formatUser(updated) });
