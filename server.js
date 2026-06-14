@@ -134,6 +134,19 @@ mongoose.connect(process.env.MONGODB_URI, {
     })
     .catch(err => console.error('❌ MongoDB ошибка:', err));
 
+// Удаляем уникальный индекс для стейкинга (чтобы можно было делать несколько)
+mongoose.connection.once('open', async () => {
+    try {
+        await Staking.collection.dropIndex('userId_1');
+        console.log('✅ Удалён уникальный индекс userId_1 из stakings');
+    } catch (err) {
+        if (err.code !== 27) {
+            console.log('⚠️ Ошибка при удалении индекса:', err.message);
+        } else {
+            console.log('ℹ️ Индекс userId_1 уже удалён');
+        }
+    }
+});
 async function createIndexes() {
     try {
         await User.collection.createIndex({ level: -1, xp: -1 });
