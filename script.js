@@ -3957,13 +3957,13 @@ function openStakingModal(days) {
     const plan = STAKING_PLANS_CLIENT[days];
     if (!plan) return;
     currentStakingPlan = plan;
-    document.getElementById('stakingModalDays').textContent = days;
+    document.getElementById('stakingModalDays').textContent = plan.days;  // ← plan.days, а не days!
     document.getElementById('stakingModalRate').textContent = plan.label;
-    document.getElementById('stakingModalMin').textContent  = 'Минимум: ' + formatNum(plan.minAmount) + ' MMO';
-    document.getElementById('stakingAmountInput').value     = '';
+    document.getElementById('stakingModalMin').textContent = 'Минимум: ' + formatNum(plan.minAmount) + ' MMO';
+    document.getElementById('stakingAmountInput').value = '';
     document.getElementById('stakingModalPreview').textContent = '';
-    document.getElementById('stakingModal').style.display   = 'flex';
-
+    document.getElementById('stakingModal').style.display = 'flex';
+    
     document.getElementById('stakingAmountInput').oninput = function() {
         const val     = Math.floor(Number(this.value));
         const preview = document.getElementById('stakingModalPreview');
