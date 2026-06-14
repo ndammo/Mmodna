@@ -6,11 +6,17 @@
 // CONFIG
 // ============================================================
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
+// Добавьте в начало файла, после других констант
+const STAKING_END_DATE = new Date('2026-06-17T00:00:00+03:00'); // 72 часа с текущего момента
 
-// STAKING PLANS (вверху файла — доступен сразу при любом onclick)
+
 var STAKING_PLANS_CLIENT = {
     10: { days: 10, rate: 0.10, minAmount: 300000, label: '+10%', capybara: true },
-    30: { days: 30, rate: 0.20, minAmount: 50000,  label: '+20%' }
+    30: { days: 30, rate: 0.20, minAmount: 50000,  label: '+20%' },
+    14_100: { days: 14, rate: 1.00, minAmount: 100000, label: '+100%', bonus: '🐊 Скин Кросс (1 месяц)', isNew: true },
+    14_300: { days: 14, rate: 0.10, minAmount: 300000, label: '+10%', bonus: '🥷 Скин Ниндзя (2 месяца)', isNew: true },
+    14_500: { days: 14, rate: 0.10, minAmount: 500000, label: '+10%', bonus: '🏃 Сбежавшая (3 месяца)', isNew: true },
+    14_1000: { days: 14, rate: 0.10, minAmount: 1000000, label: '+10%', bonus: '🎨 Любой скин на выбор (6 месяцев)', isNew: true }
 };
 window.STAKING_PLANS_CLIENT = STAKING_PLANS_CLIENT;
 var stakingTimerInterval = null;
@@ -1336,7 +1342,7 @@ function renderMarketplaceListings(listings) {
     }).join('');
 }
 
-function renderMarketplaceSell() {
+async function renderMarketplaceSell() {
     const cards = document.getElementById('marketplaceSellCards');
     if (!cards) return;
 
@@ -1361,11 +1367,22 @@ function renderMarketplaceSell() {
     const creatureCards = state.inventory.map(item => {
         const c = getCreature(item.creatureId);
         if (!c || !item.count) return '';
+        
+        // --- ДОБАВЛЯЕМ ПЕРЕМЕННЫЕ ДЛЯ РЕДКОСТИ ---
+        const rarityText = c.rarity.charAt(0).toUpperCase() + c.rarity.slice(1);
+        const rarityColor = RARITY_COLORS[c.rarity] || '#94a3b8';
+        // ---------------------------------------
+        
         return `<div class="marketplace-sell-card" style="cursor:pointer" onclick="openSellModal('${item.creatureId}', '${c.name}', ${item.count})">
             <div class="marketplace-sell-card-icon">${getIconHtml(c)}</div>
             <div class="marketplace-sell-card-name">${escapeHtml(c.name)}</div>
-            <div style="font-size:9px;color:#4a5568">x${item.count}</div>
-            <div style="font-size:10px;color:#06b6d4;font-weight:600;margin-top:4px">SET PRICE</div>
+            <!-- --- НОВЫЙ БЛОК С РЕДКОСТЬЮ --- -->
+            <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: ${rarityColor}; background: ${rarityColor}22; padding: 2px 6px; border-radius: 10px; margin: 4px 0;">
+                ${rarityText}
+            </div>
+            <!-- ---------------------------- -->
+            <div style="font-size:9px; color:#4a5568">x${item.count}</div>
+            <div style="font-size:10px; color:#06b6d4; font-weight:600; margin-top:4px">SET PRICE</div>
         </div>`;
     }).filter(Boolean).join('');
 
@@ -3206,13 +3223,16 @@ function updateBattleUIFromClient(data, isPlayer1) {
     }
     
     // Обновляем лог боя
+    // Обновляем лог боя
 if (data.lastMove) {
     const logContainer = document.getElementById('arenaBattleLog');
     if (logContainer) {
         const logEntry = document.createElement('div');
         logEntry.className = `arena-log-entry ${data.lastMove.isCrit ? 'crit' : ''}`;
-        const isMyTurn = (data.currentTurn === 'player1' && data.isPlayer1) || (data.currentTurn === 'player2' && !data.isPlayer1);
-        const turnLabel = isMyTurn ? '⚔️ Мой ход' : '🛡️ Ход соперника';
+        // ИСПРАВЛЕНО: используем isPlayer1 из параметров функции, а не data.isPlayer1
+        const isMoveByMe = (data.currentTurn === 'player1' && isPlayer1) || 
+                           (data.currentTurn === 'player2' && !isPlayer1);
+        const turnLabel = isMoveByMe ? '⚔️ Мой ход' : '🛡️ Ход соперника';
         logEntry.innerHTML = `${turnLabel}: Нанесено ${data.lastMove.damage} урона ${data.lastMove.isCrit ? '💥 КРИТ!' : ''}`;
         logContainer.insertBefore(logEntry, logContainer.firstChild);
         if (logContainer.children.length > 10) {
@@ -3836,8 +3856,6 @@ window.renderArenaFightTab = renderArenaFightTab;
 // STAKING
 // ============================================================
 
-
-
 async function loadStakingStatus() {
     try {
         const data = await apiRequest('GET', '/api/staking/status');
@@ -3848,20 +3866,105 @@ async function loadStakingStatus() {
             if (block) block.style.display = 'none';
             const plansEl = document.querySelector('.staking-plans');
             if (plansEl) plansEl.style.display = 'grid';
+            // Добавляем проверку доступности стейкинг-планов
+            updateStakingAvailability();
         }
     } catch (e) {}
+}
+
+// ДОБАВЬТЕ ЭТУ НОВУЮ ФУНКЦИЮ:
+function updateStakingAvailability() {
+    const now = new Date();
+    const isExpired = now > STAKING_END_DATE;
+    
+    // Скрываем все новые планы, если время вышло
+    const newPlanIds = ['stakingPlan14_100', 'stakingPlan14_300', 'stakingPlan14_500', 'stakingPlan14_1000'];
+    
+    newPlanIds.forEach(planId => {
+        const planEl = document.getElementById(planId);
+        if (planEl) {
+            if (isExpired) {
+                planEl.style.display = 'none';
+            } else {
+                planEl.style.display = 'block';
+            }
+        }
+    });
+    
+    // Добавляем таймер в UI, если планы ещё доступны
+    if (!isExpired && document.querySelector('.staking-timer')) {
+        startStakingTimerDisplay();
+    }
+}
+
+// ДОБАВЬТЕ ЭТУ ФУНКЦИЮ ДЛЯ ОТОБРАЖЕНИЯ ТАЙМЕРА:
+function startStakingTimerDisplay() {
+    let timerEl = document.getElementById('stakingTimerDisplay');
+    if (!timerEl) {
+        // Создаём элемент для таймера, если его нет
+        const plansContainer = document.querySelector('.staking-plans');
+        if (plansContainer && !plansContainer.querySelector('.staking-timer')) {
+            const timerDiv = document.createElement('div');
+            timerDiv.className = 'staking-timer';
+            timerDiv.id = 'stakingTimerDisplay';
+            timerDiv.style.cssText = 'text-align:center; margin-top:16px; padding:12px; background:rgba(124,58,237,0.1); border-radius:12px; border:1px solid rgba(124,58,237,0.3);';
+            plansContainer.parentNode.insertBefore(timerDiv, plansContainer.nextSibling);
+            timerEl = timerDiv;
+        }
+    }
+    
+    function updateTimer() {
+        if (!timerEl) return;
+        const now = new Date();
+        const diff = STAKING_END_DATE - now;
+        
+        if (diff <= 0) {
+            timerEl.innerHTML = '⏰ Акция завершена! Специальные планы больше недоступны.';
+            timerEl.style.background = 'rgba(239,68,68,0.1)';
+            timerEl.style.borderColor = 'rgba(239,68,68,0.3)';
+            timerEl.style.color = '#ef4444';
+            // Скрываем планы
+            const newPlanIds = ['stakingPlan14_100', 'stakingPlan14_300', 'stakingPlan14_500', 'stakingPlan14_1000'];
+            newPlanIds.forEach(planId => {
+                const planEl = document.getElementById(planId);
+                if (planEl) planEl.style.display = 'none';
+            });
+            clearInterval(window.stakingTimerInterval);
+        } else {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            timerEl.innerHTML = `⏰ <strong>Акция!</strong> Специальные стейкинг-планы доступны ещё: ${hours}ч ${minutes}м ${seconds}с`;
+            timerEl.style.background = 'rgba(124,58,237,0.1)';
+            timerEl.style.borderColor = 'rgba(124,58,237,0.3)';
+            timerEl.style.color = '#a855f7';
+        }
+    }
+    
+    if (window.stakingTimerInterval) clearInterval(window.stakingTimerInterval);
+    updateTimer();
+    window.stakingTimerInterval = setInterval(updateTimer, 1000);
 }
 
 function renderActiveStaking(s) {
     const block = document.getElementById('activeStakingBlock');
     if (!block) return;
     block.style.display = 'block';
-    // Скрываем карточки планов — нельзя запустить второй стейкинг
     const plansEl = document.querySelector('.staking-plans');
     if (plansEl) plansEl.style.display = 'none';
     document.getElementById('stakeAmount').textContent = formatNum(s.amount) + ' MMO';
-    document.getElementById('stakeReward').innerHTML = '+' + formatNum(s.reward) + ' MMO'
-        + (s.days === 10 ? ' + 🦫 Capybara Rare' : '');
+    
+    let bonusText = '';
+    if (s.days === 10) {
+        bonusText = ' + 🦫 Capybara Rare';
+    } else if (s.days === 14) {
+        if (s.amount >= 1000000) bonusText = ' + 🎨 Любой скин на выбор (6 мес)';
+        else if (s.amount >= 500000) bonusText = ' + 🏃 Сбежавшая (3 мес)';
+        else if (s.amount >= 300000) bonusText = ' + 🥷 Скин Ниндзя (2 мес)';
+        else if (s.amount >= 100000) bonusText = ' + 🐊 Скин Кросс (1 мес)';
+    }
+    
+    document.getElementById('stakeReward').innerHTML = '+' + formatNum(s.reward) + ' MMO' + bonusText;
 
     if (stakingTimerInterval) clearInterval(stakingTimerInterval);
 
@@ -3899,20 +4002,34 @@ function openStakingModal(days) {
     const plan = STAKING_PLANS_CLIENT[days];
     if (!plan) return;
     currentStakingPlan = plan;
-    document.getElementById('stakingModalDays').textContent = days;
+    
+    // Определяем отображаемое количество дней
+    let daysText = days;
+    if (days === '14_100') daysText = '14';
+    if (days === '14_300') daysText = '14';
+    if (days === '14_500') daysText = '14';
+    if (days === '14_1000') daysText = '14';
+    
+    document.getElementById('stakingModalDays').textContent = daysText;
     document.getElementById('stakingModalRate').textContent = plan.label;
-    document.getElementById('stakingModalMin').textContent  = 'Минимум: ' + formatNum(plan.minAmount) + ' MMO';
-    document.getElementById('stakingAmountInput').value     = '';
+    document.getElementById('stakingModalMin').textContent = 'Минимум: ' + formatNum(plan.minAmount) + ' MMO';
+    document.getElementById('stakingAmountInput').value = '';
     document.getElementById('stakingModalPreview').textContent = '';
-    document.getElementById('stakingModal').style.display   = 'flex';
+    document.getElementById('stakingModal').style.display = 'flex';
 
     document.getElementById('stakingAmountInput').oninput = function() {
-        const val     = Math.floor(Number(this.value));
+        const val = Math.floor(Number(this.value));
         const preview = document.getElementById('stakingModalPreview');
         if (val >= plan.minAmount) {
             const reward = Math.floor(val * plan.rate);
-            preview.textContent = 'Получите: ' + formatNum(val + reward) + ' MMO'
-                + (plan.capybara ? ' + 🦫 Capybara Rare' : '');
+            let bonusText = '';
+            if (plan.bonus) {
+                bonusText = plan.bonus ? ` + ${plan.bonus}` : '';
+            }
+            if (plan.capybara) {
+                bonusText = ' + 🦫 Capybara Rare';
+            }
+            preview.textContent = 'Получите: ' + formatNum(val + reward) + ' MMO' + bonusText;
         } else {
             preview.textContent = val > 0 ? 'Минимум ' + formatNum(plan.minAmount) + ' MMO' : '';
         }
