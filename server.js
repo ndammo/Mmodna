@@ -3059,11 +3059,7 @@ app.get('/api/arena/history', authMiddleware, async (req, res) => {
 // ============================================
 const STAKING_PLANS = {
     10: { days: 10, rate: 0.10, minAmount: 300000, capybara: true },
-    30: { days: 30, rate: 0.20, minAmount: 50000 },
-    '14_100': { days: 14, rate: 1.00, minAmount: 100000, bonusText: '🐊 Скин Кросс (1 месяц)' },
-    '14_300': { days: 14, rate: 0.10, minAmount: 300000, bonusText: '🥷 Скин Ниндзя (2 месяца)' },
-    '14_500': { days: 14, rate: 0.10, minAmount: 500000, bonusText: '🏃 Сбежавшая (3 месяца)' },
-    '14_1000': { days: 14, rate: 0.10, minAmount: 1000000, bonusText: '🎨 Любой скин на выбор (6 месяцев)' }
+    30: { days: 30, rate: 0.20, minAmount: 50000  }
 };
 
 app.get('/api/staking/status', authMiddleware, async (req, res) => {
