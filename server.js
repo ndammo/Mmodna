@@ -3057,15 +3057,43 @@ app.get('/api/arena/history', authMiddleware, async (req, res) => {
 // ============================================
 // STAKING ENDPOINTS
 // ============================================
-const STAKING_PLANS = {
-    10: { days: 10, rate: 0.10, minAmount: 300000, capybara: true },
-    30: { days: 30, rate: 0.20, minAmount: 50000  }
-};
+// server.js — полная версия STAKING_PLANS
 
+const STAKING_PLANS = {
+    // старые планы
+    10: { days: 10, rate: 0.10, minAmount: 300000, rewardItem: 'capybara_r', rewardItemName: 'Capybara Rare' },
+    30: { days: 30, rate: 0.20, minAmount: 50000, rewardItem: null },
+    
+    // НОВЫЕ ПЛАНЫ (все 14 дней, 10%)
+    14: { 
+        days: 14, 
+        rate: 0.10, 
+        minAmount: 200000, 
+        rewardSkin: true, 
+        skinName: 'Кросс',
+        skinDuration: '1 месяц'
+    },
+    28: { 
+        days: 14, 
+        rate: 0.10, 
+        minAmount: 500000, 
+        rewardSkin: true, 
+        skinName: 'Ниндзя',
+        skinDuration: '3 месяца'
+    },
+    56: { 
+        days: 14, 
+        rate: 0.10, 
+        minAmount: 1000000, 
+        rewardSkin: true, 
+        skinName: 'Любой скин',
+        skinDuration: '12 месяцев'
+    }
+};
 app.get('/api/staking/status', authMiddleware, async (req, res) => {
     try {
-        const staking = await Staking.findOne({ userId: req.user._id, claimed: false });
-        res.json({ success: true, staking: staking || null });
+        const stakings = await Staking.find({ userId: req.user._id, claimed: false }).sort({ createdAt: -1 });
+        res.json({ success: true, stakings: stakings || [] });
     } catch (e) {
         res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
@@ -3081,9 +3109,6 @@ app.post('/api/staking/start', authMiddleware, async (req, res) => {
         const amt = Math.floor(Number(amount));
         if (!amt || amt < (plan.minAmount || 1))
             return res.status(400).json({ success: false, message: `Минимум ${(plan.minAmount || 1).toLocaleString()} MMO` });
-
-        const existing = await Staking.findOne({ userId: user._id, claimed: false });
-        if (existing) return res.status(400).json({ success: false, message: 'У вас уже есть активный стейкинг' });
 
         const updated = await User.findOneAndUpdate(
             { _id: user._id, balance: { $gte: amt } },
@@ -3120,20 +3145,22 @@ app.post('/api/staking/start', authMiddleware, async (req, res) => {
 
 app.post('/api/staking/claim', authMiddleware, async (req, res) => {
     try {
+        const { stakingId } = req.body;
         const user = req.user;
+        
         const staking = await Staking.findOneAndUpdate(
-            { userId: user._id, claimed: false, endsAt: { $lte: new Date() } },
+            { _id: stakingId, userId: user._id, claimed: false, endsAt: { $lte: new Date() } },
             { $set: { claimed: true } },
             { new: false }
         );
+        
         if (!staking) {
-            const active = await Staking.findOne({ userId: user._id, claimed: false });
-            if (active) return res.status(400).json({ success: false, message: 'Стейкинг ещё не завершён' });
-            return res.status(400).json({ success: false, message: 'Нет активного стейкинга' });
+            return res.status(400).json({ success: false, message: 'Стейкинг не найден или ещё не завершён' });
         }
 
-        const total   = staking.amount + staking.reward;
-        const plan    = STAKING_PLANS[staking.days];
+        const total = staking.amount + staking.reward;
+        const plan = STAKING_PLANS[staking.days];
+        
         const updated = await User.findByIdAndUpdate(
             user._id,
             {
@@ -3143,17 +3170,17 @@ app.post('/api/staking/claim', authMiddleware, async (req, res) => {
             { new: true }
         );
 
-        if (plan && plan.capybara) {
+        if (plan && plan.rewardItem === 'capybara_r') {
             await Inventory.findOneAndUpdate(
                 { telegramId: user.telegramId, creatureId: 'capybara_r' },
                 { $inc: { count: 1 }, $setOnInsert: { userId: user._id, telegramId: user.telegramId, creatureId: 'capybara_r' } },
-                { upsert: true, new: true }
+                { upsert: true }
             );
             await User.findByIdAndUpdate(user._id, { $addToSet: { discovered: 'capybara_r' } });
         }
 
         invalidateInventoryCache(user.telegramId);
-        res.json({ success: true, total, reward: staking.reward, capybara: !!(plan && plan.capybara), user: formatUser(updated) });
+        res.json({ success: true, total, reward: staking.reward, capybara: !!(plan && plan.rewardItem === 'capybara_r'), user: formatUser(updated) });
     } catch (e) {
         console.error('staking claim error:', e);
         res.status(500).json({ success: false, message: 'Ошибка сервера' });

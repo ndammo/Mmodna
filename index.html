@@ -517,40 +517,46 @@
     <div class="staking-section">
         <div class="staking-title"><i class="fa-solid fa-lock"></i> Стейкинг</div>
         <div class="staking-subtitle">Заблокируй MMO и получи доход</div>
-        <div class="staking-plans">
-            <div class="staking-plan" id="stakingPlan10" onclick="selectStakingPlan(10)">
-                <div class="staking-plan-days">10 дней</div>
-                <div class="staking-plan-rate">+10%</div>
-                <div class="staking-plan-bonus">🦫 + Capybara Rare</div>
-                <div class="staking-plan-min">мин. 300 000 MMO</div>
-            </div>
-            <div class="staking-plan" id="stakingPlan30" onclick="selectStakingPlan(30)">
-                <div class="staking-plan-days">30 дней</div>
-                <div class="staking-plan-rate">+20%</div>
-                <div class="staking-plan-min">мин. 50 000 MMO</div>
-            </div>
-        </div>
-        <div id="activeStakingBlock" style="display:none;">
-            <div class="staking-active-title">⏳ Активный стейкинг</div>
-            <div class="staking-active-card">
-                <div class="staking-active-row">
-                    <span class="staking-active-label">Сумма</span>
-                    <span class="staking-active-val" id="stakeAmount">—</span>
-                </div>
-                <div class="staking-active-row">
-                    <span class="staking-active-label">Доход</span>
-                    <span class="staking-active-val green" id="stakeReward">—</span>
-                </div>
-                <div class="staking-active-row">
-                    <span class="staking-active-label">Осталось</span>
-                    <span class="staking-active-val" id="stakeTimer">—</span>
-                </div>
-                <button class="staking-claim-btn" id="stakeClaimBtn" onclick="claimStaking()" style="display:none;">
-                    <i class="fa-solid fa-coins"></i> Забрать награду
-                </button>
-            </div>
-        </div>
+ <div class="staking-plans">
+    <!-- старые -->
+    <div class="staking-plan" id="stakingPlan30" onclick="selectStakingPlan(30)">
+        <div class="staking-plan-days">30 дней</div>
+        <div class="staking-plan-rate">+20%</div>
+        <div class="staking-plan-min">мин. 50 000 MMO</div>
     </div>
+    <div class="staking-plan" id="stakingPlan10" onclick="selectStakingPlan(10)">
+        <div class="staking-plan-days">10 дней</div>
+        <div class="staking-plan-rate">+10%</div>
+        <div class="staking-plan-bonus">+ 🦫 Capybara Rare</div>
+        <div class="staking-plan-min">мин. 300 000 MMO</div>
+    </div>
+
+    <!-- НОВЫЕ 14-дневные стейкинги -->
+    <div class="staking-plan" id="stakingPlan14" onclick="selectStakingPlan(14)">
+        <div class="staking-plan-days">14 дней</div>
+        <div class="staking-plan-rate">+10%</div>
+        <div class="staking-plan-bonus">+ 👕 CroSS (1 месяц)</div>
+        <div class="staking-plan-min">мин. 200 000 MMO</div>
+    </div>
+    <div class="staking-plan" id="stakingPlan28" onclick="selectStakingPlan(28)">
+        <div class="staking-plan-days">14 дней</div>
+        <div class="staking-plan-rate">+10%</div>
+        <div class="staking-plan-bonus">+ 🥷 Ниндзя (3 месяца)</div>
+        <div class="staking-plan-min">мин. 500 000 MMO</div>
+    </div>
+    <div class="staking-plan" id="stakingPlan56" onclick="selectStakingPlan(56)">
+        <div class="staking-plan-days">14 дней</div>
+        <div class="staking-plan-rate">+10%</div>
+        <div class="staking-plan-bonus">+ 👘 Любой скин (12 месяцев)</div>
+        <div class="staking-plan-min">мин. 1 000 000 MMO</div>
+    </div>
+</div>
+  <div id="activeStakingBlock" style="display:none;">
+    <div class="staking-active-title">⏳ Активные стейкинги</div>
+    <div class="staking-active-card" id="activeStakingsList">
+        <!-- Сюда будут добавляться все активные стейкинги -->
+    </div>
+</div>
 
     <div id="pendingRequests"></div>
 </div>

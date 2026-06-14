@@ -8,9 +8,25 @@
 const API_URL = 'https://serv-production-dbf3.up.railway.app';
 
 // STAKING PLANS (вверху файла — доступен сразу при любом onclick)
+// script.js
 var STAKING_PLANS_CLIENT = {
-    10: { days: 10, rate: 0.10, minAmount: 300000, label: '+10%', capybara: true },
-    30: { days: 30, rate: 0.20, minAmount: 50000,  label: '+20%' }
+    // старые
+    10: { days: 10, rate: 0.10, minAmount: 300000, label: '+10%', rewardText: '+10% MMO + 🦫 Capybara Rare' },
+    30: { days: 30, rate: 0.20, minAmount: 50000,  label: '+20%', rewardText: '+20% MMO' },
+    
+    // НОВЫЕ (14 дней, 10%)
+    14: { 
+        days: 14, rate: 0.10, minAmount: 200000, label: '+10%',
+        rewardText: '+10% MMO + 👕 Кросс (1 месяц)'
+    },
+    28: { 
+        days: 14, rate: 0.10, minAmount: 500000, label: '+10%',
+        rewardText: '+10% MMO + 🥷 Ниндзя (3 месяца)'
+    },
+    56: { 
+        days: 14, rate: 0.10, minAmount: 1000000, label: '+10%',
+        rewardText: '+10% MMO + 👘 Любой (12 месяцев)'
+    }
 };
 window.STAKING_PLANS_CLIENT = STAKING_PLANS_CLIENT;
 var stakingTimerInterval = null;
@@ -3852,8 +3868,9 @@ window.renderArenaFightTab = renderArenaFightTab;
 async function loadStakingStatus() {
     try {
         const data = await apiRequest('GET', '/api/staking/status');
-        if (data && data.success && data.staking) {
-            renderActiveStaking(data.staking);
+        if (data && data.success && data.stakings && data.stakings.length > 0) {
+            // Показываем ВСЕ активные стейкинги
+            renderActiveStakings(data.stakings);
         } else {
             const block = document.getElementById('activeStakingBlock');
             if (block) block.style.display = 'none';
@@ -3863,32 +3880,65 @@ async function loadStakingStatus() {
     } catch (e) {}
 }
 
-function renderActiveStaking(s) {
+function renderActiveStakings(stakings) {
     const block = document.getElementById('activeStakingBlock');
     if (!block) return;
     block.style.display = 'block';
-    // Скрываем карточки планов — нельзя запустить второй стейкинг
+    
+    // Скрываем планы
     const plansEl = document.querySelector('.staking-plans');
     if (plansEl) plansEl.style.display = 'none';
-    document.getElementById('stakeAmount').textContent = formatNum(s.amount) + ' MMO';
-    document.getElementById('stakeReward').innerHTML = '+' + formatNum(s.reward) + ' MMO'
-        + (s.days === 10 ? ' + 🦫 Capybara Rare' : '');
+    
+    // Очищаем и показываем список
+    const container = document.getElementById('activeStakingsList');
+    if (!container) {
+        // Если контейнера нет — создаём
+        const card = document.querySelector('.staking-active-card');
+        if (card) {
+            card.innerHTML = '<div id="activeStakingsList"></div>';
+        }
+    }
+    
+    const listContainer = document.getElementById('activeStakingsList') || block.querySelector('.staking-active-card');
+    if (listContainer) {
+        listContainer.innerHTML = stakings.map(s => `
+            <div class="staking-active-item" data-staking-id="${s._id}" style="border-bottom:1px solid rgba(255,255,255,0.1); padding:12px 0;">
+                <div class="staking-active-row">
+                    <span class="staking-active-label">Сумма</span>
+                    <span class="staking-active-val">${formatNum(s.amount)} MMO</span>
+                </div>
+                <div class="staking-active-row">
+                    <span class="staking-active-label">Доход</span>
+                    <span class="staking-active-val green" id="stakeReward_${s._id}">+${formatNum(s.reward)} MMO${s.days === 10 ? ' + 🦫 Capybara' : (s.days === 14 && s.amount >= 1000000 ? ' + 👘 Любо (12 мес)' : (s.days === 14 && s.amount >= 500000 ? ' + 🥷 Ниндзя (3 мес)' : (s.days === 14 && s.amount >= 200000 ? ' + 👕 CroSS (1 мес)' : '')))}</span>
+                </div>
+                <div class="staking-active-row">
+                    <span class="staking-active-label">Осталось</span>
+                    <span class="staking-active-val" id="stakeTimer_${s._id}">—</span>
+                </div>
+                <button class="staking-claim-btn" id="stakeClaimBtn_${s._id}" onclick="claimStakingById('${s._id}')" style="display:none; margin-top:8px;">
+                    <i class="fa-solid fa-coins"></i> Забрать награду
+                </button>
+            </div>
+        `).join('');
+        
+        // Запускаем таймеры для каждого стейкинга
+        stakings.forEach(s => startStakingTimer(s._id, s.endsAt, s.days, s.amount));
+    }
+}
 
-    if (stakingTimerInterval) clearInterval(stakingTimerInterval);
-
+function startStakingTimer(stakingId, endsAt, days, amount) {
     function tick() {
-        const diff = new Date(s.endsAt).getTime() - Date.now();
-        const claimBtn = document.getElementById('stakeClaimBtn');
-        const timerEl  = document.getElementById('stakeTimer');
+        const diff = new Date(endsAt).getTime() - Date.now();
+        const claimBtn = document.getElementById(`stakeClaimBtn_${stakingId}`);
+        const timerEl = document.getElementById(`stakeTimer_${stakingId}`);
         if (!timerEl) return;
         if (diff <= 0) {
             timerEl.textContent = 'Готово! ✅';
             if (claimBtn) claimBtn.style.display = 'flex';
-            clearInterval(stakingTimerInterval);
         } else {
-            const d   = Math.floor(diff / 86400000);
-            const h   = Math.floor((diff % 86400000) / 3600000);
-            const m   = Math.floor((diff % 3600000) / 60000);
+            const d = Math.floor(diff / 86400000);
+            const h = Math.floor((diff % 86400000) / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
             const sec = Math.floor((diff % 60000) / 1000);
             timerEl.textContent = (d > 0 ? d + 'д ' : '') +
                 String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
@@ -3896,7 +3946,8 @@ function renderActiveStaking(s) {
         }
     }
     tick();
-    stakingTimerInterval = setInterval(tick, 1000);
+    const interval = setInterval(tick, 1000);
+    // сохраняем interval для очистки при необходимости
 }
 
 function selectStakingPlan(days) {
@@ -3961,23 +4012,14 @@ async function confirmStaking() {
     }
 }
 
-async function claimStaking() {
-    const data = await apiRequest('POST', '/api/staking/claim');
+async function claimStakingById(stakingId) {
+    const data = await apiRequest('POST', '/api/staking/claim', { stakingId });
     if (data && data.success) {
-        if (stakingTimerInterval) clearInterval(stakingTimerInterval);
-        const block = document.getElementById('activeStakingBlock');
-        if (block) block.style.display = 'none';
-        // Показываем карточки планов снова
-        const plansEl = document.querySelector('.staking-plans');
-        if (plansEl) plansEl.style.display = 'grid';
-        if (data.user) { state.user = data.user; updateHeader(); }
-        if (data.capybara) {
-            showToast('+' + formatNum(data.reward) + ' MMO + 🦫 Capybara Rare!', '🎉');
-        } else {
-            showToast('+' + formatNum(data.reward) + ' MMO получено!', '🎉');
-        }
+        showToast('+' + formatNum(data.reward) + ' MMO получено!', '🎉');
+        if (data.capybara) showToast('Получен Capybara Rare!', '🦫');
+        loadStakingStatus(); // обновляем список
     } else {
-        showToast((data && data.message) || 'Ошибка', '❌');
+        showToast(data?.message || 'Ошибка', '❌');
     }
 }
 
