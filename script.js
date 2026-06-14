@@ -3869,14 +3869,14 @@ async function loadStakingStatus() {
     try {
         const data = await apiRequest('GET', '/api/staking/status');
         if (data && data.success && data.stakings && data.stakings.length > 0) {
-            // Показываем ВСЕ активные стейкинги
             renderActiveStakings(data.stakings);
         } else {
             const block = document.getElementById('activeStakingBlock');
             if (block) block.style.display = 'none';
-            const plansEl = document.querySelector('.staking-plans');
-            if (plansEl) plansEl.style.display = 'grid';
         }
+        // ПЛАНЫ ВСЕГДА ПОКАЗЫВАЕМ, НЕ СКРЫВАЕМ!
+        const plansEl = document.querySelector('.staking-plans');
+        if (plansEl) plansEl.style.display = 'grid';
     } catch (e) {}
 }
 
@@ -3884,10 +3884,6 @@ function renderActiveStakings(stakings) {
     const block = document.getElementById('activeStakingBlock');
     if (!block) return;
     block.style.display = 'block';
-    
-    // Скрываем планы
-    const plansEl = document.querySelector('.staking-plans');
-    if (plansEl) plansEl.style.display = 'none';
     
     // Очищаем и показываем список
     const container = document.getElementById('activeStakingsList');
